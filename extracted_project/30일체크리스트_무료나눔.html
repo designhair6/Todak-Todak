@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>5살 한글 30일 체크리스트</title>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  :root{--ink:#1b1917;--cream:#f6f1e7;--paper:#fbf8f2;--red:#c9502f;--pink:#f3c6b4;--mute:#8a8178;--line:#e4dccf;
+    --head:'Jua',sans-serif;--body:'Pretendard',sans-serif;--hand:'Gowun Dodum',sans-serif}
+  *{box-sizing:border-box;margin:0;padding:0}
+  @page{size:A4;margin:0}
+  body{background:#e9e4da;font-family:var(--body);color:var(--ink);display:flex;flex-direction:column;align-items:center;padding:32px 16px;gap:16px}
+  .bar{display:flex;gap:10px}
+  .bar button{border:0;background:var(--ink);color:#fff;font:600 14px var(--body);padding:10px 16px;border-radius:8px;cursor:pointer}
+  .bar button.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--ink)}
+  .sheet{width:210mm;height:297mm;background:var(--paper);box-shadow:0 20px 50px rgba(40,30,20,.15);padding:12mm 13mm 9mm;display:flex;flex-direction:column;position:relative;overflow:hidden}
+
+  header{display:flex;justify-content:space-between;align-items:flex-start}
+  .pill{display:inline-flex;align-items:center;gap:8px;background:var(--cream);border:1.5px solid var(--line);font-weight:700;font-size:10.5pt;padding:5px 14px;border-radius:30px}
+  .pill::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--red)}
+  h1{font-family:var(--head);font-weight:400;font-size:30pt;line-height:1.1;margin-top:4mm;letter-spacing:-.01em}
+  h1 em{font-style:normal;color:var(--red)}
+  .lede{font-family:var(--hand);font-size:11pt;color:#4a443e;margin-top:2.5mm}
+  .right{display:flex;flex-direction:column;align-items:flex-end;gap:3mm}
+  .score{display:flex;gap:2.5mm}
+  .score div{background:var(--ink);color:var(--cream);border-radius:10px;padding:2.5mm 3.5mm;text-align:center;min-width:22mm}
+  .score small{display:block;font-size:8pt;opacity:.7;white-space:nowrap}
+  .score b{display:inline-block;font-family:var(--head);font-weight:400;font-size:17pt;color:#f0a88e}
+  .score b span{font-size:10pt;color:var(--cream);opacity:.7}
+  .score b.bump{animation:bump .35s}
+  @keyframes bump{40%{transform:scale(1.25)}}
+  .prog{width:100%;height:2.2mm;background:var(--line);border-radius:2mm;overflow:hidden}
+  .prog i{display:block;height:100%;width:0;background:var(--red);border-radius:2mm;transition:width .3s}
+  .who{text-align:right;font-size:9pt;color:var(--mute);line-height:1.9}
+  .who span{display:inline-block;border-bottom:1px solid #bdb4a7;width:30mm;margin-left:6px}
+
+  .rules{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-top:4.5mm}
+  .rule{background:var(--ink);color:var(--cream);border-radius:10px;padding:3mm 4mm;display:flex;align-items:center;gap:3mm}
+  .rule b{font-family:var(--head);font-weight:400;font-size:18pt;color:#f0a88e}
+  .rule div{font-size:9.5pt;line-height:1.35}
+  .rule div strong{font-size:11pt;display:block}
+
+  .weeks{margin-top:4.5mm;display:flex;flex-direction:column;gap:2.5mm;flex:1}
+  .week{display:grid;grid-template-columns:27mm repeat(7,1fr);gap:2mm}
+  .wk{display:flex;flex-direction:column;justify-content:center;padding-right:2mm;border-right:2px solid var(--red)}
+  .wk small{font-size:8pt;font-weight:700;color:var(--red);letter-spacing:.06em}
+  .wk b{font-family:var(--head);font-weight:400;font-size:13pt;line-height:1.15;margin-top:1mm}
+  .wk em{font-style:normal;font-size:8.5pt;font-weight:700;color:var(--mute);margin-top:1.2mm}
+  .wk em.full{color:var(--red)}
+  .day{background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:2mm 2mm 2mm;display:flex;flex-direction:column;min-height:24.5mm;position:relative;cursor:pointer;user-select:none;transition:background .15s}
+  .day .d{font-size:8pt;font-weight:700;color:var(--mute)}
+  .day .t{font-family:var(--hand);font-size:9pt;line-height:1.28;margin-top:.8mm;flex:1;text-wrap:pretty;word-break:keep-all}
+  .day .t strong{font-family:var(--head);font-weight:400;font-size:12pt;color:var(--ink)}
+  .day .chk{width:5mm;height:5mm;border:1.5px solid #9b9187;border-radius:4px;align-self:flex-end}
+  .day.done{background:var(--cream)}
+  .day.done .chk{background:var(--red);border-color:var(--red);position:relative}
+  .day.done .chk::after{content:"";position:absolute;left:1.3mm;top:.4mm;width:1.3mm;height:2.6mm;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .day.rest{background:transparent;border-style:dashed}
+  .day.rest .t{color:var(--mute)}
+  .day.goal{background:var(--red);border-color:var(--red);color:#fff}
+  .day.goal .d,.day.goal .t,.day.goal .t strong{color:#fff}
+  .day.goal .chk{border-color:#fff}
+  .week.short{grid-template-columns:27mm repeat(2,1fr) 5fr}
+  .memo{border:1.5px dashed #c9bfb1;border-radius:8px;padding:2.5mm 3.5mm;font-size:9pt;color:var(--mute);display:flex;flex-direction:column;gap:4.5mm}
+  .memo i{font-style:normal;font-weight:700}
+  .memo span{border-bottom:1px solid var(--line);height:4mm}
+
+  footer{margin-top:4mm;display:flex;justify-content:space-between;align-items:center;font-size:8.5pt;color:var(--mute)}
+  footer .tip{font-family:var(--hand);font-size:10pt;color:#4a443e}
+  footer .tip mark{background:linear-gradient(transparent 55%,var(--pink) 55%);color:inherit}
+
+  @media print{
+    body{background:none;padding:0}
+    .bar{display:none}
+    .sheet{box-shadow:none}
+  }
+</style>
+</head>
+<body>
+<div id="__splash" style="position:fixed;inset:0;background:#fbf8f2;display:flex;align-items:center;justify-content:center;z-index:2147483647;transition:opacity .25s ease">
+  <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"><rect x="120" y="120" width="160" height="160" rx="28" fill="#c9502f"/><rect x="160" y="160" width="80" height="80" rx="14" fill="#fbf8f2"/></svg>
+</div><script>(function(){var s=document.getElementById("__splash");if(!s)return;function hide(){s.style.opacity="0";setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},300);}if(document.readyState==="complete")hide();else window.addEventListener("load",hide);})();</script>
+<div class="bar">
+  <button onclick="print()">출력 / PDF 저장</button>
+  <button class="ghost" id="reset">체크 초기화</button>
+</div>
+
+<div class="sheet" data-screen-label="30일 체크리스트">
+  <header>
+    <div>
+      <div class="pill">hangul.log.5 · 30일 체크리스트</div>
+      <h1>30일 뒤, <em>'엄마'</em>라고<br>읽어볼까요?</h1>
+      <p class="lede">하루 10분, 놀이처럼. 다 못 해도 괜찮아요.<br>한 날은 칸을 눌러 체크하세요.</p>
+    </div>
+    <div class="right">
+      <div class="score">
+        <div><small>완료한 날</small><b id="scDone">0<span>/30</span></b></div>
+        <div><small>최장 연속</small><b id="scStreak">0<span>일</span></b></div>
+        <div><small>남은 날</small><b id="scLeft">30<span>일</span></b></div>
+      </div>
+      <div class="prog"><i id="prog"></i></div>
+      <div class="who">이름<span></span><br>시작일<span></span></div>
+    </div>
+  </header>
+
+  <div class="rules">
+    <div class="rule"><b>1</b><div><strong>하루 10분만</strong>타이머가 울리면 끝</div></div>
+    <div class="rule"><b>2</b><div><strong>싫다면 멈추기</strong>억지로 앉히지 않기</div></div>
+    <div class="rule"><b>3</b><div><strong>잘한 것만 기록</strong>틀린 건 세지 않기</div></div>
+  </div>
+
+  <div class="weeks" id="weeks"></div>
+
+  <footer>
+    <div class="tip">칸을 채운 날엔 아이가 직접 <mark>스티커</mark>를 붙이게 해주세요.</div>
+    <div>@hangul.log.5 · 같이 기록해요</div>
+  </footer>
+</div>
+
+<script>
+const W=[
+  {n:'WEEK 1',t:'자음이랑<br>친해지기',d:[
+    ['<strong>ㄱ</strong> 카드 보여주기','무엇으로 보일까?'],
+    ['<strong>ㄴ</strong> 찾기 놀이','집 안에서 ㄴ 모양 찾기'],
+    ['<strong>이름</strong> 첫 글자','이름 자음 손가락으로 따라 쓰기'],
+    ['<strong>ㄷ ㅁ</strong>','몸으로 만들기'],
+    ['<strong>ㅇ</strong>','동그라미 찾기 산책'],
+    ['자음 카드 뒤집기','배운 5개로 짝 맞추기'],
+    ['쉬는 날','그림책 한 권만 읽어주기','rest']]},
+  {n:'WEEK 2',t:'소리<br>만들기',d:[
+    ['<strong>ㅏ</strong> 소리','"아~" 하고 입 크게 벌리기'],
+    ['<strong>ㅁ+ㅏ=마</strong>','두 카드 붙이면 무슨 소리?'],
+    ['<strong>가 나 다</strong>','노래 대신 카드 짚으며'],
+    ['<strong>ㅗ ㅜ</strong>','위·아래 방향 놀이'],
+    ['<strong>고 노 도</strong>','블록으로 글자 쌓기'],
+    ['소리 빙고','부르면 손바닥으로 찍기'],
+    ['쉬는 날','간판에서 아는 글자 찾기','rest']]},
+  {n:'WEEK 3',t:'글자<br>읽어보기',d:[
+    ['<strong>ㅣ</strong> 와 <strong>이</strong>','"이"는 숫자 2!'],
+    ['<strong>나무</strong>','두 글자 첫 단어'],
+    ['<strong>우유</strong>','냉장고에 이름표 붙이기'],
+    ['<strong>아기 · 기차</strong>','그림 카드랑 짝 맞추기'],
+    ['<strong>모자 · 바다</strong>','글자 보고 그림 그리기'],
+    ['글자 보물찾기','숨겨둔 카드 찾아 읽기'],
+    ['쉬는 날','이번 주 단어 다시 보기','rest']]},
+  {n:'WEEK 4',t:'받침<br>맛보기',d:[
+    ['<strong>ㅁ</strong> 받침','"마"에 ㅁ을 붙이면?'],
+    ['<strong>엄</strong>','입 닫고 "음~" 소리'],
+    ['<strong>곰 · 밤</strong>','받침 ㅁ 단어 모으기'],
+    ['<strong>ㅇ</strong> 받침','강 · 공 · 방'],
+    ['내 이름 읽기','이름 전부 한 번에'],
+    ['가족 이름표','엄마·아빠 이름 붙이기'],
+    ['쉬는 날','동네 간판 읽기 산책','rest']]},
+  {n:'D+29~30',t:'드디어',d:[
+    ['총복습','좋아하는 카드 5장 고르기'],
+    ['<strong>엄마</strong> 읽기','오늘의 목표!','goal']]}
+];
+const host=document.getElementById('weeks');let day=0;
+const saved=JSON.parse(localStorage.getItem('hangul30_done')||'[]');
+W.forEach((w,wi)=>{
+  const row=document.createElement('div');row.className='week'+(wi===4?' short':'');
+  row.innerHTML=`<div class="wk"><small>${w.n}</small><b>${w.t}</b><em data-wk="${wi}"></em></div>`;
+  w.d.forEach(([a,b,k])=>{day++;const c=document.createElement('div');
+    c.className='day'+(k?' '+k:'')+(saved.includes(day)?' done':'');c.dataset.day=day;
+    c.innerHTML=`<div class="d">D+${day}</div><div class="t">${a}<br>${b}</div><div class="chk"></div>`;
+    c.dataset.wk=wi;c.onclick=()=>{c.classList.toggle('done');persist()};
+    row.appendChild(c)});
+  if(wi===4){const m=document.createElement('div');m.className='memo';
+    m.innerHTML='<i>30일 동안 제일 좋았던 순간</i><span></span><span></span><span></span>';row.appendChild(m)}
+  host.appendChild(row)});
+function persist(){localStorage.setItem('hangul30_done',JSON.stringify([...document.querySelectorAll('.day.done')].map(e=>+e.dataset.day)));score()}
+function setNum(id,html,v){const b=document.getElementById(id);const p=b.dataset.v;b.innerHTML=html;b.dataset.v=v;
+  if(p!==undefined&&p!=String(v)){b.classList.remove('bump');void b.offsetWidth;b.classList.add('bump')}}
+function score(){
+  const done=new Set([...document.querySelectorAll('.day.done')].map(e=>+e.dataset.day));
+  let best=0,run=0;for(let d=1;d<=30;d++){run=done.has(d)?run+1:0;best=Math.max(best,run)}
+  setNum('scDone',`${done.size}<span>/30</span>`,done.size);
+  setNum('scStreak',`${best}<span>일</span>`,best);
+  setNum('scLeft',`${30-done.size}<span>일</span>`,30-done.size);
+  document.getElementById('prog').style.width=(done.size/30*100)+'%';
+  document.querySelectorAll('.wk em').forEach(em=>{const wi=+em.dataset.wk;
+    const all=[...document.querySelectorAll(`.day[data-wk="${wi}"]`)];const n=all.filter(e=>e.classList.contains('done')).length;
+    em.textContent=`${n} / ${all.length}${n===all.length?' 완료!':''}`;em.classList.toggle('full',n===all.length)});
+}
+document.getElementById('reset').onclick=()=>{if(!confirm('체크한 내용을 모두 지울까요?'))return;document.querySelectorAll('.day.done').forEach(e=>e.classList.remove('done'));persist()};
+score();
+</script>
+</body>
+</html>

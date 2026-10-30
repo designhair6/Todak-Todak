@@ -1,0 +1,6 @@
+{
+  "name": "엄마랑 한글놀이 — 5살 맞춤 30일 한글 떼기 & 낙서보드",
+  "description": "5살 아이와 엄마가 함께하는 30일 한글 공부! 한글 진도표, 칭찬 스티커 보드, 자유 낙서 & 따라쓰기 캔버스, 으쌰으쌰 엄마 커뮤니티까지.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

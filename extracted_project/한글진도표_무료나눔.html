@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>한글 진도표 — 어디까지 뗐을까?</title>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  :root{--ink:#1b1917;--cream:#f6f1e7;--paper:#fbf8f2;--red:#c9502f;--pink:#f3c6b4;--mute:#8a8178;--line:#e4dccf;
+    --head:'Jua',sans-serif;--body:'Pretendard',sans-serif;--hand:'Gowun Dodum',sans-serif}
+  *{box-sizing:border-box;margin:0;padding:0}
+  @page{size:A4;margin:0}
+  body{background:#e9e4da;font-family:var(--body);color:var(--ink);display:flex;flex-direction:column;align-items:center;padding:32px 16px;gap:16px}
+  .bar{display:flex;gap:10px;align-items:center}
+  .bar button{border:0;background:var(--ink);color:#fff;font:600 14px var(--body);padding:10px 16px;border-radius:8px;cursor:pointer}
+  .bar button.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--ink)}
+  .bar small{color:var(--mute);font-size:13px}
+  .sheet{width:210mm;height:297mm;background:var(--paper);box-shadow:0 20px 50px rgba(40,30,20,.15);padding:13mm 13mm 10mm;display:flex;flex-direction:column;overflow:hidden}
+
+  .pill{display:inline-flex;align-items:center;gap:8px;background:var(--cream);border:1.5px solid var(--line);font-weight:700;font-size:10.5pt;padding:5px 14px;border-radius:30px}
+  .pill::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--red)}
+  header{display:flex;justify-content:space-between;align-items:flex-end}
+  h1{font-family:var(--head);font-weight:400;font-size:30pt;line-height:1.1;margin-top:4mm}
+  h1 em{font-style:normal;color:var(--red)}
+  .score{display:flex;gap:2.5mm}
+  .score div{background:var(--ink);color:var(--cream);border-radius:10px;padding:2.5mm 4mm;text-align:center;min-width:24mm}
+  .score small{display:block;font-size:8pt;opacity:.7}
+  .score b{font-family:var(--head);font-weight:400;font-size:17pt;color:#f0a88e}
+  .score b span{font-size:10pt;color:var(--cream);opacity:.7}
+  .score i{display:block;font-style:normal;font-size:7.5pt;opacity:.75;margin-top:.5mm;white-space:nowrap}
+  .score b.bump{animation:bump .35s}
+  @keyframes bump{40%{transform:scale(1.25)}}
+
+  /* how-to */
+  .how{display:grid;grid-template-columns:repeat(3,1fr);gap:2.5mm;margin-top:5mm}
+  .step{background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:3mm 3.5mm;display:flex;gap:3mm;align-items:flex-start}
+  .step .sw{flex:none;width:8mm;height:8mm;border-radius:6px;display:grid;place-items:center;font-family:var(--head);font-size:12pt;margin-top:.5mm}
+  .step b{font-family:var(--head);font-weight:400;font-size:12.5pt;display:block}
+  .step p{font-family:var(--hand);font-size:9pt;line-height:1.4;color:#4a443e;margin-top:.5mm;word-break:keep-all}
+  .rule{margin-top:2.5mm;font-family:var(--hand);font-size:9.5pt;color:#4a443e}
+  .rule mark{background:linear-gradient(transparent 55%,var(--pink) 55%);color:inherit;font-weight:700}
+
+  /* states */
+  /* ① 알아봄: 체크박스 ✓ + 굵은 글자 */
+  .cell.s1,.cell.s2,.cell.s3{color:var(--ink);-webkit-text-stroke:.7px currentColor}
+  .cell.s1::before,.cell.s2::before,.cell.s3::before{background:var(--red);border-color:var(--red)!important}
+  .cell.s1::after,.cell.s2::after,.cell.s3::after{content:"";position:absolute;left:1.55mm;top:.95mm;width:.9mm;height:1.7mm;border:solid #fff;border-width:0 1.6px 1.6px 0;transform:rotate(45deg)}
+  /* ② 소리 냄: 색깔판 */
+  .cell.s2{background:var(--pink)!important;border-color:#e9a88f!important}
+  /* ③ 혼자 읽음: 위 점수판처럼 */
+  .cell.s3{background:var(--ink)!important;border-color:var(--ink)!important;color:#f0a88e;-webkit-text-stroke:0}
+  .cell.s3::before{background:#f0a88e;border-color:#f0a88e!important}
+  .cell.s3::after{border-color:var(--ink)}
+
+  h2{display:flex;align-items:baseline;gap:3mm;font-family:var(--head);font-weight:400;font-size:14pt;margin-top:5mm}
+  h2 small{font-family:var(--body);font-size:8.5pt;color:var(--mute);font-weight:600}
+  h2 .n{margin-left:auto;font-family:var(--body);font-size:9pt;font-weight:700;color:var(--red)}
+
+  .cons{display:grid;grid-template-columns:repeat(14,1fr);gap:1.6mm;margin-top:2mm}
+  .cell{position:relative;border:1.5px solid var(--line);background:#fff;border-radius:7px;display:grid;place-items:center;font-family:var(--head);color:#a59c90;cursor:pointer;user-select:none;transition:background .15s,color .15s}
+  .cell::before{content:"";position:absolute;left:1mm;top:1mm;width:2.6mm;height:2.6mm;border:1.2px solid #c4bbae;border-radius:1mm;background:#fff;box-sizing:border-box}
+  .step .sw.cell{cursor:default;width:11mm;height:9mm;font-size:12pt}
+  .cons .cell{height:12mm;font-size:17pt}
+
+  .table{display:grid;grid-template-columns:9mm repeat(10,1fr);gap:1.3mm;margin-top:2mm;flex:1;grid-auto-rows:1fr}
+  .table .hd{display:grid;place-items:center;font-family:var(--head);font-size:12pt;color:var(--mute)}
+  .table .cell{font-size:13pt;border-radius:6px}
+  .table .col-a{box-shadow:inset 0 0 0 0 transparent}
+  .table .hd.a{color:var(--red)}
+  .table .cell.a:not(.s1):not(.s2):not(.s3){background:var(--cream)}
+
+  footer{margin-top:3.5mm;display:flex;justify-content:space-between;font-size:8.5pt;color:var(--mute)}
+  footer .tip{font-family:var(--hand);font-size:9.5pt;color:#4a443e}
+
+  @media print{body{background:none;padding:0}.bar{display:none}.sheet{box-shadow:none}
+    .cell{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<div id="__splash" style="position:fixed;inset:0;background:#fbf8f2;display:flex;align-items:center;justify-content:center;z-index:2147483647;transition:opacity .25s ease">
+  <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"><rect x="120" y="120" width="160" height="160" rx="28" fill="#c9502f"/><rect x="160" y="160" width="80" height="80" rx="14" fill="#fbf8f2"/></svg>
+</div><script>(function(){var s=document.getElementById("__splash");if(!s)return;function hide(){s.style.opacity="0";setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},300);}if(document.readyState==="complete")hide();else window.addEventListener("load",hide);})();</script>
+<div class="bar">
+  <button onclick="print()">출력 / PDF 저장</button>
+  <button class="ghost" id="reset">초기화</button>
+  <small>칸을 누를 때마다: 빈칸 → ①알아봄 → ②소리 냄 → ③혼자 읽음(=뗀 글자로 집계) → 빈칸</small>
+</div>
+
+<div class="sheet" data-screen-label="한글 진도표">
+  <header>
+    <div>
+      <div class="pill">hangul.log.5 · 한글 진도표</div>
+      <h1>우리 아이, <em>어디까지</em><br>뗐을까?</h1>
+    </div>
+    <div class="score">
+      <div><small>ㄱ~ㅎ 뗀 글자</small><b id="sc1">0<span>/14</span></b><i id="sub1">진행 중 0</i></div>
+      <div><small>가~하 뗀 글자</small><b id="sc2">0<span>/14</span></b><i id="sub2">진행 중 0</i></div>
+      <div><small>전체 뗀 글자</small><b id="sc3">0<span>/140</span></b><i id="sub3">진행 중 0</i></div>
+    </div>
+  </header>
+
+  <div class="how">
+    <div class="step"><div class="sw cell s1">가</div><div><b>① 알아봄 · 체크</b><p>엄마가 "가 어딨어?" 하면 손으로 짚어요</p></div></div>
+    <div class="step"><div class="sw cell s2">가</div><div><b>② 소리 냄 · 색칠</b><p>글자를 보여주면 아이가 먼저 소리 내요</p></div></div>
+    <div class="step"><div class="sw cell s3">가</div><div><b>③ 혼자 읽음 · 완성</b><p>순서를 섞어서 보여줘도 바로 읽어요</p></div></div>
+  </div>
+  <p class="rule">‘뗐다’의 기준: <mark>순서를 섞어서 보여줘도 이틀 연속 읽으면</mark> 그 글자는 뗀 거예요. 가나다 순서대로만 읽는 건 외운 거라 아직이에요.</p>
+
+  <h2>① 자음 ㄱ~ㅎ <small>모양과 이름 (기역, 니은…)</small><span class="n" id="n1"></span></h2>
+  <div class="cons" id="cons"></div>
+
+  <h2>② 가~하, 그다음 가갸표 <small>빨간 줄(ㅏ)부터. 다 되면 옆 칸으로</small><span class="n" id="n2"></span></h2>
+  <div class="table" id="table"></div>
+
+  <footer>
+    <div class="tip">하루에 새 글자 2~3개면 충분해요. 진한 칸이 늘어나는 걸 아이랑 같이 보세요.</div>
+    <div>@hangul.log.5</div>
+  </footer>
+</div>
+
+<script>
+const CHO=['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const CHO_I=[0,2,3,5,6,7,9,11,12,14,15,16,17,18];
+const JUNG=['ㅏ','ㅑ','ㅓ','ㅕ','ㅗ','ㅛ','ㅜ','ㅠ','ㅡ','ㅣ'];
+const JUNG_I=[0,2,4,6,8,12,13,17,18,20];
+const syl=(c,j)=>String.fromCharCode(0xAC00+(CHO_I[c]*21+JUNG_I[j])*28);
+const KEY='hangul_progress_v1';
+let st=JSON.parse(localStorage.getItem(KEY)||'{}');
+
+function mk(id,label,extra=''){
+  const el=document.createElement('div');el.className='cell '+extra;el.textContent=label;el.dataset.id=id;
+  paint(el);el.onclick=()=>{st[id]=((st[id]||0)+1)%4;paint(el);save()};return el}
+function paint(el){el.classList.remove('s1','s2','s3');const v=st[el.dataset.id]||0;if(v)el.classList.add('s'+v)}
+
+const cons=document.getElementById('cons');
+CHO.forEach((c,i)=>cons.appendChild(mk('c'+i,c)));
+
+const tb=document.getElementById('table');
+tb.appendChild(Object.assign(document.createElement('div'),{className:'hd'}));
+JUNG.forEach((j,ji)=>tb.appendChild(Object.assign(document.createElement('div'),{className:'hd'+(ji===0?' a':''),textContent:j})));
+CHO.forEach((c,ci)=>{
+  tb.appendChild(Object.assign(document.createElement('div'),{className:'hd',textContent:c}));
+  JUNG.forEach((j,ji)=>tb.appendChild(mk(`s${ci}_${ji}`,syl(ci,ji),ji===0?'a':'')))});
+
+function save(){localStorage.setItem(KEY,JSON.stringify(st));score()}
+function tally(keys,total,bi,si,ni){
+  const v=keys.map(k=>st[k]||0);
+  const done=v.filter(x=>x===3).length, ing=v.filter(x=>x===1||x===2).length;
+  const b=document.getElementById(bi);const prev=b.dataset.v;
+  b.innerHTML=`${done}<span>/${total}</span>`;b.dataset.v=done;
+  if(prev!==undefined&&prev!=String(done)){b.classList.remove('bump');void b.offsetWidth;b.classList.add('bump')}
+  document.getElementById(si).textContent=`진행 중 ${ing}`;
+  if(ni){const s1=v.filter(x=>x===1).length,s2=v.filter(x=>x===2).length;
+    document.getElementById(ni).textContent=`알아봄 ${s1} · 소리 냄 ${s2} · 혼자 읽음 ${done}`}
+}
+function score(){
+  const all=[];CHO.forEach((_,i)=>JUNG.forEach((_,j)=>all.push(`s${i}_${j}`)));
+  tally(CHO.map((_,i)=>'c'+i),14,'sc1','sub1','n1');
+  tally(CHO.map((_,i)=>`s${i}_0`),14,'sc2','sub2');
+  tally(all,140,'sc3','sub3','n2');
+}
+document.getElementById('reset').onclick=()=>{if(confirm('체크한 내용을 모두 지울까요?')){st={};save();document.querySelectorAll('.cell').forEach(paint)}};
+score();
+</script>
+</body>
+</html>

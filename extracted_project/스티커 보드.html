@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#fbf8f2">
+<title>30일 스티커 보드 — 엄마가 소원 들어줄게</title>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<link rel="stylesheet" href="sticker-board.css">
+</head>
+<body>
+<template id="__bundler_thumbnail" data-bg-color="#fbf8f2">
+  <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg"><circle cx="200" cy="200" r="90" fill="#c9502f"/><circle cx="200" cy="200" r="40" fill="#f2c14e"/></svg>
+</template>
+
+<div class="app" id="app">
+
+  <!-- ========== SETUP ========== -->
+  <section class="screen setup" id="setup" data-screen-label="01 Setup">
+    <div class="setup-in">
+      <div class="pill">hangul.log.5 · 스티커 보드</div>
+      <h1 class="setup-h">30칸 다 채우면<br><em>엄마가 소원</em><br>들어줄게!</h1>
+
+      <label class="field">
+        <span>아이 이름</span>
+        <input id="inName" maxlength="6" placeholder="예) 지우" autocomplete="off">
+      </label>
+
+      <div class="field">
+        <span>엄마가 들어줄 소원</span>
+        <div class="chips" id="wishChips"></div>
+        <input id="inWish" maxlength="20" placeholder="직접 쓰기" autocomplete="off">
+      </div>
+
+      <label class="field">
+        <span>엄마 한마디 <small>(소원권에 들어가요)</small></span>
+        <input id="inMsg" maxlength="30" placeholder="30일 동안 정말 멋졌어!" autocomplete="off">
+      </label>
+
+      <button class="btn-main" id="startBtn" disabled>약속하고 시작하기</button>
+      <p class="setup-foot">아이 손가락이랑 엄마 손가락, 화면에 같이 대고 눌러주세요</p>
+    </div>
+  </section>
+
+  <!-- ========== BOARD ========== -->
+  <section class="screen board" id="board" data-screen-label="02 Board" hidden>
+    <header class="top">
+      <div>
+        <div class="who" id="whoTxt">지우의 스티커 보드</div>
+        <div class="count"><b id="cnt">0</b><span>/30</span></div>
+      </div>
+      <div class="top-r">
+        <div class="streak" id="streak"><i></i><span id="streakTxt">0일 연속</span></div>
+        <button class="menu-btn" id="gearBtn">엄마 메뉴</button>
+      </div>
+    </header>
+
+    <div class="bar"><i id="barFill"></i>
+      <span class="ms" style="left:23.3%">7</span><span class="ms" style="left:46.6%">14</span><span class="ms" style="left:70%">21</span>
+    </div>
+
+    <div class="mid" id="mid">
+    <div class="mission" id="mission">
+      <div class="m-day" id="mDay">D+1</div>
+      <div class="m-txt" id="mTxt">'ㄱ' 카드 보여주기</div>
+    </div>
+
+    <div class="path-wrap">
+      <svg class="path-line" id="pathLine"></svg>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="gift" id="giftCard" role="button" tabindex="0">
+      <div class="gift-box" id="giftBox">🎁</div>
+      <div class="gift-txt">
+        <small>30칸 다 채우면 · <em id="giftLock">30칸 남음</em></small>
+        <b id="giftWish">놀이공원 가기</b>
+      </div>
+      <button class="gift-edit" id="giftEdit">✎ 소원 바꾸기</button>
+    </div>
+    </div>
+
+    <div class="cta-wrap">
+      <button class="btn-main" id="stickBtn">오늘 스티커 붙이기</button>
+    </div>
+  </section>
+
+  <!-- ========== STICKER SHEET ========== -->
+  <div class="scrim" id="scrim" hidden></div>
+  <div class="sheet" id="sheet" aria-hidden="true">
+    <div class="grab"></div>
+    <div class="sheet-q" id="sheetQ">
+      <div class="sq-day" id="sqDay">D+1 미션</div>
+      <div class="sq-txt" id="sqTxt">'ㄱ' 카드 보여주기</div>
+      <div class="sq-ask">오늘 10분, 같이 했나요?</div>
+    </div>
+    <div class="tray" id="tray"></div>
+    <p class="sheet-hint">마음에 드는 스티커를 콕 눌러요</p>
+  </div>
+
+  <!-- ========== SETTINGS ========== -->
+  <div class="sheet small" id="settings" aria-hidden="true">
+    <div class="grab"></div>
+    <div class="set-title">엄마 메뉴</div>
+    <button class="set-row" id="wishBtn"><span><b>소원 바꾸기</b><small id="setWishNow">지금 소원: -</small></span><em>›</em></button>
+    <button class="set-row" id="editBtn"><span><b>아이 이름 바꾸기</b><small id="setNameNow">-</small></span><em>›</em></button>
+    <label class="set-row tg"><span><b>하루 한 장만 붙이기</b><small>켜면 하루에 스티커 1장만 붙일 수 있어요</small></span><input type="checkbox" id="oneADay"><i></i></label>
+    <button class="set-row" id="undoBtn"><span><b>마지막 스티커 떼기</b><small>실수로 붙였을 때</small></span><em>›</em></button>
+    <button class="set-row" id="previewBtn"><span><b>마지막 날 미리보기</b><small>29칸을 채워서 소원 상자를 미리 봐요</small></span><em>›</em></button>
+    <button class="set-row danger" id="resetBtn"><span><b>처음부터 다시</b><small>스티커·이름·소원을 모두 지워요</small></span><em>›</em></button>
+  </div>
+
+  <!-- ========== WISH EDIT ========== -->
+  <div class="sheet" id="wishSheet" aria-hidden="true">
+    <div class="grab"></div>
+    <div class="set-title">소원 바꾸기</div>
+    <p class="ws-sub">아이랑 같이 골라요. 30칸을 채우면 이 소원권이 나와요.</p>
+    <div class="chips" id="wsChips"></div>
+    <div class="field" style="margin-top:12px"><input id="wsWish" maxlength="20" placeholder="직접 쓰기 (예: 알라딘 타기)" autocomplete="off"></div>
+    <div class="field" style="margin-top:10px"><span>엄마 한마디</span><input id="wsMsg" maxlength="30" placeholder="30일 동안 정말 멋졌어!" autocomplete="off"></div>
+    <button class="btn-main" id="wsSave" style="margin-top:16px">소원 저장하기</button>
+  </div>
+
+  <!-- ========== CONFIRM ========== -->
+  <div class="dlg-scrim" id="dlg" hidden>
+    <div class="dlg">
+      <b id="dlgT">정말 할까요?</b>
+      <p id="dlgP"></p>
+      <div class="dlg-btns"><button id="dlgNo">취소</button><button id="dlgYes" class="yes">확인</button></div>
+    </div>
+  </div>
+
+  <!-- ========== TOAST ========== -->
+  <div class="toast" id="toast"></div>
+
+  <!-- ========== FINALE ========== -->
+  <section class="finale" id="finale" data-screen-label="03 Wish" hidden>
+    <div class="fin-stage" id="finStage">
+      <div class="fin-kicker">30일 완주!</div>
+      <h2 class="fin-h" id="finH">지우야,<br>정말 해냈어!</h2>
+      <button class="fin-box" id="finBox">🎁</button>
+      <div class="fin-tap">상자를 눌러서 열어봐</div>
+    </div>
+
+    <div class="coupon-wrap" id="couponWrap" hidden>
+      <div class="coupon" id="coupon">
+        <div class="cp-top">
+          <span>소원권</span><span>No. 030</span>
+        </div>
+        <div class="cp-to" id="cpTo">지우에게</div>
+        <div class="cp-wish" id="cpWish">놀이공원 가기</div>
+        <div class="cp-msg" id="cpMsg">30일 동안 정말 멋졌어!</div>
+        <div class="cp-cut"></div>
+        <div class="cp-bot">
+          <div><small>발행</small><b>엄마</b></div>
+          <div><small>완주일</small><b id="cpDate">-</b></div>
+          <div class="stamp" id="stamp">약속<br>완료</div>
+        </div>
+      </div>
+      <button class="btn-main" id="stampBtn">엄마 도장 쾅! (소원 들어줬어요)</button>
+      <button class="btn-ghost" id="cpEditBtn">✎ 소원 바꾸기</button>
+      <button class="btn-ghost" id="backBtn">스티커 보드 다시 보기</button>
+      <button class="btn-ghost" id="againBtn">새 30일 시작하기</button>
+    </div>
+  </section>
+
+  <div class="fx" id="fx"></div>
+</div>
+
+<script src="sticker-board.js"></script>
+</body>
+</html>

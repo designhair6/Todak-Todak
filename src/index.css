@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .font-jua {
+    font-family: 'Jua', cursive, sans-serif;
+  }
+  .font-hand {
+    font-family: 'Gowun Dodum', cursive, sans-serif;
+  }
+  .font-body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  }
+}
+
+:root {
+  --ink: #2d2825;
+  --cream: #f5efeb;
+  --paper: #fbf9f5;
+  --coral: #e76f51;
+  --coral-hover: #d45d40;
+  --coral-light: #fff1ed;
+  --coral-border: #fcd5cb;
+  --honey: #f4a261;
+  --honey-light: #fef7ee;
+  --sage: #52796f;
+  --sage-light: #f2f7f2;
+  --mute: #7d736a;
+  --line: #efe8de;
+}
+
+/* Custom bounce / pop */
+@keyframes popScale {
+  0% { transform: scale(0.8); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.animate-pop {
+  animation: popScale 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes floatGentle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-float {
+  animation: floatGentle 2.5s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+
+.animate-glow {
+  animation: pulseGlow 1.8s infinite;
+}
+
+/* Prevent unwanted scrolling when drawing */
+canvas {
+  touch-action: none;
+}
+
+/* Scrollbar polish */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(138, 129, 120, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(138, 129, 120, 0.45);
+}
