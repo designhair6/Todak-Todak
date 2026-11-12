@@ -44,6 +44,7 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
   const [showRestartModal, setShowRestartModal] = useState(false);
   const [includeChecklistReset, setIncludeChecklistReset] = useState(true);
   const [resetSuccessNotice, setResetSuccessNotice] = useState(false);
+  const [showAlreadyPulledModal, setShowAlreadyPulledModal] = useState(false);
 
   const currentTheme: BoardTheme =
     THEMES.find((t) => t.id === boardState.theme) || THEMES[0];
@@ -105,8 +106,8 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
     setSelectedSlotIndex(null);
   };
 
-  // Draw today's sticker
-  const handlePullSticker = () => {
+  // Draw today's sticker (strictly 1 sticker per day by default)
+  const handlePullSticker = (forceBonus: boolean = false) => {
     if (count >= 30) {
       setShowCertificate(true);
       return;
@@ -114,6 +115,12 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
 
     const todayStr = new Date().toISOString().split('T')[0];
     const alreadyPulledToday = stickers.some((s) => s.d === todayStr);
+
+    if (alreadyPulledToday && !forceBonus) {
+      playSfx('tap');
+      setShowAlreadyPulledModal(true);
+      return;
+    }
 
     setIsPulling(true);
     playSfx('pop');
@@ -428,14 +435,49 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
       {/* Pull Sticker Action Bar with ample bottom clearance */}
       <div className="space-y-3 pt-1">
         {!isCompleted ? (
-          <button
-            onClick={handlePullSticker}
-            disabled={isPulling}
-            className="w-full py-4 px-4 rounded-2xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-lg sm:text-xl shadow-md hover:shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 group disabled:opacity-70"
-          >
-            <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-            {isPulling ? '두근두근 스티커 뽑는 중...' : `오늘의 칭찬 스티커 콕! 뽑기 (${count + 1}/30)`}
-          </button>
+          (() => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const alreadyPulledToday = stickers.some((s) => s.d === todayStr);
+
+            if (alreadyPulledToday) {
+              return (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playSfx('tap');
+                      setShowAlreadyPulledModal(true);
+                    }}
+                    className="w-full py-4 px-4 rounded-2xl bg-[#f0f9ed] hover:bg-[#e4f5de] border-2 border-[#84cc16] text-[#1e6a34] font-jua text-base sm:text-lg shadow-xs hover:shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-5 h-5 text-[#237d3d]" />
+                    <span>오늘의 칭찬 스티커 완료! 🌟 ({count}/30)</span>
+                  </button>
+                  <div className="flex items-center justify-center gap-2 text-xs text-[#8a8178] font-hand">
+                    <span>💡 매일 1장씩 꾸준히 모아요! 내일 또 만나요!</span>
+                    <button
+                      type="button"
+                      onClick={() => handlePullSticker(true)}
+                      className="text-[#c9502f] font-jua underline underline-offset-2 hover:text-[#b84324] cursor-pointer"
+                    >
+                      (엄마 보너스 스티커 붙이기)
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <button
+                onClick={() => handlePullSticker(false)}
+                disabled={isPulling}
+                className="w-full py-4 px-4 rounded-2xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-lg sm:text-xl shadow-md hover:shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 group disabled:opacity-70 cursor-pointer"
+              >
+                <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                {isPulling ? '두근두근 스티커 뽑는 중...' : `오늘의 칭찬 스티커 콕! 뽑기 (${count + 1}/30)`}
+              </button>
+            );
+          })()
         ) : (
           <div className="space-y-2">
             <button
@@ -499,6 +541,51 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Already Pulled Today Friendly Modal */}
+      {showAlreadyPulledModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#fbf8f2] border-2 border-[#eedfc9] rounded-3xl p-6 max-w-xs w-full text-center space-y-3.5 shadow-2xl animate-pop relative font-body">
+            <button
+              onClick={() => setShowAlreadyPulledModal(false)}
+              className="absolute top-4 right-4 w-7 h-7 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178]"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-3xl mx-auto shadow-2xs">
+              🌟
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="font-jua text-lg text-[#1b1917]">
+                오늘의 스티커를 이미 붙였어요!
+              </h3>
+              <p className="text-xs text-[#78350f] font-hand leading-relaxed">
+                하루에 하나씩 차근차근 모으는 게 진짜 멋진 한글 대장이에요! 칭찬 스티커는 내일 새로운 놀이를 하고 또 붙여볼까요? 💖
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-1 font-jua">
+              <button
+                onClick={() => setShowAlreadyPulledModal(false)}
+                className="w-full py-2.5 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white text-xs shadow-md transition-all active:scale-95"
+              >
+                네! 내일 또 올게요! ✨
+              </button>
+              <button
+                onClick={() => {
+                  setShowAlreadyPulledModal(false);
+                  handlePullSticker(true);
+                }}
+                className="w-full py-2 rounded-xl bg-white border border-[#eedfc9] text-[#8a8178] hover:text-[#c9502f] text-xs transition-colors"
+              >
+                엄마 특별 보너스 스티커 1개 더 허용하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Guaranteed In-App Restart Modal (Zero dependency on native alert/confirm) */}
       {showRestartModal && (
@@ -661,15 +748,80 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
               <button
                 onClick={() => {
                   playSfx('fan');
-                  window.print();
+                  const child = boardState.name || '우리 아이';
+                  const wish = boardState.wish || '엄마와의 특별한 소원';
+                  const msg = boardState.msg || '30일 동안 정말 멋졌어! 엄마가 꼭 들어줄게!';
+                  const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>${child}_30일완주_특별소원권</title>
+  <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Jua&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4 portrait; margin: 15mm; }
+    body { font-family: 'Noto Sans KR', sans-serif; padding: 20px; background: #fff; text-align: center; }
+    .coupon { border: 4px dashed #c9502f; border-radius: 24px; padding: 30px; background: #fffaf5; max-width: 600px; margin: 30px auto; }
+    h1 { font-family: 'Jua', sans-serif; font-size: 32px; color: #1b1917; margin: 8px 0; }
+    .wish-box { background: #fdf3e4; border: 2px solid #eedfc9; border-radius: 16px; padding: 16px; font-family: 'Jua', sans-serif; font-size: 26px; color: #c9502f; margin: 16px 0; }
+    .msg { font-family: 'Gaegu', cursive; font-size: 20px; color: #4a443e; margin: 14px 0; }
+    .footer { display: flex; justify-content: space-between; border-top: 1px solid #eedfc9; padding-top: 12px; font-family: 'Gaegu', cursive; font-size: 16px; color: #8a8178; }
+  </style>
+</head>
+<body>
+  <div class="coupon">
+    <div style="font-family:'Jua',sans-serif; color:#c9502f; font-size:14px;">✂️ [가위로 오려서 쓰는] 30일 완주 특별 소원권</div>
+    <h1>🎉 ${child}의 소원권</h1>
+    <div style="font-family:'Gaegu',cursive; font-size:16px; color:#8a8178;">30일 동안 엄마랑 함께한 멋진 약속 증서</div>
+    <div class="wish-box">"${wish}"</div>
+    <div class="msg">"${msg}"</div>
+    <div class="footer">
+      <span>발행일: ${new Date().toLocaleDateString('ko-KR')}</span>
+      <span>발행인: 사랑하는 엄마 (확인 완료)</span>
+    </div>
+  </div>
+  <script>window.onload = function() { setTimeout(function() { window.print(); }, 400); };</script>
+</body>
+</html>`;
+                  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                  const url = URL.createObjectURL(blob);
+                  const win = window.open(url, '_blank');
+                  if (!win) {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${child}_30일완주_특별소원권.html`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  }
+                  try { window.print(); } catch(e) {}
                 }}
-                className="w-full py-3 rounded-2xl bg-[#c9502f] text-white font-jua text-base shadow-md hover:bg-[#b84324] active:scale-95"
+                className="w-full py-3 rounded-2xl bg-[#c9502f] text-white font-jua text-base shadow-md hover:bg-[#b84324] active:scale-95 flex items-center justify-center gap-2"
               >
-                소원권 인쇄하여 아이 손에 쥐여주기 🖨️
+                <span>소원권 인쇄 &amp; 새 창 열기 🖨️</span>
+              </button>
+              <button
+                onClick={() => {
+                  playSfx('fan');
+                  const child = boardState.name || '우리 아이';
+                  const wish = boardState.wish || '엄마와의 특별한 소원';
+                  const msg = boardState.msg || '30일 동안 정말 멋졌어! 엄마가 꼭 들어줄게!';
+                  const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${child}_소원권</title><link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Jua&display=swap" rel="stylesheet"><style>@page{size:A4 portrait;margin:15mm;}body{font-family:'Jua',sans-serif;padding:30px;text-align:center;}.box{border:3px dashed #c9502f;padding:24px;border-radius:20px;background:#fffdf9;}</style></head><body><div class="box"><h1>🎉 ${child}의 소원권</h1><h2>"${wish}"</h2><p style="font-family:'Gaegu',cursive;font-size:20px;">"${msg}"</p><p>발행인: 사랑하는 엄마</p></div><script>window.onload=function(){setTimeout(function(){window.print();},400);};</script></body></html>`;
+                  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${child}_소원권_A4.html`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }}
+                className="w-full py-2.5 rounded-2xl bg-[#fdf3e4] hover:bg-[#faebd4] text-[#c9502f] border border-[#f3dfc6] font-jua text-sm flex items-center justify-center gap-1.5"
+              >
+                <span>💾 소원권 A4 파일 다운로드</span>
               </button>
               <button
                 onClick={() => setShowCertificate(false)}
-                className="w-full py-2.5 rounded-2xl bg-white border border-[#e4dccf] text-[#8a8178] font-jua text-sm"
+                className="w-full py-2 rounded-2xl bg-white border border-[#e4dccf] text-[#8a8178] font-jua text-sm"
               >
                 닫기
               </button>

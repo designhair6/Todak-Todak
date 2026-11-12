@@ -20,6 +20,7 @@ import { PetGrowthModal } from './components/PetGrowthModal';
 import { SoundBlendingModal } from './components/SoundBlendingModal';
 import { FootprintCalendarModal } from './components/FootprintCalendarModal';
 import { AdminModal } from './components/AdminModal';
+import { ParentVoiceMissionModal } from './components/ParentVoiceMissionModal';
 import { ChecklistTab } from './components/tabs/ChecklistTab';
 import { ProgressTab } from './components/tabs/ProgressTab';
 import { DoodleBoardTab } from './components/tabs/DoodleBoardTab';
@@ -50,11 +51,19 @@ export default function App() {
   // Active Navigation Tab
   const [activeTab, setActiveTab] = useState<TabKey>('checklist');
 
-  // Curriculum Stage (1 to 5)
+  // Curriculum Stage (1 to 10)
   const [currentStage, setCurrentStage] = useState<StageId>(() => {
     try {
+      const checklistStored = localStorage.getItem('hangul_checklist_by_stage');
+      const checklist = checklistStored ? JSON.parse(checklistStored) : {};
+      const stage1Days = checklist[1] || [];
+      // If Stage 1 is not fully finished (< 30 days), always start at Stage 1
+      if (!Array.isArray(stage1Days) || stage1Days.length < 30) {
+        return 1;
+      }
       const stored = localStorage.getItem('hangul_current_stage');
-      return stored ? (JSON.parse(stored) as StageId) : 1;
+      const stg = stored ? (JSON.parse(stored) as StageId) : 1;
+      return stg >= 1 && stg <= 10 ? stg : 1;
     } catch {
       return 1;
     }
@@ -101,14 +110,25 @@ export default function App() {
     }
   });
 
-  // 1b. Unlocked Stages (1~10) - Stage 1 unlocked by default, subsequent stages unlock sequentially or via parent bypass
+  // 1b. Stage 1 is always unlocked; subsequent Stage N is unlocked ONLY when Stage N-1 has all 30 days completed!
+  const computeUnlockedStages = (checklist: Record<StageId, number[]>): StageId[] => {
+    const list: StageId[] = [1];
+    for (let s = 1; s < 10; s++) {
+      const days = checklist[s as StageId] || [];
+      if (days && days.length >= 30) {
+        list.push((s + 1) as StageId);
+      } else {
+        break;
+      }
+    }
+    return list;
+  };
+
   const [unlockedStages, setUnlockedStages] = useState<StageId[]>(() => {
     try {
-      const stored = localStorage.getItem('hangul_unlocked_stages');
-      const base: StageId[] = stored ? JSON.parse(stored) : [1];
-      const initialStage = Number(localStorage.getItem('hangul_current_stage') || '1') as StageId;
-      const set = new Set<StageId>([1, ...base, initialStage]);
-      return Array.from(set).sort((a, b) => a - b) as StageId[];
+      const stored = localStorage.getItem('hangul_checklist_by_stage');
+      const checklist = stored ? JSON.parse(stored) : { 1: [1], 2: [], 3: [], 4: [], 5: [] };
+      return computeUnlockedStages(checklist);
     } catch {
       return [1];
     }
@@ -234,6 +254,7 @@ export default function App() {
   const [isSoundBlendOpen, setIsSoundBlendOpen] = useState(false);
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isParentVoiceModalOpen, setIsParentVoiceModalOpen] = useState(false);
 
   // Admin status (persisted)
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
@@ -335,18 +356,19 @@ export default function App() {
         ? list.filter((d) => d !== day)
         : [...list, day].sort((a, b) => a - b);
 
-      // Auto-unlock next stage when at least 5 days are completed in current stage!
-      if (!isAlready && updated.length >= 5 && currentStage < 10) {
-        const nextStage = (currentStage + 1) as StageId;
-        setUnlockedStages((curr) => {
-          if (!curr.includes(nextStage)) {
-            return [...curr, nextStage].sort((a, b) => a - b) as StageId[];
-          }
-          return curr;
-        });
-      }
+      const nextChecklist = { ...prev, [currentStage]: updated };
+      setUnlockedStages(computeUnlockedStages(nextChecklist));
 
-      return { ...prev, [currentStage]: updated };
+      return nextChecklist;
+    });
+  };
+
+  const handleCompleteCurrentStage = () => {
+    const all30 = Array.from({ length: 30 }, (_, i) => i + 1);
+    setCompletedDaysByStage((prev) => {
+      const nextChecklist = { ...prev, [currentStage]: all30 };
+      setUnlockedStages(computeUnlockedStages(nextChecklist));
+      return nextChecklist;
     });
   };
 
@@ -358,7 +380,11 @@ export default function App() {
   };
 
   const handleResetChecklistDays = () => {
-    setCompletedDaysByStage((prev) => ({ ...prev, [currentStage]: [] }));
+    setCompletedDaysByStage((prev) => {
+      const nextChecklist = { ...prev, [currentStage]: [] };
+      setUnlockedStages(computeUnlockedStages(nextChecklist));
+      return nextChecklist;
+    });
   };
 
   const handleSaveDiary = (diary: DailyMomDiary) => {
@@ -599,7 +625,7 @@ export default function App() {
                   결제하고 계속 이용하기 💳
                 </button>
 
-                {isAdmin && (
+                {isAdmin ? (
                   <button
                     onClick={() => {
                       playSfx('fan');
@@ -610,6 +636,27 @@ export default function App() {
                     <Crown className="w-3.5 h-3.5 text-amber-700" />
                     👑 대표 관리자 권한: 30일 무료 연장하기
                   </button>
+                ) : (
+                  <div className="flex gap-2 w-full pt-1">
+                    <button
+                      onClick={() => {
+                        playSfx('fan');
+                        setTrialDaysLeft(30);
+                      }}
+                      className="flex-1 py-2 px-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-700 font-jua text-xs flex items-center justify-center gap-1 transition-all"
+                    >
+                      <span>🎁 30일 체험 복구</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        playSfx('fan');
+                        setIsSubscribed(true);
+                      }}
+                      className="flex-1 py-2 px-2.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-emerald-800 font-jua text-xs flex items-center justify-center gap-1 transition-all"
+                    >
+                      <span>💳 결제완료 테스트</span>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -634,6 +681,8 @@ export default function App() {
                   childName={boardState.name}
                   unlockedStages={unlockedStages}
                   onUnlockStage={handleUnlockStage}
+                  onCompleteAllDays={handleCompleteCurrentStage}
+                  onOpenParentVoice={() => setIsParentVoiceModalOpen(true)}
                 />
               )}
 
@@ -644,6 +693,7 @@ export default function App() {
                   onResetProgress={handleResetProgress}
                   onRewardExp={handleRewardExp}
                   childName={boardState.name}
+                  onOpenParentVoice={() => setIsParentVoiceModalOpen(true)}
                 />
               )}
 
@@ -840,6 +890,8 @@ export default function App() {
             setIsSubscribed(true);
             playSfx('fan');
           }}
+          onUpdateSubscribed={setIsSubscribed}
+          onSetDaysLeft={setTrialDaysLeft}
           isAdmin={isAdmin}
           onOpenAdmin={() => setIsAdminModalOpen(true)}
         />
@@ -873,6 +925,7 @@ export default function App() {
           onOpenAdmin={() => setIsAdminModalOpen(true)}
           onOpenPrint={() => setIsPrintModalOpen(true)}
           onOpenSoundBlend={() => setIsSoundBlendOpen(true)}
+          onOpenParentVoice={() => setIsParentVoiceModalOpen(true)}
           onSave={(name, childAge, friendId, themeId, wish, msg) => {
             setBoardState((prev) => ({
               ...prev,
@@ -901,12 +954,20 @@ export default function App() {
           onUpdatePetState={setPetState}
           communityPosts={communityPosts}
           onDeletePost={handleDeletePost}
+          onDeleteComment={handleDeleteComment}
           onTogglePinPost={handleTogglePinPost}
           completedDaysCount={currentStageDays.length}
           diaryCount={Object.keys(dailyDiaries).length}
           onResetAllData={handleResetAllData}
           onUnlockAllStages={() => setUnlockedStages([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])}
           onResetStageLocks={() => setUnlockedStages([1])}
+        />
+
+        <ParentVoiceMissionModal
+          isOpen={isParentVoiceModalOpen}
+          onClose={() => setIsParentVoiceModalOpen(false)}
+          childName={boardState.name}
+          currentLetter="시"
         />
       </div>
     </div>

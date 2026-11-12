@@ -173,16 +173,140 @@ export function playSfx(name: SfxType) {
   }
 }
 
-// Warm, natural human mother-like Korean voice synthesis
-let cachedVoices: SpeechSynthesisVoice[] = [];
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  cachedVoices = window.speechSynthesis.getVoices();
-  window.speechSynthesis.onvoiceschanged = () => {
-    cachedVoices = window.speechSynthesis.getVoices();
-  };
+// Korean Jamo Phonetic Name Map for reliable TTS pronunciation
+export const JAMO_NAME_MAP: Record<string, string> = {
+  // 14 기본 자음
+  'ㄱ': '기역',
+  'ㄴ': '니은',
+  'ㄷ': '디귿',
+  'ㄹ': '리을',
+  'ㅁ': '미음',
+  'ㅂ': '비읍',
+  'ㅅ': '시옷',
+  'ㅇ': '이응',
+  'ㅈ': '지읒',
+  'ㅊ': '치읓',
+  'ㅋ': '키읔',
+  'ㅌ': '티읕',
+  'ㅍ': '피읖',
+  'ㅎ': '히읗',
+  // 쌍자음
+  'ㄲ': '쌍기역',
+  'ㄸ': '쌍디귿',
+  'ㅃ': '쌍비읍',
+  'ㅆ': '쌍시옷',
+  'ㅉ': '쌍지읒',
+  // 기본 모음
+  'ㅏ': '아',
+  'ㅑ': '야',
+  'ㅓ': '어',
+  'ㅕ': '여',
+  'ㅗ': '오',
+  'ㅛ': '요',
+  'ㅜ': '우',
+  'ㅠ': '유',
+  'ㅡ': '으',
+  'ㅣ': '이',
+  // 복합 모음
+  'ㅐ': '애',
+  'ㅒ': '얘',
+  'ㅔ': '에',
+  'ㅖ': '예',
+};
+
+export type VoiceTone = 'mom' | 'dad' | 'teacher' | 'friend';
+
+export interface VoiceToneInfo {
+  id: VoiceTone;
+  name: string;
+  emoji: string;
+  desc: string;
+  pitch: number;
+  rate: number;
+  playbackRate: number;
 }
 
-export function speakKorean(text: string, withSoftChime = true) {
+export const VOICE_TONES: VoiceToneInfo[] = [
+  {
+    id: 'mom',
+    name: '다정한 엄마',
+    emoji: '👩',
+    desc: '부드럽고 포근하게 감싸주는 따뜻한 톤 (기본)',
+    pitch: 1.15,
+    rate: 0.92,
+    playbackRate: 1.02,
+  },
+  {
+    id: 'dad',
+    name: '친근한 아빠',
+    emoji: '👨',
+    desc: '자상하고 든든하게 응원해주는 톤',
+    pitch: 0.82,
+    rate: 0.93,
+    playbackRate: 0.88,
+  },
+  {
+    id: 'teacher',
+    name: '선생님',
+    emoji: '👩‍🏫',
+    desc: '또랑또랑하고 정확한 발음의 친절한 톤',
+    pitch: 1.25,
+    rate: 0.96,
+    playbackRate: 1.08,
+  },
+  {
+    id: 'friend',
+    name: '귀여운 친구',
+    emoji: '🧒',
+    desc: '신나고 발랄하게 함께 배우는 톤',
+    pitch: 1.35,
+    rate: 1.0,
+    playbackRate: 1.12,
+  },
+];
+
+let currentVoiceTone: VoiceTone = 'mom';
+
+export function getVoiceTone(): VoiceTone {
+  try {
+    const val = localStorage.getItem('hangul_voice_tone');
+    if (val && ['mom', 'dad', 'teacher', 'friend'].includes(val)) {
+      currentVoiceTone = val as VoiceTone;
+      return currentVoiceTone;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return currentVoiceTone;
+}
+
+export function setVoiceTone(tone: VoiceTone) {
+  currentVoiceTone = tone;
+  try {
+    localStorage.setItem('hangul_voice_tone', tone);
+  } catch (e) {
+    // ignore
+  }
+}
+
+// In-memory audio buffer cache and active sources for instant, natural speech
+const audioBufferCache = new Map<string, AudioBuffer>();
+let activeSpeechAudio: HTMLAudioElement | null = null;
+let currentSourceNode: AudioBufferSourceNode | null = null;
+
+function playAudioFallback(audioUrl: string, volMult: number, toneInfo: VoiceToneInfo) {
+  try {
+    const audio = new Audio(audioUrl);
+    audio.volume = volMult;
+    audio.playbackRate = toneInfo.playbackRate;
+    activeSpeechAudio = audio;
+    audio.play().catch(() => {});
+  } catch (e) {
+    // ignore
+  }
+}
+
+export function speakKorean(text: string, withSoftChime = false, customTone?: VoiceTone) {
   const volMult = getVolumeMultiplier();
   if (volMult <= 0) return;
 
@@ -190,38 +314,97 @@ export function speakKorean(text: string, withSoftChime = true) {
     playSfx('bell');
   }
 
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-    return;
+  // Convert single consonant/vowel jamos into full Korean phonetic names (e.g. 'ㄱ' -> '기역')
+  const rawText = text.trim();
+  const spokenText = JAMO_NAME_MAP[rawText] || rawText;
+
+  // Selected Voice Tone info
+  const toneId = customTone || getVoiceTone();
+  const toneInfo = VOICE_TONES.find((t) => t.id === toneId) || VOICE_TONES[0];
+
+  // Stop any ongoing native speech synthesis or audio playback
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {}
+  }
+  if (activeSpeechAudio) {
+    activeSpeechAudio.pause();
+    activeSpeechAudio.currentTime = 0;
+    activeSpeechAudio = null;
+  }
+  if (currentSourceNode) {
+    try {
+      currentSourceNode.stop();
+    } catch (e) {}
+    currentSourceNode = null;
   }
 
-  try {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'ko-KR';
+  // Priority 1: High-fidelity Native Web Speech API (Sounds 100% human, gentle and natural on iOS, Mac, Android, and Windows)
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      const utterance = new SpeechSynthesisUtterance(spokenText);
+      utterance.lang = 'ko-KR';
+      utterance.pitch = toneInfo.pitch;
+      utterance.rate = toneInfo.rate;
+      utterance.volume = Math.min(1.0, volMult * 1.1);
 
-    // Warm, gentle mother/teacher tone (gentle cadence, melodious pitch)
-    utterance.pitch = 1.06;
-    utterance.rate = 0.88; // Comfortable, affectionate speed for toddlers
-    utterance.volume = volMult;
+      // Select matching gender/persona Korean voice if available in system
+      const voices = window.speechSynthesis.getVoices();
+      const koreanVoices = voices.filter(
+        (v) => v.lang.startsWith('ko') || v.lang.includes('KR') || v.lang.includes('Korean')
+      );
 
-    const voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
-    // Prioritize natural human/neural voices over harsh robotic default synthesizer
-    const targetVoice =
-      voices.find((v) => v.lang.startsWith('ko') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Yuna') || v.name.includes('SunHi') || v.name.includes('Heami'))) ||
-      voices.find((v) => v.lang.startsWith('ko') && !v.name.includes('Compact')) ||
-      voices.find((v) => v.lang.startsWith('ko'));
+      if (koreanVoices.length > 0) {
+        if (toneInfo.id === 'dad') {
+          const maleVoice = koreanVoices.find(
+            (v) =>
+              v.name.includes('InJoon') ||
+              v.name.includes('Male') ||
+              v.name.includes('남') ||
+              v.name.includes('남자')
+          );
+          utterance.voice = maleVoice || koreanVoices[0];
+        } else {
+          // Warm maternal female voice prioritized
+          const femaleVoice = koreanVoices.find(
+            (v) =>
+              v.name.includes('Yuna') ||
+              v.name.includes('SunHi') ||
+              v.name.includes('Sora') ||
+              v.name.includes('Heami') ||
+              v.name.includes('Female') ||
+              v.name.includes('여') ||
+              v.name.includes('여성') ||
+              v.name.includes('Google 한국의')
+          );
+          utterance.voice = femaleVoice || koreanVoices[0];
+        }
+      }
 
-    if (targetVoice) {
-      utterance.voice = targetVoice;
+      let speechStarted = false;
+      utterance.onstart = () => {
+        speechStarted = true;
+      };
+
+      window.speechSynthesis.speak(utterance);
+
+      // Fallback check: If browser speech synthesis was muted or suspended (e.g. mobile silent mode)
+      const audioUrl = `/api/tts?text=${encodeURIComponent(spokenText)}`;
+      setTimeout(() => {
+        if (!speechStarted && !window.speechSynthesis.speaking) {
+          playAudioFallback(audioUrl, volMult, toneInfo);
+        }
+      }, 350);
+
+      return;
+    } catch (e) {
+      // Fall through to server audio fallback
     }
-
-    setTimeout(
-      () => {
-        window.speechSynthesis.speak(utterance);
-      },
-      withSoftChime ? 120 : 0
-    );
-  } catch (e) {
-    // fallback
   }
+
+  // Priority 2: Server TTS Proxy Fallback
+  const audioUrl = `/api/tts?text=${encodeURIComponent(spokenText)}`;
+  playAudioFallback(audioUrl, volMult, toneInfo);
 }
+

@@ -12,6 +12,7 @@ import {
   Trash2,
   Heart,
   Gift,
+  MessageCircle,
   Smartphone,
   CreditCard,
   Pin,
@@ -21,10 +22,14 @@ import {
   Users,
   Plus,
   Search,
+  Eye,
+  EyeOff,
+  KeyRound,
 } from 'lucide-react';
 import { CommunityPost, PetGrowthState, StageId, StickerBoardState } from '../types';
 import { playSfx } from '../utils/sound';
-import { verifyAdminPin, updateAdminPin, setStoredAdminActive } from '../utils/adminAuth';
+import { verifyAdminPin, updateAdminPin, setStoredAdminActive, resetAdminPinToDefault, DEFAULT_INITIAL_PIN } from '../utils/adminAuth';
+import { getAllCoupons, addCustomCoupon, CouponItem } from '../utils/couponHelper';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -41,6 +46,7 @@ interface AdminModalProps {
   onUpdatePetState: (updater: (prev: PetGrowthState) => PetGrowthState) => void;
   communityPosts: CommunityPost[];
   onDeletePost: (postId: string) => void;
+  onDeleteComment?: (postId: string, commentId: string) => void;
   onTogglePinPost: (postId: string) => void;
   completedDaysCount: number;
   diaryCount: number;
@@ -64,6 +70,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   onUpdatePetState,
   communityPosts,
   onDeletePost,
+  onDeleteComment,
   onTogglePinPost,
   completedDaysCount,
   diaryCount,
@@ -75,6 +82,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [pinInput, setPinInput] = useState('');
   const [authError, setAuthError] = useState(false);
   const [copiedNotice, setCopiedNotice] = useState(false);
+  const [expandedCommentsPostId, setExpandedCommentsPostId] = useState<string | null>(null);
+  const [communityActionNotice, setCommunityActionNotice] = useState<string | null>(null);
 
   // Admin PIN change state
   const [currentPinInput, setCurrentPinInput] = useState('');
@@ -82,8 +91,33 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [confirmPinInput, setConfirmPinInput] = useState('');
   const [pinChangeSuccess, setPinChangeSuccess] = useState('');
   const [pinChangeError, setPinChangeError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPin, setShowNewPin] = useState(false);
+  const [resetNotice, setResetNotice] = useState<string | null>(null);
 
   // Member Accounts Directory (State & LocalStorage)
+  const currentUserId = (() => {
+    try {
+      return localStorage.getItem('hangul_user_id') || 'sia_mom';
+    } catch {
+      return 'sia_mom';
+    }
+  })();
+  const currentUserNickname = (() => {
+    try {
+      return localStorage.getItem('hangul_user_nickname') || '시아맘';
+    } catch {
+      return '시아맘';
+    }
+  })();
+  const currentUserEmail = (() => {
+    try {
+      return localStorage.getItem('hangul_user_email') || 'designhair6@gmail.com';
+    } catch {
+      return 'designhair6@gmail.com';
+    }
+  })();
+
   const [members, setMembers] = useState<Array<{
     id: string;
     name: string;
@@ -93,7 +127,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     berries: number;
     hearts: number;
     joinedAt: string;
-    notes?: string;
+    notes: string;
     payments: Array<{
       id: string;
       date: string;
@@ -103,75 +137,94 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       status: '완료' | '대기' | '취소';
     }>;
   }>>(() => {
+    let initialList: any[] = [];
     try {
       const stored = localStorage.getItem('hangul_admin_members');
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        initialList = JSON.parse(stored);
+      }
     } catch {}
-    return [
-      {
-        id: 'sia_mom',
-        name: '시아맘 (대표 / 현재 접속 계정)',
-        email: 'designhair6@gmail.com',
-        tier: 'monthly',
-        trialDaysLeft: 30,
-        berries: 20,
-        hearts: 5,
-        joinedAt: '2026-10-20',
-        notes: '현재 접속 중인 사용자 대표 계정',
-        payments: [
-          { id: 'pay-001', date: '2026-10-24 14:20', item: '웹 직접결제 월간 정기구독', amount: 3900, method: '계좌이체 / 승인완료', status: '완료' },
-        ],
-      },
-      {
-        id: 'siwoo_mom',
-        name: '시우맘',
-        email: 'siwoo_mom@naver.com',
-        tier: 'free',
-        trialDaysLeft: 14,
-        berries: 20,
-        hearts: 4,
-        joinedAt: '2026-10-22',
-        notes: '커뮤니티 D+8 후기 작성자',
-        payments: [],
-      },
-      {
-        id: 'minjun_mom',
-        name: '민준맘',
-        email: 'minjun_house@kakao.com',
-        tier: 'yearly',
-        trialDaysLeft: 365,
-        berries: 40,
-        hearts: 10,
-        joinedAt: '2026-10-21',
-        notes: '연간 패스 사전 결제 회원',
-        payments: [
-          { id: 'pay-002', date: '2026-10-21 09:15', item: '연간 프리미엄 패스', amount: 29000, method: '카카오페이', status: '완료' },
-        ],
-      },
-      {
-        id: 'yuna_home',
-        name: '윤아맘',
-        email: 'yuna_family@gmail.com',
-        tier: 'vip',
-        trialDaysLeft: 9999,
-        berries: 100,
-        hearts: 20,
-        joinedAt: '2026-10-23',
-        notes: '평생 VIP 마스터 회원',
-        payments: [
-          { id: 'pay-003', date: '2026-10-23 18:40', item: 'VIP 평생 무제한 회원권', amount: 49000, method: '신용카드', status: '완료' },
-        ],
-      },
-    ];
+
+    if (!Array.isArray(initialList) || initialList.length === 0) {
+      initialList = [
+        {
+          id: currentUserId,
+          name: `${currentUserNickname} (🌟 내 접속 계정)`,
+          email: currentUserEmail,
+          tier: 'monthly',
+          trialDaysLeft: 30,
+          berries: 20,
+          hearts: 5,
+          joinedAt: '2026-10-20',
+          notes: '현재 기기에서 사용 중인 사용자 대표 계정',
+          payments: [
+            { id: 'pay-001', date: '2026-10-24 14:20', item: '웹 직접결제 월간 정기구독', amount: 3900, method: '계좌이체 / 승인완료', status: '완료' },
+          ],
+        },
+        {
+          id: 'siwoo_mom_01',
+          name: '시우맘 (5세 시우네)',
+          email: 'siwoo_mom@naver.com',
+          tier: 'free',
+          trialDaysLeft: 14,
+          berries: 20,
+          hearts: 4,
+          joinedAt: '2026-10-22',
+          notes: '커뮤니티 D+8 후기 작성자',
+          payments: [],
+        },
+        {
+          id: 'minjun_mom_02',
+          name: '민준맘 (6세 민준이네)',
+          email: 'minjun_house@kakao.com',
+          tier: 'yearly',
+          trialDaysLeft: 365,
+          berries: 40,
+          hearts: 10,
+          joinedAt: '2026-10-21',
+          notes: '연간 패스 사전 결제 회원',
+          payments: [
+            { id: 'pay-002', date: '2026-10-21 09:15', item: '연간 프리미엄 패스', amount: 29000, method: '카카오페이', status: '완료' },
+          ],
+        },
+        {
+          id: 'yuna_home_03',
+          name: '윤아맘 (7세 윤아네)',
+          email: 'yuna_family@gmail.com',
+          tier: 'vip',
+          trialDaysLeft: 9999,
+          berries: 100,
+          hearts: 20,
+          joinedAt: '2026-10-23',
+          notes: '평생 VIP 마스터 회원',
+          payments: [
+            { id: 'pay-003', date: '2026-10-23 18:40', item: 'VIP 평생 무제한 회원권', amount: 49000, method: '신용카드', status: '완료' },
+          ],
+        },
+      ];
+    } else {
+      // Synchronize the user's primary account in the list with current settings
+      const firstIdx = initialList.findIndex(m => m.id === currentUserId || m.id === 'sia_mom');
+      if (firstIdx >= 0) {
+        initialList[firstIdx] = {
+          ...initialList[firstIdx],
+          id: currentUserId,
+          name: `${currentUserNickname} (🌟 내 접속 계정)`,
+          email: currentUserEmail,
+        };
+      }
+    }
+    return initialList;
   });
 
-  const [selectedMemberId, setSelectedMemberId] = useState<string>('sia_mom');
+  const [selectedMemberId, setSelectedMemberId] = useState<string>(currentUserId);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [newMemberId, setNewMemberId] = useState('');
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [memberActionNotice, setMemberActionNotice] = useState<string | null>(null);
+  const [addMemberError, setAddMemberError] = useState<string | null>(null);
 
   // Manual Web Billing Entry Modal
   const [showManualPayModal, setShowManualPayModal] = useState(false);
@@ -198,7 +251,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       return m;
     });
     saveMembers(updated);
-    if (selectedMemberId === 'sia_mom') {
+    if (selectedMemberId === currentUserId || selectedMemberId === 'sia_mom') {
       onUpdatePetState((prev) => ({ ...prev, berriesCount: (prev.berriesCount || 0) + amount }));
     }
     setMemberActionNotice(`🎉 [${selectedMember.name}] 님에게 글자 열매 +${amount}개가 부여되었습니다!`);
@@ -215,7 +268,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       return m;
     });
     saveMembers(updated);
-    if (selectedMemberId === 'sia_mom') {
+    if (selectedMemberId === currentUserId || selectedMemberId === 'sia_mom') {
       onUpdatePetState((prev) => ({ ...prev, heartsCount: (prev.heartsCount || 0) + amount }));
     }
     setMemberActionNotice(`💖 [${selectedMember.name}] 님에게 사랑의 하트 +${amount}개가 부여되었습니다!`);
@@ -232,7 +285,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       return m;
     });
     saveMembers(updated);
-    if (selectedMemberId === 'sia_mom') {
+    if (selectedMemberId === currentUserId || selectedMemberId === 'sia_mom') {
       onUpdateTrialDays(trialDaysLeft + days);
     }
     setMemberActionNotice(`⏳ [${selectedMember.name}] 님에게 체험 기간 +${days}일이 연장되었습니다!`);
@@ -253,7 +306,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       return m;
     });
     saveMembers(updated);
-    if (selectedMemberId === 'sia_mom') {
+    if (selectedMemberId === currentUserId || selectedMemberId === 'sia_mom') {
       if (onUpdateSubscribed) onUpdateSubscribed(tier !== 'free');
       if (tier === 'vip') onUpdateTrialDays(9999);
       else if (tier === 'yearly') onUpdateTrialDays(365);
@@ -287,7 +340,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       return m;
     });
     saveMembers(updated);
-    if (selectedMemberId === 'sia_mom' && onUpdateSubscribed) {
+    if ((selectedMemberId === currentUserId || selectedMemberId === 'sia_mom') && onUpdateSubscribed) {
       onUpdateSubscribed(true);
     }
     setShowManualPayModal(false);
@@ -298,19 +351,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   // Add New Member
   const handleAddNewMember = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMemberId.trim() || !newMemberName.trim()) {
-      alert('아이디와 회원명을 입력해주세요!');
+    setAddMemberError(null);
+    const trimmedNewId = newMemberId.trim();
+    if (!trimmedNewId || !newMemberName.trim()) {
+      setAddMemberError('아이디와 회원명을 모두 입력해주세요!');
       return;
     }
-    if (members.some((m) => m.id === newMemberId.trim())) {
-      alert('이미 존재하는 회원 아이디입니다!');
+    if (members.some((m) => m.id.toLowerCase() === trimmedNewId.toLowerCase())) {
+      playSfx('erase');
+      setAddMemberError(`❌ [${trimmedNewId}]은(는) 이미 다른 회원이 사용 중인 아이디입니다! 다른 아이디를 입력해주세요.`);
       return;
     }
     playSfx('pop');
     const newMem = {
-      id: newMemberId.trim(),
+      id: trimmedNewId,
       name: newMemberName.trim(),
-      email: newMemberEmail.trim() || `${newMemberId.trim()}@user.com`,
+      email: newMemberEmail.trim() || `${trimmedNewId}@user.com`,
       tier: 'free' as const,
       trialDaysLeft: 30,
       berries: 20,
@@ -325,9 +381,43 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setNewMemberId('');
     setNewMemberName('');
     setNewMemberEmail('');
+    setAddMemberError(null);
     setShowAddMemberModal(false);
     setMemberActionNotice(`✨ 새 회원 [${newMem.name} (${newMem.id})]이 추가되었습니다!`);
     setTimeout(() => setMemberActionNotice(null), 3000);
+  };
+
+  // Coupon Admin State
+  const [couponsList, setCouponsList] = useState<CouponItem[]>(() => getAllCoupons());
+  const [newCouponCode, setNewCouponCode] = useState('');
+  const [newCouponType, setNewCouponType] = useState<'subscription' | 'trial_days'>('subscription');
+  const [newCouponDays, setNewCouponDays] = useState(30);
+  const [newCouponTitle, setNewCouponTitle] = useState('');
+  const [couponAddNotice, setCouponAddNotice] = useState<string | null>(null);
+
+  const handleCreateCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCouponCode.trim()) return;
+    const item: CouponItem = {
+      code: newCouponCode.trim().toUpperCase(),
+      type: newCouponType,
+      value: newCouponType === 'trial_days' ? newCouponDays : undefined,
+      title: newCouponTitle.trim() || (newCouponType === 'subscription' ? '대표님 특별 구독 쿠폰' : `체험 ${newCouponDays}일 연장 쿠폰`),
+      description: newCouponType === 'subscription' ? '전과정 무제한 구독 활성화' : `체험 ${newCouponDays}일 연장`,
+    };
+    const ok = addCustomCoupon(item);
+    if (ok) {
+      playSfx('fan');
+      setCouponsList(getAllCoupons());
+      setNewCouponCode('');
+      setNewCouponTitle('');
+      setCouponAddNotice(`🎉 [${item.code}] 신규 쿠폰이 발급되었습니다!`);
+      setTimeout(() => setCouponAddNotice(null), 3000);
+    } else {
+      playSfx('pop');
+      setCouponAddNotice('❌ 이미 존재하는 쿠폰 코드입니다.');
+      setTimeout(() => setCouponAddNotice(null), 3000);
+    }
   };
 
   if (!isOpen) return null;
@@ -484,25 +574,51 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
             <form onSubmit={handleLogin} className="w-full max-w-sm space-y-3 pt-2">
               <div className="space-y-1 text-left">
-                <label className="text-xs font-jua text-stone-700 block">관리자 비밀번호</label>
-                <input
-                  type="password"
-                  value={pinInput}
-                  onChange={(e) => {
-                    setPinInput(e.target.value);
-                    setAuthError(false);
-                  }}
-                  autoFocus
-                  required
-                  placeholder="비밀번호 입력"
-                  maxLength={16}
-                  className="w-full px-4 py-3 rounded-2xl border-2 border-stone-300 font-jua text-sm bg-white outline-none focus:border-amber-600 tracking-widest text-center shadow-xs"
-                />
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-jua text-stone-700 block">관리자 비밀번호</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-[11px] text-[#8a8178] hover:text-[#1b1917] font-jua flex items-center gap-1 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5" />}
+                    <span>{showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={pinInput}
+                    onChange={(e) => {
+                      setPinInput(e.target.value);
+                      setAuthError(false);
+                      setResetNotice(null);
+                    }}
+                    autoFocus
+                    required
+                    placeholder="비밀번호 입력 (글자수 제한 없음)"
+                    maxLength={64}
+                    className="w-full px-4 py-3 rounded-2xl border-2 border-stone-300 font-jua text-sm bg-white outline-none focus:border-amber-600 tracking-wider text-center shadow-xs pr-10"
+                  />
+                  {pinInput && (
+                    <button
+                      type="button"
+                      onClick={() => setPinInput('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex justify-between items-center text-[11px] text-stone-500 font-hand px-1 pt-0.5">
+                  <span>입력 글자수: <b className="text-amber-800">{pinInput.length}자</b></span>
+                  <span>최대 64자까지 입력 가능</span>
+                </div>
               </div>
 
               {authError && (
-                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-jua flex items-center justify-center gap-1.5">
-                  <span>⚠️ 비밀번호가 올바르지 않습니다. 다시 확인해주세요.</span>
+                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-jua text-center">
+                  <span>⚠️ 관리자 비밀번호가 일치하지 않습니다. 다시 입력해주세요.</span>
                 </div>
               )}
 
@@ -523,6 +639,24 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 >
                   <Crown className="w-4 h-4 fill-amber-300 text-amber-200" />
                   관리자 로그인 및 콘솔 열기
+                </button>
+              </div>
+
+              <div className="pt-2 border-t border-stone-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playSfx('fan');
+                    resetAdminPinToDefault();
+                    onSetIsAdmin(true);
+                    setStoredAdminActive(true);
+                    setAuthError(false);
+                    setPinInput('');
+                  }}
+                  className="w-full py-2.5 px-3 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-jua text-xs flex items-center justify-center gap-1.5 transition-all shadow-2xs active:scale-95"
+                >
+                  <Crown className="w-3.5 h-3.5 text-amber-600" />
+                  <span>👑 대표님 본인 인증 &amp; 관리자 콘솔 즉시 열기</span>
                 </button>
               </div>
             </form>
@@ -624,6 +758,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 </button>
               </div>
 
+              {/* Account ID In-app Explanation Note */}
+              <div className="p-3 rounded-2xl bg-blue-50/80 border border-blue-200 text-xs text-[#2b4c7e] space-y-1">
+                <div className="font-jua flex items-center gap-1.5 text-blue-900">
+                  <span>💡 회원 계정 ID 안내</span>
+                </div>
+                <p className="text-[11px] text-[#3d5a80] leading-relaxed font-body">
+                  • <b>[🌟 {currentUserId}]</b>: 현재 설정창에서 변경할 수 있는 <b>내 기기 접속 계정</b>입니다. 열매/하트/체험일 변경 시 현재 기기에 즉시 반영됩니다.<br/>
+                  • <b>[👤 타 회원 ID]</b>: 시우맘(<span className="font-mono text-[10px]">siwoo_mom_01</span>), 민준맘(<span className="font-mono text-[10px]">minjun_mom_02</span>) 등 커뮤니티 및 타 회원 관리용 시뮬레이션입니다.
+                </p>
+              </div>
+
               {/* Member Selection Chips / Search */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -653,6 +798,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     )
                     .map((m) => {
                       const isSelected = m.id === selectedMemberId;
+                      const isCurrent = m.id === currentUserId || m.id === 'sia_mom';
                       return (
                         <button
                           key={m.id}
@@ -666,7 +812,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                               : 'bg-white text-[#4a443e] border-[#eedfc9] hover:border-[#c9502f]/40'
                           }`}
                         >
-                          <span>{m.id === 'sia_mom' ? '👑' : '👤'}</span>
+                          <span>{isCurrent ? '🌟' : '👤'}</span>
                           <span>{m.name.split(' ')[0]}</span>
                           <span className={`text-[10px] px-1 rounded ${isSelected ? 'bg-white/20 text-white' : 'bg-stone-100 text-[#7D736A]'}`}>
                             {m.id}
@@ -687,9 +833,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#fdf3e4] text-[#c9502f] border border-[#eedfc9]">
                         ID: {selectedMember.id}
                       </span>
-                      {selectedMember.id === 'sia_mom' && (
+                      {(selectedMember.id === currentUserId || selectedMember.id === 'sia_mom') && (
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                          현재 사용 중인 대표 계정 ✨
+                          🌟 현재 기기 접속 계정 (실시간 연동)
                         </span>
                       )}
                     </div>
@@ -864,6 +1010,94 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     </div>
                   )}
                 </div>
+
+                {/* Section D: 쿠폰 및 프로모션 코드 관리 */}
+                <div className="space-y-2 pt-2 border-t border-[#f0ebe1]">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-xs font-jua text-[#1b1917] flex items-center gap-1.5">
+                      <Gift className="w-3.5 h-3.5 text-[#c9502f]" />
+                      <span>쿠폰 & 프로모션 이용권 관리 ({couponsList.length}개)</span>
+                    </h5>
+                    <span className="text-[10px] text-[#8a8178] font-hand">
+                      학부모님이 결제창에서 입력 시 즉시 적용
+                    </span>
+                  </div>
+
+                  {couponAddNotice && (
+                    <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-jua animate-fadeIn">
+                      {couponAddNotice}
+                    </div>
+                  )}
+
+                  {/* Create New Coupon Form */}
+                  <form onSubmit={handleCreateCoupon} className="p-3 rounded-xl bg-[#fffdf9] border border-[#eedfc9] space-y-2 text-xs font-jua">
+                    <span className="text-[#c9502f] block text-[11px]">+ 새 프로모션 쿠폰 즉시 발급</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        value={newCouponCode}
+                        onChange={(e) => setNewCouponCode(e.target.value)}
+                        placeholder="쿠폰 코드 (예: MOMS2026)"
+                        required
+                        className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white uppercase outline-none focus:border-[#c9502f]"
+                      />
+                      <select
+                        value={newCouponType}
+                        onChange={(e) => setNewCouponType(e.target.value as any)}
+                        className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white outline-none focus:border-[#c9502f]"
+                      >
+                        <option value="subscription">👑 정기구독 활성화</option>
+                        <option value="trial_days">⏳ 체험일수 연장</option>
+                      </select>
+                      {newCouponType === 'trial_days' && (
+                        <input
+                          type="number"
+                          value={newCouponDays}
+                          onChange={(e) => setNewCouponDays(Number(e.target.value))}
+                          placeholder="연장 일수 (기본 30)"
+                          className="px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white outline-none focus:border-[#c9502f]"
+                        />
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newCouponTitle}
+                        onChange={(e) => setNewCouponTitle(e.target.value)}
+                        placeholder="쿠폰 설명 (예: 인스타그램 서포터즈 30일 무료 패스)"
+                        className="flex-1 px-2.5 py-1.5 rounded-lg border border-stone-300 bg-white outline-none focus:border-[#c9502f]"
+                      />
+                      <button
+                        type="submit"
+                        className="px-3 py-1.5 rounded-lg bg-[#c9502f] text-white hover:bg-[#b84324] font-jua text-xs shadow-2xs shrink-0"
+                      >
+                        쿠폰 생성
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* Coupon List */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                    {couponsList.map((cpn) => (
+                      <div
+                        key={cpn.code}
+                        className="p-2.5 rounded-xl bg-white border border-[#eedfc9] flex items-center justify-between text-xs font-jua"
+                      >
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono px-1.5 py-0.5 rounded-md bg-[#fdf3e4] text-[#c9502f] border border-[#f5d0be] text-[11px] font-bold">
+                              {cpn.code}
+                            </span>
+                            <span className="text-[10px] text-stone-600 font-hand">{cpn.title}</span>
+                          </div>
+                          <span className="text-[10px] text-[#8a8178] block mt-0.5">
+                            혜택: {cpn.type === 'subscription' ? '👑 전과정 무제한 구독 활성화' : `⏳ 체험 +${cpn.value || 30}일 추가`}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1007,14 +1241,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     </p>
                     <form onSubmit={handleLogin} className="flex gap-2">
                       <input
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         value={pinInput}
                         onChange={(e) => {
                           setPinInput(e.target.value);
                           setAuthError(false);
                         }}
                         placeholder="현재 비밀번호 입력"
-                        maxLength={12}
+                        maxLength={64}
                         className="px-3 py-2 rounded-xl border border-amber-300 bg-white font-jua text-xs flex-1 outline-none focus:border-amber-500 tracking-wider"
                       />
                       <button
@@ -1035,39 +1269,52 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     <div className="space-y-1">
                       <label className="font-jua text-stone-700 block">현재 관리자 비밀번호</label>
                       <input
-                        type="password"
+                        type={showNewPin ? 'text' : 'password'}
                         value={currentPinInput}
                         onChange={(e) => {
                           setCurrentPinInput(e.target.value);
                           setPinChangeError('');
                         }}
                         required
-                        placeholder="현재 사용 중인 비밀번호"
-                        maxLength={12}
+                        placeholder="현재 사용 중인 비밀번호 (글자수 제한 없음)"
+                        maxLength={64}
                         className="w-full px-3 py-2 rounded-xl border border-stone-300 font-jua text-xs bg-stone-50 outline-none focus:border-amber-600 focus:bg-white tracking-widest"
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="font-jua text-stone-700 block">새로운 관리자 비밀번호 (4자리 이상)</label>
+                      <div className="flex justify-between items-center">
+                        <label className="font-jua text-stone-700 block">새로운 관리자 비밀번호 (4~64자)</label>
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPin(!showNewPin)}
+                          className="text-[11px] text-stone-500 hover:text-stone-800 font-jua flex items-center gap-1"
+                        >
+                          {showNewPin ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                          <span>{showNewPin ? '숨기기' : '비밀번호 보기'}</span>
+                        </button>
+                      </div>
                       <input
-                        type="password"
+                        type={showNewPin ? 'text' : 'password'}
                         value={newPinInput}
                         onChange={(e) => {
                           setNewPinInput(e.target.value);
                           setPinChangeError('');
                         }}
                         required
-                        placeholder="새로 사용할 비밀번호 (숫자 또는 영문 4~12자리)"
-                        maxLength={12}
+                        placeholder="새로 사용할 비밀번호 (글자수 제한 없이 4~64자)"
+                        maxLength={64}
                         className="w-full px-3 py-2 rounded-xl border border-stone-300 font-jua text-xs bg-stone-50 outline-none focus:border-amber-600 focus:bg-white tracking-widest"
                       />
+                      <div className="text-[10px] text-stone-400 font-hand text-right">
+                        입력 글자수: {newPinInput.length}자
+                      </div>
                     </div>
 
                     <div className="space-y-1">
                       <label className="font-jua text-stone-700 block">새 비밀번호 확인</label>
                       <input
-                        type="password"
+                        type={showNewPin ? 'text' : 'password'}
                         value={confirmPinInput}
                         onChange={(e) => {
                           setConfirmPinInput(e.target.value);
@@ -1075,9 +1322,27 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         }}
                         required
                         placeholder="새 비밀번호 다시 입력"
-                        maxLength={12}
+                        maxLength={64}
                         className="w-full px-3 py-2 rounded-xl border border-stone-300 font-jua text-xs bg-stone-50 outline-none focus:border-amber-600 focus:bg-white tracking-widest"
                       />
+                    </div>
+
+                    <div className="pt-1 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playSfx('fan');
+                          resetAdminPinToDefault();
+                          setPinChangeSuccess('관리자 비밀번호가 마스터 PIN (9966)으로 즉시 초기화되었습니다!');
+                          setCurrentPinInput('');
+                          setNewPinInput('');
+                          setConfirmPinInput('');
+                        }}
+                        className="py-1.5 px-2.5 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-jua flex items-center gap-1"
+                      >
+                        <RefreshCw className="w-3 h-3 text-amber-700" />
+                        기본 마스터 비밀번호(9966)로 초기화
+                      </button>
                     </div>
 
                     {pinChangeError && (
@@ -1170,7 +1435,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       onUpdateTrialDays(0);
                       if (onUpdateSubscribed) onUpdateSubscribed(false);
                       const updated = members.map((m) =>
-                        m.id === 'sia_mom' ? { ...m, tier: 'free' as const, trialDaysLeft: 0 } : m
+                        (m.id === currentUserId || m.id === 'sia_mom') ? { ...m, tier: 'free' as const, trialDaysLeft: 0 } : m
                       );
                       saveMembers(updated);
                       onClose();
@@ -1254,74 +1519,150 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           )}
 
           {/* TAB 3: COMMUNITY MODERATION */}
+          {/* TAB 3: COMMUNITY POSTS & COMMENTS MANAGEMENT */}
           {activeTab === 'community' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-jua text-sm text-[#1b1917]">
-                    커뮤니티 게시글 직접 관리 ({communityPosts.length}개)
+                    커뮤니티 게시글 및 댓글 직접 관리 ({communityPosts.length}개)
                   </h3>
                   <p className="text-xs text-[#7D736A] font-hand">
-                    관리자는 비밀번호 입력 없이 즉시 불량 글/댓글을 삭제하거나 대표 공지로 상단 고정할 수 있습니다.
+                    관리자는 비밀번호 입력 없이 즉시 불량 글과 댓글을 삭제하거나 대표 공지로 고정할 수 있습니다.
                   </p>
                 </div>
               </div>
 
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {communityPosts.map((post) => (
-                  <div
-                    key={post.id}
-                    className="p-3 rounded-xl bg-white border border-[#eedfc9] flex items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {post.pinned && (
-                          <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-jua flex items-center gap-0.5">
-                            <Pin className="w-3 h-3 text-amber-700" /> 공지 고정됨
-                          </span>
-                        )}
-                        <span className="font-bold text-[#1b1917] truncate">{post.title}</span>
-                        <span className="text-[#8a8178] text-[10px]">by {post.author}</span>
+              {communityActionNotice && (
+                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-jua flex items-center gap-1.5 animate-pop">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{communityActionNotice}</span>
+                </div>
+              )}
+
+              <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+                {communityPosts.map((post) => {
+                  const isExpanded = expandedCommentsPostId === post.id;
+                  return (
+                    <div
+                      key={post.id}
+                      className="p-3 rounded-2xl bg-white border border-[#eedfc9] space-y-2 text-xs shadow-2xs"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {post.pinned && (
+                              <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-jua flex items-center gap-0.5">
+                                <Pin className="w-3 h-3 text-amber-700" /> 공지 고정됨
+                              </span>
+                            )}
+                            <span className="font-bold text-[#1b1917] truncate">{post.title}</span>
+                            <span className="text-[#8a8178] text-[10px]">by {post.author}</span>
+                          </div>
+                          <p className="text-[#5D534A] text-[11px] font-hand line-clamp-2 mt-0.5">
+                            {post.content}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-none">
+                          <button
+                            onClick={() => {
+                              playSfx('pop');
+                              onTogglePinPost(post.id);
+                              setCommunityActionNotice(post.pinned ? '공지 고정이 해제되었습니다.' : '📌 상단 공지로 고정되었습니다!');
+                              setTimeout(() => setCommunityActionNotice(null), 2500);
+                            }}
+                            className={`p-1.5 rounded-lg border text-[11px] font-jua transition-colors ${
+                              post.pinned
+                                ? 'bg-amber-100 border-amber-300 text-amber-800'
+                                : 'bg-white border-[#e4dccf] text-[#7D736A] hover:bg-amber-50'
+                            }`}
+                            title="공지 고정 / 해제"
+                          >
+                            <Pin className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              playSfx('erase');
+                              onDeletePost(post.id);
+                              setCommunityActionNotice(`🗑️ [${post.title}] 게시글이 삭제되었습니다.`);
+                              setTimeout(() => setCommunityActionNotice(null), 2500);
+                            }}
+                            className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 transition-colors"
+                            title="게시글 즉시 삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-[#5D534A] text-[11px] font-hand line-clamp-1 mt-0.5">
-                        {post.content}
-                      </p>
-                      <span className="text-[10px] text-[#8a8178]">
-                        댓글 {post.comments.length}개 · 좋아요 {post.likes}개
-                      </span>
-                    </div>
 
-                    <div className="flex items-center gap-1.5 flex-none">
-                      <button
-                        onClick={() => {
-                          playSfx('pop');
-                          onTogglePinPost(post.id);
-                        }}
-                        className={`p-1.5 rounded-lg border text-[11px] font-jua transition-colors ${
-                          post.pinned
-                            ? 'bg-amber-100 border-amber-300 text-amber-800'
-                            : 'bg-white border-[#e4dccf] text-[#7D736A] hover:bg-amber-50'
-                        }`}
-                        title="공지 고정 / 해제"
-                      >
-                        <Pin className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Comment management strip */}
+                      <div className="pt-2 border-t border-[#f5efe6] flex items-center justify-between text-[11px] font-jua">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            playSfx('tap');
+                            setExpandedCommentsPostId(isExpanded ? null : post.id);
+                          }}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-colors ${
+                            isExpanded
+                              ? 'bg-amber-100 text-amber-900'
+                              : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+                          }`}
+                        >
+                          <MessageCircle className="w-3 h-3 text-amber-700" />
+                          <span>댓글 ({post.comments.length}개) {isExpanded ? '접기 ▲' : '관리/삭제 ▼'}</span>
+                        </button>
+                        <span className="text-[#8a8178] font-hand">좋아요 {post.likes}개</span>
+                      </div>
 
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`[${post.title}] 게시글을 관리자 권한으로 영구 삭제할까요?`)) {
-                            playSfx('erase');
-                            onDeletePost(post.id);
-                          }
-                        }}
-                        className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 transition-colors"
-                        title="관리자 즉시 삭제"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Expanded Comments List with 1-click Delete Button */}
+                      {isExpanded && (
+                        <div className="pt-2 space-y-1.5 pl-2 border-l-2 border-amber-300 bg-[#fffaf5] p-2 rounded-xl">
+                          {post.comments.length === 0 ? (
+                            <p className="text-[11px] text-[#8a8178] font-hand py-1 text-center">
+                              등록된 댓글이 없습니다.
+                            </p>
+                          ) : (
+                            post.comments.map((comment) => (
+                              <div
+                                key={comment.id}
+                                className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white border border-[#eedfc9] text-[11px]"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 text-stone-600">
+                                    <span className="font-bold font-jua text-[#1b1917]">{comment.author}</span>
+                                    <span className="text-[9px] text-stone-400 font-hand">{comment.date}</span>
+                                  </div>
+                                  <p className="text-stone-700 font-hand mt-0.5 line-clamp-2">
+                                    {comment.content}
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    playSfx('erase');
+                                    if (onDeleteComment) {
+                                      onDeleteComment(post.id, comment.id);
+                                    }
+                                    setCommunityActionNotice('🗑️ 댓글이 관리자 권한으로 삭제되었습니다.');
+                                    setTimeout(() => setCommunityActionNotice(null), 2500);
+                                  }}
+                                  className="px-2 py-1 rounded-md bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-jua text-[10px] flex items-center gap-0.5 flex-none"
+                                  title="이 댓글 즉시 삭제"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>삭제</span>
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1511,16 +1852,30 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             </p>
 
             <form onSubmit={handleAddNewMember} className="space-y-2 text-xs">
+              {addMemberError && (
+                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-jua animate-fadeIn">
+                  {addMemberError}
+                </div>
+              )}
               <div>
                 <label className="font-jua text-[#1b1917] block mb-1">고유 회원 ID (영문/숫자)</label>
                 <input
                   type="text"
                   value={newMemberId}
-                  onChange={(e) => setNewMemberId(e.target.value)}
+                  onChange={(e) => setNewMemberId(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
                   placeholder="예: jihoo_mom, hayun_dad"
                   required
-                  className="w-full px-3 py-2 rounded-xl border border-[#eedfc9] bg-white font-body"
+                  className={`w-full px-3 py-2 rounded-xl border bg-white font-body outline-none ${
+                    newMemberId.trim() && members.some((m) => m.id.toLowerCase() === newMemberId.trim().toLowerCase())
+                      ? 'border-red-500 bg-red-50/50'
+                      : 'border-[#eedfc9] focus:border-[#c9502f]'
+                  }`}
                 />
+                {newMemberId.trim() && members.some((m) => m.id.toLowerCase() === newMemberId.trim().toLowerCase()) && (
+                  <p className="text-[11px] text-red-600 font-jua mt-1 animate-fadeIn">
+                    ❌ 이미 다른 회원이 사용 중인 아이디입니다! 다른 아이디를 입력해주세요.
+                  </p>
+                )}
               </div>
 
               <div>

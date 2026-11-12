@@ -85,6 +85,7 @@ export interface ProgressState {
 }
 
 export type TracingCategory =
+  | 'name'
   | 'consonant'
   | 'vowel'
   | 'double'

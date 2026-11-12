@@ -27,7 +27,7 @@ export const STAGES: StageInfo[] = [
     sub: '기역부터 히읗까지 모양과 소리',
     tag: '기초 모양',
     target: 'ㄱ ~ ㅎ 14개 자음 모양 탐험',
-    badge: '🌱',
+    badge: 'ㄱ',
     desc: '집 안 사물과 몸으로 글자 모양을 만들며 자음과 친해져요.',
   },
   {
@@ -36,7 +36,7 @@ export const STAGES: StageInfo[] = [
     sub: '아야어여오요우유으이 입모양 놀이',
     tag: '소리 기둥',
     target: 'ㅏ ~ ㅣ 10개 모음 방향과 소리',
-    badge: '🌿',
+    badge: 'ㅏ',
     desc: '입을 크게 벌리고 방향을 짚어가며 모음의 길을 익혀요.',
   },
   {
@@ -45,7 +45,7 @@ export const STAGES: StageInfo[] = [
     sub: '자음과 모음이 만나 소리 만들기',
     tag: '소리 결합',
     target: '가 ~ 하 기본 140글자 원리',
-    badge: '🌸',
+    badge: '가',
     desc: '자음과 모음 카드가 뽀뽀하면 어떤 소리가 날지 놀이로 배워요.',
   },
   {
@@ -54,7 +54,7 @@ export const STAGES: StageInfo[] = [
     sub: '동물, 과일, 가족 단어 술술 읽기',
     tag: '단어 읽기',
     target: '나비, 사자, 사과, 우유, 나무',
-    badge: '🍎',
+    badge: '📖',
     desc: '아이가 매일 마주치는 친근한 두 글자, 세 글자 단어를 읽어요.',
   },
   {
@@ -63,7 +63,7 @@ export const STAGES: StageInfo[] = [
     sub: '입을 닫고 울리는 받침의 마법',
     tag: '받침 & 문장',
     target: 'ㅁ, ㅇ, ㄹ 받침과 \'엄마 사랑해\'',
-    badge: '👑',
+    badge: '✏️',
     desc: '입술이 닫히는 받침을 배우고 스스로 그림책 문장을 읽어요.',
   },
   {
@@ -72,7 +72,7 @@ export const STAGES: StageInfo[] = [
     sub: '애, 에, 와, 워, 위 신기한 모음',
     tag: '이중모음',
     target: '개미, 매미, 사과, 과자, 귀',
-    badge: '⭐',
+    badge: '🧩',
     desc: '두 모음이 합쳐져 나는 풍성한 이중모음 소리를 탐험해요.',
   },
   {
@@ -81,7 +81,7 @@ export const STAGES: StageInfo[] = [
     sub: '까, 따, 빠, 싸, 짜 힘찬 소리',
     tag: '쌍자음',
     target: '까치, 코끼리, 뽀뽀, 토끼, 아빠',
-    badge: '🦁',
+    badge: '⚡',
     desc: '두 자음이 꼭 붙어 나는 씩씩하고 힘찬 된소리를 익혀요.',
   },
   {
@@ -90,7 +90,7 @@ export const STAGES: StageInfo[] = [
     sub: 'ㅂ, ㅅ, ㄷ, ㅈ, ㅊ 받침의 비밀',
     tag: '복합 받침',
     target: '밥, 옷, 빗, 숲, 빛 단어 모으기',
-    badge: '💎',
+    badge: '🔍',
     desc: '끝소리가 똑 떨어지는 다양한 받침의 소리 규칙을 배워요.',
   },
   {
@@ -99,7 +99,7 @@ export const STAGES: StageInfo[] = [
     sub: '반짝반짝, 퐁당퐁당 감성 표현',
     tag: '어휘력 풍부',
     target: '살랑살랑, 쿵쾅쿵쾅, 졸졸',
-    badge: '🎈',
+    badge: '💬',
     desc: '흉내 내는 말로 말맛을 느끼며 어휘력과 표현력을 쑥쑥 키워요.',
   },
   {
@@ -578,33 +578,33 @@ export const RARE_STICKERS = ['👑', '💎', '🌟', '🏆', '🦄', '💖'];
 
 // Full Rich Tracing Library: Consonants, Vowels, Animals, Foods, Family
 export const TRACING_ITEMS: TracingItem[] = [
-  // 1. Consonants (14자)
-  { id: 'c_g', category: 'consonant', label: 'ㄱ', soundText: '기린의 기역', phonetic: '그', meaning: '기린, 고양이', emoji: '🦒', strokesHint: '왼쪽에서 오른쪽으로, 아래로 꺾어요' },
-  { id: 'c_n', category: 'consonant', label: 'ㄴ', soundText: '나비의 니은', phonetic: '느', meaning: '나비, 나무', emoji: '🦋', strokesHint: '위에서 아래로, 오른쪽으로 꺾어요' },
-  { id: 'c_d', category: 'consonant', label: 'ㄷ', soundText: '다람쥐의 디귿', phonetic: '드', meaning: '다람쥐, 달팽이', emoji: '🐿️', strokesHint: '위 가로선 긋고, 니은처럼 이어요' },
-  { id: 'c_r', category: 'consonant', label: 'ㄹ', soundText: '라면의 리을', phonetic: '르', meaning: '라면, 로봇', emoji: '🤖', strokesHint: '기역 그리고, 가로 긋고, 니은을 붙여요' },
-  { id: 'c_m', category: 'consonant', label: 'ㅁ', soundText: '모자의 미음', phonetic: '므', meaning: '모자, 물고기', emoji: '🐟', strokesHint: '네모 모양으로 닫아주세요' },
-  { id: 'c_b', category: 'consonant', label: 'ㅂ', soundText: '바나나의 비읍', phonetic: '브', meaning: '바나나, 비행기', emoji: '🍌', strokesHint: '기둥 두 개 세우고 창문 닫기' },
-  { id: 'c_s', category: 'consonant', label: 'ㅅ', soundText: '사자의 시옷', phonetic: '스', meaning: '사자, 수박', emoji: '🦁', strokesHint: 'ㅅ 모양 텐트를 세워요' },
-  { id: 'c_ng', category: 'consonant', label: 'ㅇ', soundText: '오리의 이응', phonetic: '으', meaning: '아기, 오리', emoji: '🦆', strokesHint: '동글동글 동그라미를 그려요' },
-  { id: 'c_j', category: 'consonant', label: 'ㅈ', soundText: '자동차의 지읒', phonetic: '즈', meaning: '자동차, 주스', emoji: '🚗', strokesHint: '지붕 얹고 시옷 텐트 치기' },
-  { id: 'c_ch', category: 'consonant', label: 'ㅊ', soundText: '치타의 치읓', phonetic: '츠', meaning: '치마, 참새', emoji: '🐆', strokesHint: '깃발 꽂고 지읒 지붕 만들기' },
-  { id: 'c_k', category: 'consonant', label: 'ㅋ', soundText: '코끼리의 키읔', phonetic: '크', meaning: '코끼리, 카메라', emoji: '🐘', strokesHint: '기역 그리고 중간에 선 하나 슉' },
-  { id: 'c_t', category: 'consonant', label: 'ㅌ', soundText: '토끼의 티읕', phonetic: '트', meaning: '토끼, 타조', emoji: '🐰', strokesHint: '위, 중간, 아래 세 개의 기찻길' },
-  { id: 'c_p', category: 'consonant', label: 'ㅍ', soundText: '포도의 피읖', phonetic: '프', meaning: '포도, 피아노', emoji: '🍇', strokesHint: '지붕 얹고 두 다리 내리고 바닥 닫기' },
-  { id: 'c_h', category: 'consonant', label: 'ㅎ', soundText: '하마의 히읗', phonetic: '흐', meaning: '하마, 호랑이', emoji: '🐯', strokesHint: '모자 쓰고 동그라미 얼굴 그리기' },
+  // 1. Consonants (14자) - 글자, 동물 아이콘, 음성 통일 & 획순 번호 가이드
+  { id: 'c_g', category: 'consonant', label: 'ㄱ', soundText: '기역! 기린!', phonetic: '그', meaning: '기린', emoji: '🦒', strokesHint: '① 가로로 긋고 →  ② 아래로 내려요 ↓' },
+  { id: 'c_n', category: 'consonant', label: 'ㄴ', soundText: '니은! 나비!', phonetic: '느', meaning: '나비', emoji: '🦋', strokesHint: '① 위에서 아래로 ↓  ② 오른쪽으로 가요 →' },
+  { id: 'c_d', category: 'consonant', label: 'ㄷ', soundText: '디귿! 다람쥐!', phonetic: '드', meaning: '다람쥐', emoji: '🐿️', strokesHint: '① 위 가로 긋고 →  ② 니은처럼 꺾어요 ⤷' },
+  { id: 'c_r', category: 'consonant', label: 'ㄹ', soundText: '리을! 로봇!', phonetic: '르', meaning: '로봇', emoji: '🤖', strokesHint: '① 기역 그리고  ② 가로 긋고  ③ 니은 붙여요' },
+  { id: 'c_m', category: 'consonant', label: 'ㅁ', soundText: '미음! 모자!', phonetic: '므', meaning: '모자', emoji: '🧢', strokesHint: '① 세로 내리고  ② 꺾고  ③ 바닥 닫기' },
+  { id: 'c_b', category: 'consonant', label: 'ㅂ', soundText: '비읍! 바나나!', phonetic: '브', meaning: '바나나', emoji: '🍌', strokesHint: '① 기둥 두 개 세우고  ② 가로선 두 개 닫기' },
+  { id: 'c_s', category: 'consonant', label: 'ㅅ', soundText: '시옷! 사자!', phonetic: '스', meaning: '사자', emoji: '🦁', strokesHint: '① 왼쪽 다리 뻗고 ↙  ② 오른쪽 다리 뻗기 ↘' },
+  { id: 'c_ng', category: 'consonant', label: 'ㅇ', soundText: '이응! 오리!', phonetic: '으', meaning: '오리', emoji: '🦆', strokesHint: '① 동글동글 둥근 동그라미 ⭕' },
+  { id: 'c_j', category: 'consonant', label: 'ㅈ', soundText: '지읒! 자동차!', phonetic: '즈', meaning: '자동차', emoji: '🚗', strokesHint: '① 가로 긋고 →  ② 시옷 다리 텐트 치기' },
+  { id: 'c_ch', category: 'consonant', label: 'ㅊ', soundText: '치읓! 치즈!', phonetic: '츠', meaning: '치즈', emoji: '🧀', strokesHint: '① 위 깃발 점 찍고  ② 지읒 쓰기' },
+  { id: 'c_k', category: 'consonant', label: 'ㅋ', soundText: '키읔! 코끼리!', phonetic: '크', meaning: '코끼리', emoji: '🐘', strokesHint: '① 기역 쓰고  ② 가운데 선 하나 긋기' },
+  { id: 'c_t', category: 'consonant', label: 'ㅌ', soundText: '티읕! 토끼!', phonetic: '트', meaning: '토끼', emoji: '🐰', strokesHint: '① 위 가로  ② 가운데 가로  ③ 니은 받침' },
+  { id: 'c_p', category: 'consonant', label: 'ㅍ', soundText: '피읖! 포도!', phonetic: '프', meaning: '포도', emoji: '🍇', strokesHint: '① 위 지붕  ② 두 기둥 내리고  ③ 아래 닫기' },
+  { id: 'c_h', category: 'consonant', label: 'ㅎ', soundText: '히읗! 하마!', phonetic: '흐', meaning: '하마', emoji: '🦛', strokesHint: '① 모자 얹고  ② 동그라미 얼굴 그리기' },
 
   // 2. Vowels (10자)
-  { id: 'v_a', category: 'vowel', label: 'ㅏ', soundText: '입을 크게 아', phonetic: '아', meaning: '아이, 사자', emoji: '🦁', strokesHint: '세로 기둥 내리고 오른쪽으로 쏙' },
-  { id: 'v_ya', category: 'vowel', label: 'ㅑ', soundText: '깜짝 놀라 야', phonetic: '야', meaning: '야구, 야옹이', emoji: '🐱', strokesHint: '세로 기둥 내리고 오른쪽 점 두 개' },
-  { id: 'v_eo', category: 'vowel', label: 'ㅓ', soundText: '신기하다 어', phonetic: '어', meaning: '어린이, 어머니', emoji: '🧒', strokesHint: '왼쪽에서 기둥으로 이어주기' },
-  { id: 'v_yeo', category: 'vowel', label: 'ㅕ', soundText: '반갑게 여', phonetic: '여', meaning: '여우, 여행', emoji: '🦊', strokesHint: '왼쪽 점 두 개와 세로 기둥' },
-  { id: 'v_o', category: 'vowel', label: 'ㅗ', soundText: '하늘 보고 오', phonetic: '오', meaning: '오리, 오이', emoji: '🦆', strokesHint: '위에서 내려와 가로로 받쳐주기' },
-  { id: 'v_yo', category: 'vowel', label: 'ㅛ', soundText: '반갑다고 요', phonetic: '요', meaning: '요술, 요요', emoji: '🪄', strokesHint: '두 뿔 세우고 가로로 받쳐주기' },
-  { id: 'v_u', category: 'vowel', label: 'ㅜ', soundText: '입술 쭉 우', phonetic: '우', meaning: '우산, 우유', emoji: '☂️', strokesHint: '가로선 긋고 아래로 쑥 내리기' },
-  { id: 'v_yu', category: 'vowel', label: 'ㅠ', soundText: '슬프다 유', phonetic: '유', meaning: '유리, 유치원', emoji: '🏫', strokesHint: '가로선 긋고 아래로 두 다리 쏙' },
-  { id: 'v_eu', category: 'vowel', label: 'ㅡ', soundText: '옆으로 당겨 으', phonetic: '으', meaning: '으뜸, 으쓱', emoji: '👍', strokesHint: '왼쪽에서 오른쪽으로 일직선 긋기' },
-  { id: 'v_i', category: 'vowel', label: 'ㅣ', soundText: '활짝 웃으며 이', phonetic: '이', meaning: '이름, 인형', emoji: '🧸', strokesHint: '위에서 아래로 곧게 내리기' },
+  { id: 'v_a', category: 'vowel', label: 'ㅏ', soundText: '아! 아기!', phonetic: '아', meaning: '아기', emoji: '👶', strokesHint: '① 세로 기둥 ↓  ② 오른쪽 쏙 →' },
+  { id: 'v_ya', category: 'vowel', label: 'ㅑ', soundText: '야! 야옹이!', phonetic: '야', meaning: '야옹이', emoji: '🐱', strokesHint: '① 세로 기둥 ↓  ② 오른쪽 점 두 개 →' },
+  { id: 'v_eo', category: 'vowel', label: 'ㅓ', soundText: '어! 어머니!', phonetic: '어', meaning: '어머니', emoji: '👩', strokesHint: '① 왼쪽 점 →  ② 세로 기둥 ↓' },
+  { id: 'v_yeo', category: 'vowel', label: 'ㅕ', soundText: '여! 여우!', phonetic: '여', meaning: '여우', emoji: '🦊', strokesHint: '① 왼쪽 점 두 개  ② 세로 기둥 ↓' },
+  { id: 'v_o', category: 'vowel', label: 'ㅗ', soundText: '오! 오리!', phonetic: '오', meaning: '오리', emoji: '🦆', strokesHint: '① 위에서 아래로 ↓  ② 가로로 받쳐요 →' },
+  { id: 'v_yo', category: 'vowel', label: 'ㅛ', soundText: '요! 요술봉!', phonetic: '요', meaning: '요술봉', emoji: '🪄', strokesHint: '① 두 뿔 세우고  ② 가로로 받쳐요 →' },
+  { id: 'v_u', category: 'vowel', label: 'ㅜ', soundText: '우! 우산!', phonetic: '우', meaning: '우산', emoji: '☂️', strokesHint: '① 가로선 긋고 →  ② 아래로 쑥 내려요 ↓' },
+  { id: 'v_yu', category: 'vowel', label: 'ㅠ', soundText: '유! 유리병!', phonetic: '유', meaning: '유리병', emoji: '🥛', strokesHint: '① 가로선 긋고 →  ② 두 다리 내려요 ↓' },
+  { id: 'v_eu', category: 'vowel', label: 'ㅡ', soundText: '으! 으뜸!', phonetic: '으', meaning: '으뜸', emoji: '👍', strokesHint: '① 왼쪽에서 오른쪽으로 일직선 긋기 →' },
+  { id: 'v_i', category: 'vowel', label: 'ㅣ', soundText: '이! 인형!', phonetic: '이', meaning: '인형', emoji: '🧸', strokesHint: '① 위에서 아래로 곧게 내리기 ↓' },
 
   // 2-B. Double Consonants (쌍자음 5종)
   { id: 'dc_gg', category: 'double', label: 'ㄲ', soundText: '힘찬 쌍기역 끄', phonetic: '끄', meaning: '까치, 꼬리, 꿈', emoji: '🪶', strokesHint: '기역 두 개를 나란히 손잡아주세요' },

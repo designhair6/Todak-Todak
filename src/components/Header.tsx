@@ -7,7 +7,6 @@ import {
   Gift,
   Sparkles,
   Heart,
-  Puzzle,
   Settings,
   ChevronDown,
   Crown,
@@ -139,22 +138,7 @@ export const Header: React.FC<HeaderProps> = ({
           {renderVolumeIcon()}
         </button>
 
-        {/* 3. Optional Desktop Quick Tools (Hidden on narrow mobile to keep header clean) */}
-        <button
-          onClick={() => {
-            playSfx('pop');
-            if (isLocked) {
-              onOpenTrial();
-            } else {
-              onOpenSoundBlend();
-            }
-          }}
-          className="hidden md:flex items-center gap-1 px-2 py-1.5 rounded-xl bg-[#FFF1ED] hover:bg-[#FFE5DE] border border-[#FCD5CB] text-[#E76F51] text-xs font-jua transition-all active:scale-95 shadow-2xs"
-          title="자음+모음 소리 합체 놀이"
-        >
-          <Puzzle className="w-3.5 h-3.5" />
-          <span>소리합체</span>
-        </button>
+
 
         <button
           onClick={() => {

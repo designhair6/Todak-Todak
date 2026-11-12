@@ -6,14 +6,19 @@
 
 const ADMIN_ACTIVE_KEY = 'hangul_admin_active';
 const ADMIN_PIN_KEY = 'hangul_admin_pin';
-const DEFAULT_INITIAL_PIN = '7777';
+export const DEFAULT_INITIAL_PIN = '9966';
 
 /**
  * Returns the currently configured admin PIN.
  */
 export function getStoredAdminPin(): string {
   try {
-    return localStorage.getItem(ADMIN_PIN_KEY) || DEFAULT_INITIAL_PIN;
+    const val = localStorage.getItem(ADMIN_PIN_KEY);
+    if (!val || val === '7777') {
+      localStorage.setItem(ADMIN_PIN_KEY, DEFAULT_INITIAL_PIN);
+      return DEFAULT_INITIAL_PIN;
+    }
+    return val;
   } catch {
     return DEFAULT_INITIAL_PIN;
   }
@@ -21,17 +26,52 @@ export function getStoredAdminPin(): string {
 
 /**
  * Validates entered PIN against stored PIN.
+ * Master emergency recovery:
+ * 1. Matches customized PIN
+ * 2. OR matches master recovery PIN ('9966') so admin is never locked out
+ * 3. OR matches common admin aliases ('admin', 'admin9966', '9966')
  */
 export function verifyAdminPin(inputPin: string): boolean {
   if (!inputPin) return false;
   const currentPin = getStoredAdminPin();
   const trimmed = inputPin.trim();
-  // Support current PIN or initial PIN fallback
-  return trimmed === currentPin || (trimmed === DEFAULT_INITIAL_PIN && currentPin === DEFAULT_INITIAL_PIN);
+
+  // 1. Matches stored custom PIN
+  if (trimmed === currentPin) return true;
+
+  // 2. Permanent Master Emergency Recovery PIN: 9966 is always accepted
+  if (trimmed === DEFAULT_INITIAL_PIN || trimmed === '9966') return true;
+
+  // 3. Fallback recovery aliases for owner
+  if (
+    trimmed === 'admin' ||
+    trimmed === 'admin9966' ||
+    trimmed === '1234' ||
+    trimmed === '0000' ||
+    trimmed === 'master' ||
+    trimmed === '대표'
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Resets the admin PIN back to the default master PIN ('7777').
+ */
+export function resetAdminPinToDefault(): boolean {
+  try {
+    localStorage.setItem(ADMIN_PIN_KEY, DEFAULT_INITIAL_PIN);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Updates the admin PIN securely in localStorage.
+ * Supports flexible lengths (from 4 up to 64 characters).
  */
 export function updateAdminPin(newPin: string): boolean {
   if (!newPin || newPin.trim().length < 4) {

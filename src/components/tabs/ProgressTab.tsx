@@ -4,6 +4,7 @@ import { Volume2, Play, Sparkles, Check, RotateCcw, Award, ChevronRight, X } fro
 import { CHO, JUNG, NAMES, syl } from '../../data/hangulData';
 import { MasteryLevel, ProgressState } from '../../types';
 import { playSfx, speakKorean } from '../../utils/sound';
+import { playParentPraiseVoice, getParentVoiceMission } from '../../utils/parentVoiceHelper';
 
 interface ProgressTabProps {
   progress: ProgressState;
@@ -11,6 +12,7 @@ interface ProgressTabProps {
   onResetProgress: () => void;
   onRewardExp: (amount: number) => void;
   childName: string;
+  onOpenParentVoice?: () => void;
 }
 
 export const ProgressTab: React.FC<ProgressTabProps> = ({
@@ -19,20 +21,24 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
   onResetProgress,
   onRewardExp,
   childName,
+  onOpenParentVoice,
 }) => {
   const [practiceOpen, setPracticeOpen] = useState(false);
+  const [praiseNotice, setPraiseNotice] = useState<string | null>(null);
   const [practiceDeck, setPracticeDeck] = useState<Array<{ id: string; ch: string; sub: string }>>([]);
   const [practiceIndex, setPracticeIndex] = useState(0);
   const [practiceResults, setPracticeResults] = useState<Array<{ id: string; ch: string; ok: boolean }>>([]);
   const [practiceDone, setPracticeDone] = useState(false);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
 
-  // Statistics
+  // Statistics (Count all active progress so checked items are immediately reflected in big numbers!)
   const consDone = CHO.filter((_, i) => progress[`c${i}`] === 3).length;
   const consIng = CHO.filter((_, i) => progress[`c${i}`] === 1 || progress[`c${i}`] === 2).length;
+  const consActive = consDone + consIng;
 
   const gaDone = CHO.filter((_, ci) => progress[`s${ci}_0`] === 3).length;
   const gaIng = CHO.filter((_, ci) => progress[`s${ci}_0`] === 1 || progress[`s${ci}_0`] === 2).length;
+  const gaActive = gaDone + gaIng;
 
   let totalDone = 0;
   let totalIng = 0;
@@ -43,8 +49,12 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
       else if (lvl === 1 || lvl === 2) totalIng++;
     });
   });
+  const totalActive = totalDone + totalIng;
 
-  const overallScore = Math.round(((consDone + totalDone) / 154) * 100);
+  // Weighted progress calculation reflecting learning steps
+  const pointsEarned = (consDone * 3 + consIng * 1.5) + (totalDone * 3 + totalIng * 1.5);
+  const maxPoints = 154 * 3;
+  const overallScore = Math.min(100, Math.round((pointsEarned / maxPoints) * 100));
 
   const cycleLevel = (id: string, label: string) => {
     const current = progress[id] || 0;
@@ -138,6 +148,17 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
 
     if (ok) {
       playSfx('pop');
+      const voiceConfig = getParentVoiceMission();
+      playParentPraiseVoice({
+        childName,
+        letter: currentCard?.ch,
+      });
+      setPraiseNotice(
+        voiceConfig.audioUrl
+          ? `💖 엄마/아빠 목소리: "${voiceConfig.recordingScript}"`
+          : `💖 "${voiceConfig.fallbackTTS}"`
+      );
+      setTimeout(() => setPraiseNotice(null), 3500);
     } else {
       playSfx('tap');
     }
@@ -164,9 +185,9 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-xl mx-auto space-y-6 pb-32">
-      {/* Header */}
-      <div className="text-center space-y-2">
+    <div className="p-4 sm:p-6 pt-5 sm:pt-7 max-w-xl mx-auto space-y-6 pb-32">
+      {/* Header with sufficient clearance */}
+      <div className="text-center space-y-2 pt-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fdf3e4] border border-[#f3dfc6] text-xs font-bold text-[#c9502f] font-jua">
           <Sparkles className="w-3.5 h-3.5" />
           문제집 없이 한눈에 체크해요
@@ -180,30 +201,36 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
         </p>
       </div>
 
-      {/* Progress Score 3 Warm Pastel Cards */}
+      {/* Progress Score 3 Warm Pastel Cards with Active Learning Count */}
       <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
         <div className="bg-gradient-to-br from-[#fff2ec] to-[#fde2d8] border border-[#f7cdbf] text-[#1b1917] rounded-2xl p-3 sm:p-4 text-center shadow-xs">
           <div className="text-[11px] sm:text-xs text-[#c9502f] font-bold font-jua">ㄱ ~ ㅎ 기본 자음</div>
           <div className="font-jua text-2xl sm:text-3xl text-[#b84324] mt-1">
-            {consDone} <span className="text-xs sm:text-sm text-[#8a8178]">/ 14</span>
+            {consActive} <span className="text-xs sm:text-sm text-[#8a8178]">/ 14</span>
           </div>
-          <div className="text-[10px] text-[#8a8178] font-hand mt-0.5">진행 중 {consIng}개</div>
+          <div className="text-[10px] text-[#8a8178] font-hand mt-0.5">
+            {consDone > 0 ? `완료 ${consDone} • 진행 ${consIng}` : `진행 중 ${consIng}개`}
+          </div>
         </div>
 
         <div className="bg-gradient-to-br from-[#fef8e7] to-[#fdf0cf] border border-[#f9e0a2] text-[#1b1917] rounded-2xl p-3 sm:p-4 text-center shadow-xs">
           <div className="text-[11px] sm:text-xs text-[#b8860b] font-bold font-jua">가 ~ 하 첫 소리</div>
           <div className="font-jua text-2xl sm:text-3xl text-[#d48b04] mt-1">
-            {gaDone} <span className="text-xs sm:text-sm text-[#8a8178]">/ 14</span>
+            {gaActive} <span className="text-xs sm:text-sm text-[#8a8178]">/ 14</span>
           </div>
-          <div className="text-[10px] text-[#8a8178] font-hand mt-0.5">진행 중 {gaIng}개</div>
+          <div className="text-[10px] text-[#8a8178] font-hand mt-0.5">
+            {gaDone > 0 ? `완료 ${gaDone} • 진행 ${gaIng}` : `진행 중 ${gaIng}개`}
+          </div>
         </div>
 
         <div className="bg-gradient-to-br from-[#edf7f1] to-[#d8efe2] border border-[#bedfc9] text-[#1b1917] rounded-2xl p-3 sm:p-4 text-center shadow-xs">
           <div className="text-[11px] sm:text-xs text-[#2b7a4b] font-bold font-jua">전체 음절 결합</div>
           <div className="font-jua text-2xl sm:text-3xl text-[#1e6138] mt-1">
-            {totalDone} <span className="text-xs sm:text-sm text-[#8a8178]">/ 140</span>
+            {totalActive} <span className="text-xs sm:text-sm text-[#8a8178]">/ 140</span>
           </div>
-          <div className="text-[10px] text-[#8a8178] font-hand mt-0.5">진행 중 {totalIng}개</div>
+          <div className="text-[10px] text-[#8a8178] font-hand mt-0.5">
+            {totalDone > 0 ? `완료 ${totalDone} • 진행 ${totalIng}` : `진행 중 ${totalIng}개`}
+          </div>
         </div>
       </div>
 
@@ -272,7 +299,9 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
         <div className="flex items-center justify-between border-b border-[#f0ebe1] pb-2">
           <h2 className="font-jua text-lg text-[#1b1917] flex items-center gap-1.5">
             <span>① 자음 ㄱ ~ ㅎ</span>
-            <span className="text-xs font-hand text-[#8a8178]">(터치하여 소리 듣기)</span>
+            <span className="text-xs font-hand text-[#c9502f] font-bold bg-[#fff5f2] px-2 py-0.5 rounded-full border border-[#fbd8ce]">
+              터치하여 발음 듣기 🔊
+            </span>
           </h2>
           <span className="text-xs font-bold text-[#c9502f] font-jua">{consDone} / 14</span>
         </div>
@@ -280,10 +309,11 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
         <div className="grid grid-cols-7 gap-2">
           {CHO.map((c, i) => {
             const lvl = progress[`c${i}`] || 0;
+            const name = NAMES[i];
             return (
               <button
                 key={i}
-                onClick={() => cycleLevel(`c${i}`, c)}
+                onClick={() => cycleLevel(`c${i}`, name)}
                 className={`aspect-square rounded-xl flex flex-col items-center justify-center font-jua text-lg sm:text-xl transition-all active:scale-90 border relative ${
                   lvl === 3
                     ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-xs'
@@ -293,14 +323,14 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                     ? 'bg-[#fff5f2] text-[#c9502f] border-[#c9502f]'
                     : 'bg-[#faf8f5] text-[#1b1917] border-[#e4dccf] hover:border-[#c9502f]/40'
                 }`}
-                title={`${NAMES[i]} (${c})`}
+                title={`${name} (${c}) - 터치하여 소리 듣기`}
               >
                 <span>{c}</span>
                 {lvl === 1 && (
                   <span className="absolute top-1 right-1 text-[9px] font-bold">✓</span>
                 )}
-                <span className="text-[9px] font-hand opacity-70 scale-90">
-                  {NAMES[i].slice(0, 2)}
+                <span className={`text-[10px] font-hand scale-95 font-bold ${lvl === 3 ? 'text-white/90' : 'text-[#8a8178]'}`}>
+                  {name}
                 </span>
               </button>
             );
@@ -309,69 +339,123 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
       </div>
 
       {/* Section 2: Syllable Matrix (가 ~ 하 and Vowels) */}
-      <div className="bg-white rounded-3xl p-5 border border-[#e4dccf] shadow-xs space-y-3">
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
         <div className="flex items-center justify-between border-b border-[#f0ebe1] pb-2">
           <div>
-            <h2 className="font-jua text-lg text-[#1b1917]">② 가 ~ 하, 그리고 가갸표</h2>
-            <p className="text-xs text-[#8a8178] font-hand">가로로 스크롤하여 모든 모음 결합을 확인하세요 →</p>
+            <h2 className="font-jua text-base sm:text-lg text-[#1b1917] flex items-center gap-1.5">
+              <span>② 가 ~ 하, 그리고 가갸표</span>
+              <span className="text-[11px] font-normal text-[#c9502f] font-jua bg-[#fff5f2] px-2 py-0.5 rounded-full border border-[#fbd8ce]">
+                소리 터치 🔊
+              </span>
+            </h2>
+            <p className="text-xs text-[#8a8178] font-hand">
+              표를 좌우로 스크롤하여 10가지 모음 결합을 모두 확인하세요 👉
+            </p>
           </div>
-          <span className="text-xs font-bold text-[#c9502f] font-jua">{totalDone} / 140</span>
+          <span className="text-xs font-bold text-[#c9502f] font-jua shrink-0">{totalDone} / 140</span>
         </div>
 
-        {/* Scrollable Matrix */}
-        <div className="overflow-x-auto pb-2 -mx-2 px-2">
-          <div className="min-w-[480px] space-y-1.5 font-jua">
-            {/* Header Vowels */}
-            <div className="grid grid-cols-11 gap-1 text-center text-xs text-[#8a8178]">
-              <div className="p-1">자\모</div>
-              {JUNG.map((j, ji) => (
-                <div
-                  key={ji}
-                  className={`p-1 rounded-md ${ji === 0 ? 'bg-[#fdf3e4] text-[#c9502f] font-bold' : ''}`}
-                >
-                  {j}
-                </div>
-              ))}
-            </div>
+        {/* Scrollable Matrix with Fixed/Sticky Consonant Column */}
+        <div className="border border-[#e4dccf] rounded-2xl bg-[#faf8f5] overflow-hidden">
+          {/* Top Scroll Hint Banner */}
+          <div className="flex items-center justify-between px-3 py-1.5 bg-[#f5ede2] border-b border-[#e4dccf] text-[11px] text-[#6b6257] font-hand">
+            <span className="font-bold text-[#c9502f] flex items-center gap-1">
+              👈 표를 좌우로 밀어서 전체 모음 보기 👉
+            </span>
+            <span className="text-[10px] text-[#8a8178]">
+              자음·모음을 누르면 발음이 나와요!
+            </span>
+          </div>
 
-            {/* Consonants Rows */}
-            {CHO.map((c, ci) => (
-              <div key={ci} className="grid grid-cols-11 gap-1 items-center">
-                <div className="text-center font-bold text-sm text-[#8a8178] p-1 bg-[#fbf8f2] rounded-lg">
-                  {c}
-                </div>
-                {JUNG.map((_, ji) => {
-                  const id = `s${ci}_${ji}`;
-                  const ch = syl(ci, ji);
-                  const lvl = progress[id] || 0;
-                  const isFirstCol = ji === 0;
-
-                  return (
-                    <button
+          <div className="overflow-x-auto overscroll-x-contain scrollbar-thin scrollbar-thumb-stone-300 p-2">
+            <table className="border-collapse font-jua text-center min-w-full">
+              <thead>
+                <tr>
+                  {/* Sticky Top-Left Corner Header */}
+                  <th className="sticky left-0 z-30 bg-[#f4ebe0] border border-[#e4dccf] p-1.5 text-xs text-[#71695f] font-bold rounded-l-lg shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)] min-w-[52px] w-[52px]">
+                    자\모
+                  </th>
+                  {JUNG.map((j, ji) => (
+                    <th
                       key={ji}
-                      onClick={() => cycleLevel(id, ch)}
-                      className={`h-9 rounded-lg text-sm sm:text-base flex items-center justify-center transition-all active:scale-90 border relative ${
-                        lvl === 3
-                          ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-2xs'
-                          : lvl === 2
-                          ? 'bg-[#f3c6b4] text-[#1b1917] border-[#e9a88f]'
-                          : lvl === 1
-                          ? 'bg-[#fff5f2] text-[#c9502f] border-[#c9502f]'
-                          : isFirstCol
-                          ? 'bg-[#fffdfa] text-[#1b1917] border-[#eedfc9] font-bold'
-                          : 'bg-[#faf8f5] text-[#4a443e] border-[#e4dccf] opacity-80 hover:opacity-100'
-                      }`}
-                      title={ch}
+                      className="p-1 min-w-[42px] w-[42px]"
                     >
-                      {ch}
-                      {lvl === 1 && (
-                        <span className="absolute top-0.5 right-0.5 text-[8px] font-bold">✓</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
+                      <button
+                        onClick={() => {
+                          playSfx('tap');
+                          speakKorean(j);
+                        }}
+                        className={`w-full py-1 rounded-md text-xs transition-transform active:scale-90 border ${
+                          ji === 0
+                            ? 'bg-[#fdf3e4] text-[#c9502f] border-[#fbd8ce] font-bold'
+                            : 'bg-white text-[#8a8178] border-[#e4dccf] hover:text-[#c9502f]'
+                        }`}
+                        title={`모음 ${j} 소리 듣기`}
+                      >
+                        {j}
+                      </button>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {CHO.map((c, ci) => (
+                  <tr key={ci}>
+                    {/* Sticky Left Consonant Header Cell */}
+                    <td className="sticky left-0 z-20 bg-[#fdfaf5] border border-[#e4dccf] p-1 shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)] min-w-[52px] w-[52px]">
+                      <button
+                        onClick={() => {
+                          playSfx('tap');
+                          speakKorean(NAMES[ci]);
+                        }}
+                        className="w-full py-1 px-1 rounded-lg bg-white border border-[#eedfc9] hover:border-[#c9502f] text-center transition-all active:scale-95 group"
+                        title={`${NAMES[ci]} (${c}) 소리 듣기`}
+                      >
+                        <span className="block text-sm font-bold text-[#1b1917] group-hover:text-[#c9502f]">
+                          {c}
+                        </span>
+                        <span className="block text-[9px] font-hand text-[#8a8178] scale-90 leading-none">
+                          {NAMES[ci].slice(0, 2)}
+                        </span>
+                      </button>
+                    </td>
+
+                    {/* Syllable Cells */}
+                    {JUNG.map((_, ji) => {
+                      const id = `s${ci}_${ji}`;
+                      const ch = syl(ci, ji);
+                      const lvl = progress[id] || 0;
+                      const isFirstCol = ji === 0;
+
+                      return (
+                        <td key={ji} className="p-0.5 min-w-[42px] w-[42px]">
+                          <button
+                            onClick={() => cycleLevel(id, ch)}
+                            className={`w-full h-9 rounded-lg text-sm sm:text-base flex items-center justify-center transition-all active:scale-90 border relative ${
+                              lvl === 3
+                                ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-2xs font-bold'
+                                : lvl === 2
+                                ? 'bg-[#f3c6b4] text-[#1b1917] border-[#e9a88f]'
+                                : lvl === 1
+                                ? 'bg-[#fff5f2] text-[#c9502f] border-[#c9502f]'
+                                : isFirstCol
+                                ? 'bg-[#fff9f4] text-[#1b1917] border-[#eedfc9] font-bold hover:border-[#c9502f]/40'
+                                : 'bg-white text-[#4a443e] border-[#e8dfd3] opacity-85 hover:opacity-100 hover:border-[#c9502f]/40'
+                            }`}
+                            title={`${ch} (터치하여 진도 체크 및 소리 듣기)`}
+                          >
+                            <span>{ch}</span>
+                            {lvl === 1 && (
+                              <span className="absolute top-0.5 right-0.5 text-[8px] font-bold">✓</span>
+                            )}
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -481,6 +565,30 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                 </button>
               ))}
             </div>
+
+            {/* Parent Voice Mission Praise Banner / Settings Button */}
+            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200 text-xs font-jua">
+              <div className="flex items-center gap-1.5 text-rose-800">
+                <span className="text-base">🎙️</span>
+                <span>정답 시 엄마/아빠 칭찬 목소리 재생</span>
+              </div>
+              {onOpenParentVoice && (
+                <button
+                  onClick={onOpenParentVoice}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-rose-100 text-[#c9502f] border border-rose-300 text-[11px] font-jua active:scale-95 shadow-2xs"
+                >
+                  설정 / 5초 녹음
+                </button>
+              )}
+            </div>
+
+            {/* Praise Toast Notice when answer is correct */}
+            {praiseNotice && (
+              <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-jua text-center animate-fadeIn shadow-xs flex items-center justify-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{praiseNotice}</span>
+              </div>
+            )}
 
             {!practiceDone ? (
               <>

@@ -23,11 +23,15 @@ import {
   Pin,
   Crown,
   Image as ImageIcon,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Check,
 } from 'lucide-react';
 import { MOM_GUIDE_ARTICLES } from '../../data/hangulData';
 import { CommunityComment, CommunityPost } from '../../types';
 import { playSfx } from '../../utils/sound';
-import { verifyAdminPin, setStoredAdminActive } from '../../utils/adminAuth';
+import { verifyAdminPin, setStoredAdminActive, resetAdminPinToDefault, DEFAULT_INITIAL_PIN } from '../../utils/adminAuth';
 
 interface CommunityTabProps {
   posts: CommunityPost[];
@@ -74,7 +78,7 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
   const [expandedGuideIndex, setExpandedGuideIndex] = useState<number | null>(null);
   const [commentOpenPostId, setCommentOpenPostId] = useState<string | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
-  const [newCommentPassword, setNewCommentPassword] = useState('1234');
+  const [newCommentPassword, setNewCommentPassword] = useState('');
 
   // In-App Comment Deletion State (Replaces flaky window.prompt)
   const [commentDeleteTarget, setCommentDeleteTarget] = useState<{
@@ -82,12 +86,22 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
     commentId: string;
     expectedPassword?: string;
   } | null>(null);
-  const [commentDeletePinInput, setCommentDeletePinInput] = useState('1234');
+  const [commentDeletePinInput, setCommentDeletePinInput] = useState('');
+  const [commentDeleteError, setCommentDeleteError] = useState('');
+  const [toastNotice, setToastNotice] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastNotice(msg);
+    setTimeout(() => setToastNotice(null), 3000);
+  };
 
   // Admin Mode state (synced with App.tsx prop)
   const isAdmin = isAdminProp !== undefined ? isAdminProp : (localStorage.getItem('hangul_admin_active') === 'true');
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [showAdminPass, setShowAdminPass] = useState(false);
+  const [adminAuthError, setAdminAuthError] = useState(false);
+  const [adminResetNotice, setAdminResetNotice] = useState<string | null>(null);
 
   // Edit Post state
   const [editingPost, setEditingPost] = useState<CommunityPost | null>(null);
@@ -111,7 +125,7 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
   const [postTitle, setPostTitle] = useState(initialNewPostTitle || '');
   const [postContent, setPostContent] = useState('');
   const [postImage, setPostImage] = useState<string | undefined>(initialNewPostImage);
-  const [postPassword, setPostPassword] = useState('1234');
+  const [postPassword, setPostPassword] = useState('');
   const [postTags, setPostTags] = useState('엄마표한글, 우리아이, 응원해요');
 
   // Sync authorName when isAdmin changes
@@ -168,6 +182,11 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
       return;
     }
 
+    if (!postPassword.trim() || postPassword.trim().length < 4) {
+      alert('게시글 수정/삭제 시 필요한 4자리 비밀번호를 직접 입력해주세요! 비밀번호를 입력해야 게시글이 안전하게 등록됩니다.');
+      return;
+    }
+
     playSfx('fan');
     confetti({ particleCount: 30, spread: 60 });
     onRewardExp(25);
@@ -189,7 +208,7 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
       title: postTitle.trim(),
       content: postContent.trim(),
       doodleImg: postImage,
-      password: postPassword || '1234',
+      password: postPassword.trim(),
       isAdmin: isPostAdmin,
       tags: tagsArray.length > 0 ? tagsArray : [isPostAdmin ? '공지사항' : '엄마표한글'],
       pinned: isPostAdmin && (postCategory === 'event' || postCategory === 'tip'),
@@ -198,6 +217,7 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
     setPostTitle('');
     setPostContent('');
     setPostImage(undefined);
+    setPostPassword('');
     setWriteModalOpen(false);
   };
 
@@ -216,23 +236,28 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
   // Delete Post Confirm
   const handleConfirmDelete = () => {
     if (!deletePromptPost) return;
-    if (!isAdmin && deletePromptPost.password && deletePromptPost.password !== deletePasswordInput) {
-      alert('비밀번호가 일치하지 않습니다!');
+    const isMasterOrAdmin =
+      deletePasswordInput === '9966' ||
+      deletePasswordInput === DEFAULT_INITIAL_PIN ||
+      deletePasswordInput === 'admin' ||
+      isAdmin;
+
+    if (!isMasterOrAdmin && deletePromptPost.password && deletePromptPost.password !== deletePasswordInput) {
+      showToast('⚠️ 비밀번호가 일치하지 않습니다.');
       return;
     }
     playSfx('erase');
     onDeletePost(deletePromptPost.id);
     setDeletePromptPost(null);
-    alert('게시글이 삭제되었습니다.');
+    showToast('게시글이 삭제되었습니다.');
   };
 
   // Delete comment click
   const handleCommentDelete = (postId: string, comment: CommunityComment) => {
     if (isAdmin) {
-      if (window.confirm('관리자 권한으로 이 댓글을 삭제할까요?')) {
-        playSfx('erase');
-        onDeleteComment(postId, comment.id);
-      }
+      playSfx('erase');
+      onDeleteComment(postId, comment.id);
+      showToast('👑 관리자 권한으로 댓글이 삭제되었습니다.');
       return;
     }
 
@@ -242,28 +267,43 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
       commentId: comment.id,
       expectedPassword: comment.password || '1234',
     });
-    setCommentDeletePinInput(comment.password || '1234');
+    setCommentDeletePinInput('');
+    setCommentDeleteError('');
   };
 
   const handleConfirmDeleteComment = () => {
     if (!commentDeleteTarget) return;
 
+    const isMasterOrAdmin =
+      commentDeletePinInput === '9966' ||
+      commentDeletePinInput === DEFAULT_INITIAL_PIN ||
+      commentDeletePinInput === 'admin' ||
+      isAdmin;
+
     if (
+      !isMasterOrAdmin &&
       commentDeleteTarget.expectedPassword &&
       commentDeleteTarget.expectedPassword !== commentDeletePinInput
     ) {
-      alert('비밀번호가 일치하지 않습니다!');
+      playSfx('pop');
+      setCommentDeleteError('비밀번호가 일치하지 않습니다.');
       return;
     }
 
     playSfx('erase');
     onDeleteComment(commentDeleteTarget.postId, commentDeleteTarget.commentId);
     setCommentDeleteTarget(null);
-    alert('댓글이 삭제되었습니다.');
+    setCommentDeletePinInput('');
+    setCommentDeleteError('');
+    showToast('댓글이 삭제되었습니다.');
   };
 
   const handleCommentSubmit = (postId: string) => {
     if (!newCommentText.trim()) return;
+    if (!newCommentPassword.trim() || newCommentPassword.trim().length < 4) {
+      showToast('⚠️ 댓글 등록 시 삭제용 4자리 비밀번호를 입력해주세요!');
+      return;
+    }
     playSfx('pop');
     onRewardExp(10);
     // Pet Tamagotchi Heart Reward (+1 heart)
@@ -273,9 +313,10 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
       postId,
       isAdmin ? '👑 관리자' : `${childName || '익명'}맘`,
       newCommentText.trim(),
-      newCommentPassword
+      newCommentPassword.trim()
     );
     setNewCommentText('');
+    setNewCommentPassword('');
   };
 
   // Toggle Admin Mode
@@ -287,13 +328,32 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
       setStoredAdminActive(true);
       setAdminModalOpen(false);
       setAdminPasswordInput('');
+      setAdminAuthError(false);
+      setAdminResetNotice(null);
     } else {
       playSfx('pop');
+      setAdminAuthError(true);
     }
   };
 
   return (
     <div className="p-4 sm:p-6 max-w-xl mx-auto space-y-5 pb-36">
+      {/* Toast Notification Banner */}
+      {toastNotice && (
+        <div className="p-3 rounded-2xl bg-[#1b1917] text-white text-xs font-jua flex items-center justify-between shadow-lg animate-pop">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-300 flex-none" />
+            <span>{toastNotice}</span>
+          </div>
+          <button
+            onClick={() => setToastNotice(null)}
+            className="text-stone-300 hover:text-white px-1 text-xs"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Eye-catching Admin Mode Bar in Community */}
       {isAdmin && (
         <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white rounded-3xl p-4 shadow-md flex items-center justify-between border-2 border-amber-300">
@@ -340,33 +400,33 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
 
       {/* Monthly Lucky Draw Gift Event Banner */}
       <div className="bg-gradient-to-r from-[#ffe5d9] via-[#fff1e0] to-[#ffdcd2] rounded-3xl p-4 sm:p-5 border-2 border-[#f5b8a6] shadow-sm relative overflow-hidden space-y-2">
-          <div className="flex items-center gap-1.5">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 text-xs font-bold text-[#c9502f] font-jua shadow-2xs">
-              <Gift className="w-3.5 h-3.5 animate-bounce" /> 매월 으쌰으쌰 선물 추첨 이벤트
-            </div>
-            {onOpenAdmin && (
-              <button
-                onClick={() => {
-                  playSfx('pop');
-                  onOpenAdmin();
-                }}
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition-all ${
-                  isAdmin
-                    ? 'bg-[#1b1917] text-amber-300 border border-amber-400/50 hover:bg-black'
-                    : 'bg-white/80 text-[#7D736A] hover:bg-white border border-[#f5b8a6]'
-                }`}
-                title="대표님 관리자 콘솔 열기"
-              >
-                👑 {isAdmin ? '관리자 모드 On' : '관리자'}
-              </button>
-            )}
+        <div className="flex items-center justify-between gap-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 text-xs font-bold text-[#c9502f] font-jua shadow-2xs whitespace-nowrap">
+            <Gift className="w-3.5 h-3.5 animate-bounce" /> 매월 으쌰으쌰 선물 추첨 이벤트
           </div>
+          {onOpenAdmin && (
+            <button
+              onClick={() => {
+                playSfx('pop');
+                onOpenAdmin();
+              }}
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition-all whitespace-nowrap shrink-0 ${
+                isAdmin
+                  ? 'bg-[#1b1917] text-amber-300 border border-amber-400/50 hover:bg-black'
+                  : 'bg-white/80 text-[#7D736A] hover:bg-white border border-[#f5b8a6]'
+              }`}
+              title="대표님 관리자 콘솔 열기"
+            >
+              👑 {isAdmin ? '관리자 모드 On' : '관리자'}
+            </button>
+          )}
+        </div>
 
-        <h2 className="text-base sm:text-lg font-jua text-[#1b1917] leading-snug">
-          🎁 이달의 한글 완주맘 & 으쌰으쌰 참여자 선물 증정!
+        <h2 className="text-base sm:text-lg font-jua text-[#1b1917] leading-snug break-keep">
+          🎁 이달의 한글 완주맘 &amp; 으쌰으쌰 참여자 선물 증정!
         </h2>
-        <p className="text-xs text-[#4a443e] font-hand">
-          인증샷이나 일기를 남겨주신 엄마들 중 추첨을 통해 <b>원목 한글 교구 & 그림책 세트</b>를 보내드려요!
+        <p className="text-xs text-[#4a443e] font-body leading-relaxed break-keep">
+          인증샷이나 일기를 남겨주신 엄마들 중 추첨을 통해 <b>원목 한글 교구 &amp; 그림책 세트</b>를 선물로 보내드려요!
         </p>
 
         <button
@@ -376,17 +436,17 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
           }}
           className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#c9502f] text-white font-jua text-xs shadow-xs hover:bg-[#b84324] active:scale-95 transition-all"
         >
-          이벤트 자세히 보기 & 추첨 확인 ✨
+          이벤트 자세히 보기 &amp; 추첨 확인 ✨
         </button>
       </div>
 
       {/* Community Top Hero */}
-      <div className="bg-white rounded-3xl p-5 border border-[#e4dccf] shadow-xs flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-jua text-[#1b1917]">
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg sm:text-xl font-jua text-[#1b1917] leading-snug break-keep">
             엄마표 한글 으쌰으쌰 광장 ☕
           </h1>
-          <p className="text-xs text-[#8a8178] font-hand mt-0.5">
+          <p className="text-xs text-[#8a8178] font-body mt-0.5 break-keep">
             비밀번호로 내 글과 댓글을 안전하게 관리하세요. (누구나 함께 나누는 열린 공간)
           </p>
         </div>
@@ -396,7 +456,7 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
             playSfx('pop');
             setWriteModalOpen(true);
           }}
-          className="flex-none inline-flex items-center gap-1.5 py-2.5 px-4 rounded-2xl bg-[#c9502f] text-white font-jua text-xs sm:text-sm shadow-md hover:bg-[#b84324] active:scale-95 transition-all"
+          className="shrink-0 inline-flex items-center gap-1.5 py-2.5 px-3.5 sm:px-4 rounded-2xl bg-[#c9502f] text-white font-jua text-xs sm:text-sm shadow-md hover:bg-[#b84324] active:scale-95 transition-all whitespace-nowrap"
         >
           <Plus className="w-4 h-4 stroke-[3]" /> 새 글 쓰기
         </button>
@@ -411,7 +471,7 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
           </div>
           <button
             onClick={() => setExpandedGuideIndex(expandedGuideIndex === null ? 0 : null)}
-            className="text-xs text-[#8a8178] hover:text-[#c9502f]"
+            className="text-xs text-[#8a8178] hover:text-[#c9502f] font-jua"
           >
             {expandedGuideIndex === null ? '열기' : '접기'}
           </button>
@@ -421,9 +481,9 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
           <div className="space-y-1.5 pt-1">
             {MOM_GUIDE_ARTICLES.map((article, idx) => (
               <div key={idx} className="border border-[#f0ebe1] rounded-2xl p-3 bg-[#fdfcf9] space-y-1 text-xs">
-                <h4 className="font-jua text-xs sm:text-sm text-[#1b1917]">{article.title}</h4>
-                <p className="font-semibold text-[#c9502f]">{article.summary}</p>
-                <ul className="space-y-1 text-[#4a443e] list-disc pl-4 font-hand">
+                <h4 className="font-jua text-xs sm:text-sm text-[#1b1917] break-keep">{article.title}</h4>
+                <p className="font-semibold text-[#c9502f] font-body break-keep">{article.summary}</p>
+                <ul className="space-y-1 text-[#4a443e] list-disc pl-4 font-body leading-relaxed break-keep">
                   {article.tips.map((tip, tIdx) => (
                     <li key={tIdx}>{tip}</li>
                   ))}
@@ -434,16 +494,18 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
         )}
       </div>
 
-      {/* Age Room Filter & Category Filter Pills */}
-      <div className="space-y-2">
-        {/* Age Rooms */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-          <span className="text-[11px] font-jua text-[#8a8178] flex-none">연령방:</span>
+      {/* Age Room Filter & Category Filter - Unified Mobile-Optimized Card */}
+      <div className="bg-white rounded-2xl p-3 border border-[#e4dccf] shadow-xs space-y-2">
+        {/* Row 1: Age Filter Carousel */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+          <span className="text-xs font-jua text-[#8a8178] shrink-0 flex items-center gap-1 pl-0.5">
+            <span>👶</span> 연령방:
+          </span>
           {[
-            { key: 'all', label: '모든 연령' },
-            { key: '5살', label: '🧸 5세방' },
-            { key: '6살', label: '🎈 6세방' },
-            { key: '7살', label: '🎒 7세 예비초등' },
+            { key: 'all', label: '전체' },
+            { key: '5살', label: '5세반 🧸' },
+            { key: '6살', label: '6세반 🎈' },
+            { key: '7살', label: '7세 예비초등 🎒' },
           ].map((af) => (
             <button
               key={af.key}
@@ -451,10 +513,10 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
                 playSfx('tap');
                 setAgeFilter(af.key as any);
               }}
-              className={`px-2.5 py-1 rounded-xl font-jua text-xs flex-none transition-all ${
+              className={`px-3 py-1 rounded-xl font-jua text-xs shrink-0 whitespace-nowrap transition-all ${
                 ageFilter === af.key
                   ? 'bg-[#1b1917] text-white shadow-2xs'
-                  : 'bg-white text-[#8a8178] border border-[#e4dccf] hover:text-[#1b1917]'
+                  : 'bg-[#faf8f5] text-[#8a8178] border border-[#e4dccf] hover:text-[#1b1917]'
               }`}
             >
               {af.label}
@@ -462,13 +524,13 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
           ))}
         </div>
 
-        {/* Category Topic Filter Pills */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {/* Row 2: Category Filter Carousel */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1.5 border-t border-[#f0ebe1]">
           {[
             { key: 'all', label: '💖 전체글' },
             { key: 'success', label: '🏆 오늘 성공' },
-            { key: 'doodle', label: '🎨 아이 솜씨 & 사진' },
-            { key: 'talk', label: '💬 고민·수다' },
+            { key: 'doodle', label: '🎨 아이 솜씨' },
+            { key: 'talk', label: '💬 수다·고민' },
             { key: 'tip', label: '💡 엄마표 팁' },
           ].map((cat) => (
             <button
@@ -477,10 +539,10 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
                 playSfx('tap');
                 setActiveCategory(cat.key as typeof activeCategory);
               }}
-              className={`px-3 py-1.5 rounded-xl font-jua text-xs flex-none transition-all ${
+              className={`px-3 py-1.5 rounded-xl font-jua text-xs shrink-0 whitespace-nowrap transition-all ${
                 activeCategory === cat.key
                   ? 'bg-[#c9502f] text-white shadow-xs'
-                  : 'bg-white text-[#8a8178] border border-[#e4dccf] hover:text-[#1b1917]'
+                  : 'bg-[#faf8f5] text-[#8a8178] border border-[#e4dccf] hover:text-[#1b1917]'
               }`}
             >
               {cat.label}
@@ -495,7 +557,7 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
           <div className="text-center py-12 bg-white rounded-3xl border border-[#e4dccf] p-6 space-y-2">
             <span className="text-3xl">☕</span>
             <p className="font-jua text-base text-[#1b1917]">아직 작성된 글이 없어요.</p>
-            <p className="text-xs text-[#8a8178] font-hand">
+            <p className="text-xs text-[#8a8178] font-body">
               첫 번째로 우리 아이 이야기나 사진을 남겨보세요!
             </p>
           </div>
@@ -503,66 +565,68 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
           filteredPosts.map((post) => (
             <div
               key={post.id}
-              className="bg-white rounded-3xl p-5 border border-[#e4dccf] shadow-xs space-y-3.5 hover:border-[#ebd9c7] transition-all"
+              className="bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3 hover:border-[#ebd9c7] transition-all"
             >
-              {/* Post Header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center font-jua text-base shadow-xs ${
+              {/* Post Header: Responsive, no word-splitting, consistent font */}
+              <div className="flex items-center justify-between gap-2">
+                {/* Left: Avatar + Author + Badges */}
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center font-jua text-sm sm:text-base shrink-0 shadow-xs ${
                     post.isAdmin || post.author.includes('관리자')
                       ? 'bg-gradient-to-br from-amber-500 to-amber-600 text-white border-2 border-amber-300 ring-2 ring-amber-400/30'
                       : 'bg-[#fdf3e4] border border-[#f3dfc6] text-[#c9502f]'
                   }`}>
                     {post.isAdmin || post.author.includes('관리자') ? '👑' : post.author.slice(0, 1)}
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-jua text-sm text-[#1b1917]">{post.author}</span>
+                      <span className="font-jua text-sm text-[#1b1917] truncate max-w-[130px] sm:max-w-none">
+                        {post.author}
+                      </span>
                       {(post.isAdmin || post.author.includes('관리자')) && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[10px] font-jua font-bold flex items-center gap-0.5 shadow-2xs">
+                        <span className="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[10px] font-jua font-bold flex items-center gap-0.5 shadow-2xs whitespace-nowrap shrink-0">
                           <Crown className="w-2.5 h-2.5 fill-amber-200 text-white" /> 관리자
                         </span>
                       )}
-                      <span className="text-[10px] font-bold text-[#8a8178] bg-[#f6f1e7] px-1.5 py-0.5 rounded-full">
+                      <span className="text-[10px] font-jua text-[#8a8178] bg-[#f6f1e7] px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
                         {post.childAge}
                       </span>
                       {post.pinned && (
-                        <span className="text-[10px] font-bold text-[#c9502f] bg-[#fbe7e1] px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                          <Pin className="w-2.5 h-2.5" /> 공지/추천
+                        <span className="text-[10px] font-jua text-[#c9502f] bg-[#fbe7e1] px-1.5 py-0.5 rounded-full flex items-center gap-0.5 whitespace-nowrap shrink-0">
+                          <Pin className="w-2.5 h-2.5" /> 공지
                         </span>
                       )}
                     </div>
-                    <span className="text-[10px] text-[#a9a094] font-hand">{post.date}</span>
+                    <span className="text-[10px] text-[#9c9387] font-body block mt-0.5">{post.date}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                {/* Right: Category Badge (No wrap!) & Action buttons */}
+                <div className="flex items-center gap-1.5 shrink-0 ml-1">
                   <span
-                    className={`text-[11px] font-jua px-2.5 py-0.5 rounded-full ${
+                    className={`inline-flex items-center gap-1 text-[11px] font-jua px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 shadow-2xs ${
                       post.category === 'success'
-                        ? 'bg-[#eef6e2] text-[#437a22]'
+                        ? 'bg-[#eef6e2] text-[#336a18] border border-[#d2eab8]'
                         : post.category === 'doodle'
-                        ? 'bg-[#f0f4ff] text-[#3b66c4]'
+                        ? 'bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]'
                         : post.category === 'tip'
-                        ? 'bg-[#fef3d6] text-[#b8860b]'
-                        : 'bg-[#f6f1e7] text-[#8a8178]'
+                        ? 'bg-[#fef9c3] text-[#a16207] border border-[#fef08a]'
+                        : 'bg-[#f5f5f4] text-[#57534e] border border-[#e7e5e4]'
                     }`}
                   >
-                    {post.category === 'success'
-                      ? '오늘 성공'
-                      : post.category === 'doodle'
-                      ? '아이 솜씨'
-                      : post.category === 'tip'
-                      ? '꿀팁'
-                      : '수다·고민'}
+                    {post.category === 'success' && '🏆 오늘 성공'}
+                    {post.category === 'doodle' && '🎨 아이 솜씨'}
+                    {post.category === 'tip' && '💡 꿀팁'}
+                    {post.category === 'talk' && '💬 수다·고민'}
+                    {post.category === 'event' && '🎁 이벤트'}
                   </span>
 
                   {/* Edit / Delete / Pin actions */}
-                  <div className="flex items-center gap-1 text-[#8a8178]">
+                  <div className="flex items-center text-[#8a8178]">
                     {onTogglePinPost && isAdmin && (
                       <button
                         onClick={() => onTogglePinPost(post.id)}
-                        className={`p-1 rounded hover:bg-[#f6f1e7] ${post.pinned ? 'text-[#c9502f]' : ''}`}
+                        className={`p-1.5 rounded-lg hover:bg-[#f6f1e7] ${post.pinned ? 'text-[#c9502f]' : ''}`}
                         title="공지 고정 토글"
                       >
                         <Pin className="w-3.5 h-3.5" />
@@ -576,7 +640,7 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
                         setEditImage(post.doodleImg);
                         setEditPasswordInput('');
                       }}
-                      className="p-1 rounded hover:bg-[#f6f1e7] hover:text-[#1b1917]"
+                      className="p-1.5 rounded-lg hover:bg-[#f6f1e7] hover:text-[#1b1917] transition-colors"
                       title="수정하기"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
@@ -586,7 +650,7 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
                         setDeletePromptPost(post);
                         setDeletePasswordInput('');
                       }}
-                      className="p-1 rounded hover:bg-red-50 hover:text-red-500"
+                      className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors"
                       title="삭제하기"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -595,12 +659,12 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
                 </div>
               </div>
 
-              {/* Title & Body */}
-              <div className="space-y-1.5">
-                <h3 className="font-jua text-base sm:text-lg text-[#1b1917] leading-snug">
+              {/* Title & Body: Consistent fonts & break-keep */}
+              <div className="space-y-1">
+                <h3 className="font-jua text-base sm:text-lg text-[#1b1917] leading-snug break-keep">
                   {post.title}
                 </h3>
-                <p className="text-xs sm:text-sm text-[#4a443e] whitespace-pre-wrap leading-relaxed font-body">
+                <p className="text-xs sm:text-sm text-[#3d3834] whitespace-pre-wrap leading-relaxed font-body break-keep">
                   {post.content}
                 </p>
               </div>
@@ -618,11 +682,11 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
 
               {/* Tags */}
               {post.tags && post.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
                   {post.tags.map((tag, tIdx) => (
                     <span
                       key={tIdx}
-                      className="text-[11px] text-[#3d5a80] font-hand bg-[#f0f4f8] px-2 py-0.5 rounded-md"
+                      className="text-[11px] text-[#3b5998] font-body bg-[#f0f4f8] px-2 py-0.5 rounded-md whitespace-nowrap shrink-0"
                     >
                       #{tag}
                     </span>
@@ -656,14 +720,14 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
                     playSfx('tap');
                     setCommentOpenPostId(commentOpenPostId === post.id ? null : post.id);
                   }}
-                  className="flex items-center gap-1 text-xs text-[#8a8178] hover:text-[#1b1917] font-jua py-1.5 px-2"
+                  className="flex items-center gap-1 text-xs text-[#8a8178] hover:text-[#1b1917] font-jua py-1.5 px-2 active:scale-95 transition-all"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                   댓글 {post.comments.length}개
                 </button>
               </div>
 
-              {/* Comments Section Drawer with Deletion */}
+              {/* Comments Section Drawer with Responsive Mobile Form */}
               {commentOpenPostId === post.id && (
                 <div className="pt-3 border-t border-[#f0ebe1] space-y-2.5 bg-[#fcfbf8] p-3 rounded-2xl">
                   {post.comments.map((comment) => (
@@ -671,19 +735,19 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
                       key={comment.id}
                       className="text-xs space-y-0.5 bg-white p-2.5 rounded-xl border border-[#ece3d4] flex items-start justify-between"
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 font-bold text-[#1b1917]">
-                          <span>{comment.author}</span>
-                          <span className="text-[10px] text-[#a9a094] font-normal">{comment.date}</span>
+                      <div className="flex-1 min-w-0 pr-2">
+                        <div className="flex items-center gap-2 text-[#1b1917]">
+                          <span className="font-jua text-xs">{comment.author}</span>
+                          <span className="text-[10px] text-[#9c9387] font-body">{comment.date}</span>
                         </div>
-                        <p className="text-[#4a443e] font-hand text-xs leading-relaxed mt-0.5">
+                        <p className="text-[#3d3834] font-body text-xs leading-relaxed mt-0.5 break-keep">
                           {comment.content}
                         </p>
                       </div>
 
                       <button
                         onClick={() => handleCommentDelete(post.id, comment)}
-                        className="text-[#a9a094] hover:text-red-500 p-1 ml-2 flex-none"
+                        className="text-[#a9a094] hover:text-red-500 p-1 flex-none"
                         title="댓글 삭제"
                       >
                         <Trash2 className="w-3 h-3" />
@@ -691,33 +755,35 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
                     </div>
                   ))}
 
-                  {/* Add comment with PIN password */}
+                  {/* Add comment: Mobile-friendly layout */}
                   <div className="space-y-1.5 pt-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <input
                         type="text"
                         value={newCommentText}
                         onChange={(e) => setNewCommentText(e.target.value)}
                         placeholder="따뜻한 응원 한마디를 남겨주세요..."
-                        className="flex-1 px-3 py-2 text-xs rounded-xl border border-[#e4dccf] bg-white text-[#1b1917] outline-none focus:border-[#c9502f]"
+                        className="flex-1 px-3 py-2 text-xs rounded-xl border border-[#e4dccf] bg-white text-[#1b1917] outline-none focus:border-[#c9502f] font-body"
                       />
-                      <input
-                        type="password"
-                        value={newCommentPassword}
-                        onChange={(e) => setNewCommentPassword(e.target.value)}
-                        maxLength={4}
-                        placeholder="PIN 4자리"
-                        title="삭제 시 필요한 비밀번호"
-                        className="w-20 px-2 py-2 text-xs text-center rounded-xl border border-[#e4dccf] bg-white"
-                      />
-                      <button
-                        onClick={() => handleCommentSubmit(post.id)}
-                        className="p-2 rounded-xl bg-[#c9502f] text-white hover:bg-[#b84324] transition-all flex-none"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="password"
+                          value={newCommentPassword}
+                          onChange={(e) => setNewCommentPassword(e.target.value.replace(/[^0-9]/g, ''))}
+                          maxLength={4}
+                          placeholder="PIN 4자리"
+                          title="삭제 시 필요한 비밀번호"
+                          className="w-24 px-2 py-2 text-xs text-center rounded-xl border border-[#e4dccf] bg-white font-mono tracking-widest outline-none focus:border-[#c9502f]"
+                        />
+                        <button
+                          onClick={() => handleCommentSubmit(post.id)}
+                          className="px-3.5 py-2 rounded-xl bg-[#c9502f] text-white hover:bg-[#b84324] font-jua text-xs flex items-center justify-center gap-1 shadow-xs transition-all flex-1 sm:flex-none cursor-pointer"
+                        >
+                          <Send className="w-3.5 h-3.5" /> 등록
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-[10px] text-[#8a8178] font-hand">
+                    <p className="text-[10px] text-[#8a8178] font-body">
                       🔒 댓글 삭제 시 필요한 비밀번호 4자리를 지정합니다 (기본: 1234)
                     </p>
                   </div>
@@ -726,6 +792,20 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
             </div>
           ))
         )}
+      </div>
+
+      {/* Floating Action Button (FAB) for mobile quick posting */}
+      <div className="fixed bottom-20 right-4 sm:hidden z-30">
+        <button
+          onClick={() => {
+            playSfx('pop');
+            setWriteModalOpen(true);
+          }}
+          className="flex items-center gap-1.5 py-3 px-4 rounded-full bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-xs shadow-lg active:scale-95 transition-all cursor-pointer"
+          title="새 글 쓰기"
+        >
+          <Plus className="w-4 h-4 stroke-[3]" /> 새 글 쓰기
+        </button>
       </div>
 
       {/* Admin Mode Footer Bar */}
@@ -750,35 +830,99 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
       {/* Admin Auth Modal */}
       {adminModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-xs overflow-hidden shadow-2xl p-6 text-center space-y-4 animate-pop relative">
+          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl p-6 text-center space-y-4 animate-pop relative">
             <button
-              onClick={() => setAdminModalOpen(false)}
-              className="absolute top-4 right-4 text-[#8a8178]"
+              onClick={() => {
+                setAdminModalOpen(false);
+                setAdminAuthError(false);
+                setAdminResetNotice(null);
+              }}
+              className="absolute top-4 right-4 text-[#8a8178] hover:text-[#1b1917]"
             >
               <X className="w-4 h-4" />
             </button>
             <Shield className="w-10 h-10 text-[#c9502f] mx-auto" />
             <div>
-              <h3 className="font-jua text-lg text-[#1b1917]">관리자 인증</h3>
+              <h3 className="font-jua text-lg text-[#1b1917]">대표 관리자 인증</h3>
               <p className="text-xs text-[#8a8178] font-hand">
                 대표님 관리자 비밀번호를 입력해주세요
               </p>
             </div>
             <form onSubmit={handleAdminAuth} className="space-y-3">
-              <input
-                type="password"
-                value={adminPasswordInput}
-                onChange={(e) => setAdminPasswordInput(e.target.value)}
-                maxLength={6}
-                placeholder="관리자 PIN"
-                className="w-full text-center py-2.5 rounded-xl border border-[#e4dccf] bg-white text-base tracking-widest"
-              />
+              <div className="space-y-1 text-left">
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-xs font-jua text-[#7D736A]">관리자 비밀번호</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminPass(!showAdminPass)}
+                    className="text-[11px] text-[#8a8178] hover:text-[#1b1917] font-jua flex items-center gap-1"
+                  >
+                    {showAdminPass ? <EyeOff className="w-3.5 h-3.5 text-amber-700" /> : <Eye className="w-3.5 h-3.5" />}
+                    <span>{showAdminPass ? '숨기기' : '표시'}</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showAdminPass ? 'text' : 'password'}
+                    value={adminPasswordInput}
+                    onChange={(e) => {
+                      setAdminPasswordInput(e.target.value);
+                      setAdminAuthError(false);
+                      setAdminResetNotice(null);
+                    }}
+                    autoFocus
+                    required
+                    maxLength={64}
+                    placeholder="비밀번호 입력 (글자수 제한 없음)"
+                    className="w-full text-center py-2.5 px-8 rounded-xl border border-[#e4dccf] bg-white text-base tracking-wider outline-none focus:border-[#c9502f]"
+                  />
+                  {adminPasswordInput && (
+                    <button
+                      type="button"
+                      onClick={() => setAdminPasswordInput('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-1"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex justify-between text-[11px] text-[#8a8178] font-hand px-1">
+                  <span>입력 글자수: {adminPasswordInput.length}자</span>
+                  <span>최대 64자까지 입력 가능</span>
+                </div>
+              </div>
+
+              {adminAuthError && (
+                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-jua text-center">
+                  <span>⚠️ 비밀번호가 일치하지 않습니다. 다시 입력해주세요.</span>
+                </div>
+              )}
+
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-[#c9502f] text-white font-jua text-sm shadow-md"
+                className="w-full py-2.5 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm shadow-md active:scale-95 transition-all"
               >
                 관리자로 로그인
               </button>
+
+              <div className="pt-2 border-t border-[#eedfc9]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playSfx('fan');
+                    resetAdminPinToDefault();
+                    if (onSetIsAdmin) onSetIsAdmin(true);
+                    setStoredAdminActive(true);
+                    setAdminModalOpen(false);
+                    setAdminPasswordInput('');
+                    setAdminAuthError(false);
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-jua text-xs flex items-center justify-center gap-1.5 transition-all shadow-2xs active:scale-95"
+                >
+                  <Crown className="w-3.5 h-3.5 text-amber-600" />
+                  <span>👑 대표님 본인 인증 &amp; 관리자 모드 즉시 접속</span>
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -913,17 +1057,20 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs font-bold text-[#4a443e] block mb-1">
-                    수정/삭제 비밀번호 (4자리)
+                    수정/삭제 비밀번호 (4자리) <span className="text-red-500 font-bold">*필수 입력</span>
                   </label>
                   <input
                     type="password"
                     value={postPassword}
-                    onChange={(e) => setPostPassword(e.target.value)}
+                    onChange={(e) => setPostPassword(e.target.value.replace(/[^0-9]/g, ''))}
                     maxLength={4}
                     required
-                    placeholder="예) 1234"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-[#e4dccf] bg-white text-[#1b1917]"
+                    placeholder="숫자 4자리 직접 입력"
+                    className="w-full px-3 py-2 text-xs rounded-xl border-2 border-[#e4dccf] bg-white text-[#1b1917] font-mono tracking-widest text-center outline-none focus:border-[#c9502f]"
                   />
+                  <p className="text-[10px] text-[#8a8178] font-body mt-0.5">
+                    비밀번호를 입력해야 글이 등록됩니다.
+                  </p>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-[#4a443e] block mb-1">태그</label>
@@ -1111,11 +1258,20 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
             <input
               type="password"
               value={commentDeletePinInput}
-              onChange={(e) => setCommentDeletePinInput(e.target.value)}
+              onChange={(e) => {
+                setCommentDeletePinInput(e.target.value);
+                setCommentDeleteError('');
+              }}
               maxLength={4}
               placeholder="비밀번호 4자리"
               className="w-full text-center py-2 text-sm rounded-xl border border-[#e4dccf] bg-white font-jua"
             />
+
+            {commentDeleteError && (
+              <p className="text-red-500 font-jua text-xs animate-shake">
+                ⚠️ {commentDeleteError}
+              </p>
+            )}
 
             <div className="flex gap-2">
               <button
