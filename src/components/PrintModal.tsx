@@ -676,8 +676,8 @@ export const PrintModal: React.FC<PrintModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-fadeIn print:p-0 print:bg-white print:static">
-      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col relative print:border-none print:shadow-none print:max-w-none print:max-h-none print:w-full">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn print:p-0 print:bg-white print:static">
+      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-2xl max-h-[92vh] box-border overflow-hidden shadow-2xl flex flex-col relative print:border-none print:shadow-none print:max-w-none print:max-h-none print:w-full">
         {/* Modal Top Bar (hidden on print) */}
         <div className="px-4 py-3 sm:px-6 sm:py-4 bg-white border-b border-[#e4dccf] flex items-center justify-between print:hidden">
           <div className="flex items-center gap-2">
@@ -710,17 +710,17 @@ export const PrintModal: React.FC<PrintModalProps> = ({
           </div>
         </div>
 
-        {/* Informational banner about iframe environment & guarantee */}
-        <div className="bg-[#fff9f0] px-4 py-2 border-b border-[#eedfc9] flex items-center justify-between gap-2 text-[11px] sm:text-xs font-hand text-[#8a8178] print:hidden">
-          <span className="flex items-center gap-1.5 truncate">
+        {/* Informational banner */}
+        <div className="bg-[#fff9f0] px-4 py-2 border-b border-[#eedfc9] flex flex-wrap items-center justify-between gap-2 text-[11px] sm:text-xs font-hand text-[#8a8178] print:hidden">
+          <span className="flex items-center gap-1.5 break-keep">
             <Sparkles className="w-3.5 h-3.5 text-[#c9502f] shrink-0" />
-            <span>화면 아래 <b>[새 창 인쇄]</b> 또는 <b>[A4 파일 다운로드]</b>를 누르면 100% 정상 출력됩니다!</span>
+            <span>아래 <b>[새 창]</b> 또는 <b>[파일 저장]</b>으로 100% 인쇄돼요!</span>
           </span>
           <span className="shrink-0 font-jua text-[#c9502f] hidden sm:inline-block">A4 규격 최적화 ✨</span>
         </div>
 
-        {/* 4 Tab Selector Buttons: 자음·모음판, 일기장 책, 완주 상장, 스티커판 도안 */}
-        <div className="grid grid-cols-4 border-b border-[#e4dccf] bg-[#f5ecdd] p-1.5 sm:p-2 gap-1 sm:gap-1.5 print:hidden">
+        {/* 4 Tab Selector Buttons: 2x2 on narrow mobile, 4-col on sm+ */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-[#e4dccf] bg-[#f5ecdd] p-1.5 sm:p-2 gap-1.5 print:hidden">
           {[
             { id: 'chart', label: '🔤 자음·모음판' },
             { id: 'diary', label: '📖 일기장 책' },
@@ -733,7 +733,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
                 playSfx('tap');
                 setPrintType(tab.id as typeof printType);
               }}
-              className={`py-2 px-1 sm:px-3 rounded-xl font-jua text-xs sm:text-sm text-center transition-all truncate ${
+              className={`min-h-[40px] py-2 px-2 rounded-xl font-jua text-xs sm:text-sm text-center transition-all whitespace-nowrap ${
                 printType === tab.id
                   ? 'bg-white text-[#c9502f] shadow-xs font-bold'
                   : 'text-[#8a8178] hover:text-[#1b1917]'
@@ -745,7 +745,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
         </div>
 
         {/* Printable Preview Container with ample padding to avoid cutoff */}
-        <div className="p-4 sm:p-6 md:p-8 overflow-y-auto flex-1 bg-white text-[#1b1917] print:p-2 print:overflow-visible font-body">
+        <div className="p-4 sm:p-6 md:p-8 overflow-y-auto overflow-x-hidden flex-1 bg-white text-[#1b1917] box-border print:p-2 print:overflow-visible font-body">
 
           {/* 1. 한글 자음·모음판 (벽/냉장고 부착용 A4 포스터) */}
           {printType === 'chart' && (
@@ -1021,17 +1021,17 @@ export const PrintModal: React.FC<PrintModalProps> = ({
           {/* Printable 30-Slot Sticker Board Sheets with Cut-out Coupon */}
           {printType === 'sticker_sheet' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b-2 border-[#1b1917] pb-3 print:hidden">
-                <div>
-                  <h2 className="font-jua text-lg text-[#1b1917]">
-                    A4 칭찬 스티커판 실물 도안 출력
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-[#1b1917] pb-3 print:hidden">
+                <div className="min-w-0">
+                  <h2 className="font-jua text-base sm:text-lg text-[#1b1917] break-keep">
+                    A4 칭찬 스티커판 도안
                   </h2>
-                  <p className="text-xs text-[#8a8178] font-hand">
-                    원하는 테마를 골라 A4 종이로 뽑아 냉장고나 아이 방에 붙여주세요!
+                  <p className="text-xs text-[#8a8178] font-hand break-keep">
+                    테마를 골라 A4로 출력하세요
                   </p>
                 </div>
 
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 flex-wrap">
                   {THEMES.slice(0, 3).map((t, idx) => (
                     <button
                       key={t.id}
@@ -1039,7 +1039,7 @@ export const PrintModal: React.FC<PrintModalProps> = ({
                         playSfx('tap');
                         setStickerThemeIdx(idx);
                       }}
-                      className={`px-3 py-1.5 rounded-xl font-jua text-xs border transition-all ${
+                      className={`min-h-[38px] px-3 py-1.5 rounded-xl font-jua text-xs border transition-all whitespace-nowrap ${
                         stickerThemeIdx === idx
                           ? 'bg-[#c9502f] text-white border-[#c9502f]'
                           : 'bg-white text-[#4a443e] border-[#e4dccf]'
@@ -1105,15 +1105,15 @@ export const PrintModal: React.FC<PrintModalProps> = ({
             <span>💡 <b>A4 규격 최적화</b> 완료 • 인쇄 대화상자에서 <b>'PDF로 저장'</b> 선택 가능</span>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
             {/* 1. Download HTML button */}
             <button
               onClick={handleDownload}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 py-2.5 px-3.5 rounded-xl bg-[#faf6f0] hover:bg-[#efe7d8] border border-[#dfd5c5] text-[#4a443e] font-jua text-xs sm:text-sm transition-all active:scale-95 shadow-2xs"
+              className="flex-1 sm:flex-none min-h-[44px] flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-[#faf6f0] hover:bg-[#efe7d8] border border-[#dfd5c5] text-[#4a443e] font-jua text-xs sm:text-sm transition-all active:scale-95 shadow-2xs whitespace-nowrap"
               title="A4 규격 파일 다운로드"
             >
               <Download className="w-3.5 h-3.5 text-[#c9502f]" />
-              A4 파일 다운로드
+              파일 저장
             </button>
 
             {/* 2. Open standalone new tab button */}
@@ -1126,26 +1126,26 @@ export const PrintModal: React.FC<PrintModalProps> = ({
                   playSfx('fan');
                   showToast('🌐 새 창에서 인쇄 페이지가 열렸습니다!');
                 }}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 py-2.5 px-3.5 rounded-xl bg-[#fef3c7] hover:bg-[#fde68a] border border-[#f59e0b]/30 text-[#92400e] font-jua text-xs sm:text-sm transition-all active:scale-95 shadow-2xs"
+                className="flex-1 sm:flex-none min-h-[44px] flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-[#fef3c7] hover:bg-[#fde68a] border border-[#f59e0b]/30 text-[#92400e] font-jua text-xs sm:text-sm transition-all active:scale-95 shadow-2xs whitespace-nowrap"
                 title="새 탭에서 열기 & 인쇄"
               >
                 <ExternalLink className="w-3.5 h-3.5 text-[#d97706]" />
-                새 탭에서 열기
+                새 탭 열기
               </a>
             ) : (
               <button
                 onClick={handleOpenNewWindow}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 py-2.5 px-3.5 rounded-xl bg-[#fef3c7] hover:bg-[#fde68a] border border-[#f59e0b]/30 text-[#92400e] font-jua text-xs sm:text-sm transition-all active:scale-95 shadow-2xs"
+                className="flex-1 sm:flex-none min-h-[44px] flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-[#fef3c7] hover:bg-[#fde68a] border border-[#f59e0b]/30 text-[#92400e] font-jua text-xs sm:text-sm transition-all active:scale-95 shadow-2xs whitespace-nowrap"
               >
                 <ExternalLink className="w-3.5 h-3.5 text-[#d97706]" />
-                새 탭에서 열기
+                새 탭 열기
               </button>
             )}
 
             {/* 3. Primary Print Action button */}
             <button
               onClick={handlePrint}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 py-2.5 px-4 sm:px-5 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-xs sm:text-sm shadow-md transition-all active:scale-95"
+              className="w-full sm:w-auto min-h-[44px] flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-xs sm:text-sm shadow-md transition-all active:scale-95 whitespace-nowrap"
             >
               <Printer className="w-4 h-4" />
               지금 인쇄하기

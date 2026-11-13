@@ -134,9 +134,10 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
   const getPetDisplay = () => {
     const isPrincess = friend.id === 'princess';
     const isPrince = friend.id === 'prince';
+    const tier = Math.min(5, Math.max(1, petState.level));
 
     if (isPrincess) {
-      switch (petState.level) {
+      switch (tier) {
         case 1:
           return { emoji: '🥚', badge: '1단계 보석 요람 알 💎', title: '보석 알 속에서 잠자는 아기 공주님 🥚' };
         case 2:
@@ -146,14 +147,13 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
         case 4:
           return { emoji: '👸', badge: '4단계 마법 티아라 공주님 🪄', title: '별빛 요술봉을 든 지혜로운 공주님 🪄' };
         case 5:
-          return { emoji: '👸', badge: '5단계 한글 여왕 공주님 👑', title: '황금 왕관을 쓴 빛나는 한글 여왕 공주님 👑' };
         default:
-          return { emoji: '👸', badge: '공주님', title: '예쁜 공주님 친구' };
+          return { emoji: '👸', badge: '5단계 한글 여왕 공주님 👑', title: '황금 왕관을 쓴 빛나는 한글 여왕 공주님 👑' };
       }
     }
 
     if (isPrince) {
-      switch (petState.level) {
+      switch (tier) {
         case 1:
           return { emoji: '🥚', badge: '1단계 용기의 요람 알 🛡️', title: '용기의 알 속에서 잠자는 아기 왕자님 🥚' };
         case 2:
@@ -163,13 +163,12 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
         case 4:
           return { emoji: '🤴', badge: '4단계 용기의 탐험 왕자님 🧭', title: '황금 망토를 두른 용감한 탐험 왕자님 🧭' };
         case 5:
-          return { emoji: '🤴', badge: '5단계 한글 국왕 왕자님 👑', title: '황금 왕관을 쓴 늠름한 한글 국왕 왕자님 👑' };
         default:
-          return { emoji: '🤴', badge: '왕자님', title: '멋진 왕자님 친구' };
+          return { emoji: '🤴', badge: '5단계 한글 국왕 왕자님 👑', title: '황금 왕관을 쓴 늠름한 한글 국왕 왕자님 👑' };
       }
     }
 
-    switch (petState.level) {
+    switch (tier) {
       case 1:
         return { emoji: '🥚', badge: '1단계 알', title: '알 속에서 잠자는 중 🥚' };
       case 2:
@@ -179,16 +178,15 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
       case 4:
         return { emoji: friend.e, badge: '4단계 탐험가', title: `씩씩한 ${friend.name} 탐험가 🧭` };
       case 5:
-        return { emoji: friend.e, badge: '5단계 한글 마스터', title: `황금 왕관 ${friend.name} 👑` };
       default:
-        return { emoji: friend.e, badge: '성장 단계', title: friend.name };
+        return { emoji: friend.e, badge: '5단계 한글 마스터', title: `황금 왕관 ${friend.name} 👑` };
     }
   };
 
   const petDisplay = getPetDisplay();
 
   // Trigger randomized warm cheering dialogue
-  const triggerNewCheer = () => {
+  const triggerNewCheer = (skipSpeak = false) => {
     const list = getCheerLines(friend.id, childName);
     let nextIdx = Math.floor(Math.random() * list.length);
     if (nextIdx === lastSpeechIdx && list.length > 1) {
@@ -197,19 +195,49 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
     setLastSpeechIdx(nextIdx);
     const chosenCheer = list[nextIdx];
     setSpeechBubbleText(chosenCheer);
-    speakKorean(chosenCheer, false);
+    if (!skipSpeak) {
+      speakKorean(chosenCheer, false);
+    }
   };
 
-  // Pet action: Stroke / Love (Pure affection & unlimited!)
+  // Pet action: Stroke / Love (+1 EXP capped at 5 strokes per day, unlimited affection)
+  const MAX_DAILY_STROKE_EXP = 5;
+  const getTodayStrokeCount = (): number => {
+    try {
+      const raw = localStorage.getItem('hangul_pet_stroke_daily');
+      if (!raw) return 0;
+      const parsed = JSON.parse(raw);
+      return parsed?.date === todayStr ? Number(parsed.count || 0) : 0;
+    } catch {
+      return 0;
+    }
+  };
+
   const handlePetFriend = () => {
     setNoticeMessage(null);
     playSfx('pet');
     setFloatingHeart(true);
     setTimeout(() => setFloatingHeart(false), 900);
 
+    const usedStrokes = getTodayStrokeCount();
+    const canGainStrokeExp = usedStrokes < MAX_DAILY_STROKE_EXP;
+    const gainedExp = canGainStrokeExp ? 1 : 0;
+
+    if (canGainStrokeExp) {
+      try {
+        localStorage.setItem(
+          'hangul_pet_stroke_daily',
+          JSON.stringify({ date: todayStr, count: usedStrokes + 1 })
+        );
+      } catch {}
+    }
+
+    const predictedNextLevel = getPetLevelData(petState.totalExp + gainedExp).level;
+    const didLevelUp = predictedNextLevel > petState.level;
+
     onUpdatePet((prev) => {
       const newHappiness = Math.min(100, prev.happiness + 10);
-      const nextTotalExp = prev.totalExp + 10;
+      const nextTotalExp = prev.totalExp + gainedExp;
       const { level: newLevel, stageName } = getPetLevelData(nextTotalExp);
 
       if (newLevel > prev.level) {
@@ -217,6 +245,8 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
         confetti({ particleCount: 50, spread: 75, origin: { y: 0.5 } });
         setNoticeMessage(`🎉 와아! 축하해요! 레벨 ${newLevel} (${stageName})로 성장했어요! ✨`);
         speakKorean(`와아! ${childName || '친구'}야 나 레벨 ${newLevel}로 성장했어! 고마워!`, false);
+      } else if (!canGainStrokeExp) {
+        setNoticeMessage('💖 오늘 쓰다듬기 경험치(5회)를 다 모았어요! 한글 학습과 글자 열매로 더 크게 자라요!');
       }
 
       return {
@@ -228,10 +258,10 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
       };
     });
 
-    triggerNewCheer();
+    triggerNewCheer(didLevelUp);
   };
 
-  // Pet action: Feed letter fruit (Consumes 1 berry)
+  // Pet action: Feed letter fruit (Consumes 1 berry, +10 EXP)
   const handleFeedLetter = () => {
     if (isEating) return;
 
@@ -250,7 +280,7 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
       setIsEating(false);
       onUpdatePet((prev) => {
         const nextBerries = Math.max(0, (prev.berriesCount ?? 5) - 1);
-        const nextTotalExp = prev.totalExp + 30;
+        const nextTotalExp = prev.totalExp + 10;
         const { level: newLevel, stageName } = getPetLevelData(nextTotalExp);
 
         if (newLevel > prev.level) {
@@ -288,7 +318,7 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
     }
   };
 
-  // Quiz: Complete voice repeat & reward 5 berries! (Daily 1-time limit)
+  // Quiz: Complete voice repeat & reward 5 berries + 15 EXP! (Daily 1-time limit)
   const handleCompleteVoiceRepeat = () => {
     playSfx('fan');
     confetti({ particleCount: 40, spread: 70 });
@@ -300,7 +330,7 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
 
     onUpdatePet((prev) => {
       const nextBerries = (prev.berriesCount ?? 0) + 5;
-      const nextTotalExp = prev.totalExp + 30;
+      const nextTotalExp = prev.totalExp + 15;
       const { level: newLevel, stageName } = getPetLevelData(nextTotalExp);
 
       if (newLevel > prev.level) {
@@ -318,7 +348,7 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
       };
     });
 
-    setNoticeMessage('🎉 오늘의 퀴즈 완료! 글자 열매 5개 획득! 🍇');
+    setNoticeMessage('🎉 오늘의 퀴즈 완료! 글자 열매 5개 + 경험치 +15 획득! 🍇');
     setTimeout(() => {
       setCurrentQuizIdx((prev) => prev + 1);
       setSelectedOption(null);
@@ -331,59 +361,59 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
       {/* Outer Modal Container with strict max-height and flex-col to avoid cutting off bottom */}
-      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-md shadow-2xl flex flex-col max-h-[88vh] overflow-hidden relative animate-pop">
+      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-md box-border shadow-2xl flex flex-col max-h-[88vh] overflow-hidden relative animate-pop">
         
         {/* FIXED HEADER */}
-        <div className="px-4 pt-3.5 pb-2.5 sm:px-5 sm:pt-4 sm:pb-3 border-b border-[#eedfc9] bg-white/70 flex-none relative">
+        <div className="px-4 pt-3.5 pb-3 sm:px-5 sm:pt-4 border-b border-[#eedfc9] bg-white/80 flex-none relative">
           <button
             onClick={() => {
               playSfx('tap');
               onClose();
             }}
-            className="absolute top-3.5 right-3.5 z-10 w-8 h-8 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] transition-colors"
+            className="absolute top-3.5 right-3.5 z-10 w-9 h-9 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] transition-colors"
             title="닫기"
           >
             <X className="w-4 h-4" />
           </button>
 
-          <div className="text-center">
-            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#fdf3e4] text-[#c9502f] text-xs font-jua mb-1">
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#fdf3e4] text-[#c9502f] text-xs font-jua">
               <Sparkles className="w-3.5 h-3.5" />
-              한글 먹고 쑥쑥 자라는 다마고치 친구
+              다마고치 친구
             </div>
             <h2 className="text-lg sm:text-xl font-jua text-[#1b1917]">
               {friend.name}의 방 🏡
             </h2>
 
-            {/* Friend Quick Switcher (Child can tap Princess 👸, Prince 🤴, etc.) */}
+            {/* Horizontal Snap Carousel Friend Switcher (5-7yo finger-friendly >=72px) */}
             {onSelectFriend && (
-              <div className="flex items-center justify-center gap-1 mt-1.5 overflow-x-auto py-0.5">
-                <span className="text-[10px] font-jua text-[#8a8178] flex-none mr-0.5">친구 바꾸기:</span>
+              <div className="flex items-center gap-2 overflow-x-auto snap-x snap-mandatory no-scrollbar py-1.5 px-1.5">
                 {FRIENDS.map((f) => (
                   <button
                     key={f.id}
+                    type="button"
                     onClick={() => {
                       playSfx('pop');
                       onSelectFriend(f.id);
                       setSpeechBubbleText(getCheerLines(f.id, childName)[0]);
                     }}
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-jua flex items-center gap-1 flex-none transition-all ${
+                    className={`snap-center min-w-[72px] min-h-[72px] px-2.5 py-2 rounded-2xl font-jua flex flex-col items-center justify-center gap-1 flex-none transition-all active:scale-95 shadow-sm ${
                       friend.id === f.id
-                        ? 'bg-[#c9502f] text-white shadow-2xs scale-105 font-bold'
-                        : 'bg-white text-[#4a443e] border border-[#e4dccf] hover:border-[#c9502f]/40'
+                        ? 'bg-[#fff5f2] text-[#c9502f] border-2 border-orange-500 ring-2 ring-orange-500/20'
+                        : 'bg-white text-[#4a443e] border border-[#e4dccf] hover:border-orange-300'
                     }`}
                   >
-                    <span>{f.e}</span>
-                    <span>{f.name}</span>
+                    <span className="text-3xl leading-none select-none">{f.e}</span>
+                    <span className="text-xs whitespace-nowrap">{f.name}</span>
                   </button>
                 ))}
               </div>
             )}
 
-            {/* Currencies Bar (Only Berries - Simple & Clean!) */}
-            <div className="flex items-center justify-center mt-1.5 text-xs font-jua">
+            {/* Berries Bar */}
+            <div className="flex items-center justify-center text-xs font-jua">
               <span className="px-3.5 py-1 rounded-full bg-[#f6edfd] border border-[#e0c4f7] text-[#6b21a8] flex items-center gap-1.5 shadow-2xs">
-                <span>🍇 보유한 글자 열매:</span>
+                <span>🍇 글자 열매:</span>
                 <b className="text-sm text-[#7e22ce]">{berries}개</b>
               </span>
             </div>
@@ -391,7 +421,7 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
         </div>
 
         {/* SCROLLABLE BODY (Never clipped, comfortable scrolling on all devices) */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-5 sm:py-4 space-y-3.5 scrollbar-thin pb-8 text-center">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 sm:px-5 sm:py-4 space-y-3.5 scrollbar-thin pb-8 text-center box-border">
           
           {/* Notice Message if any */}
           {noticeMessage && (
@@ -402,7 +432,7 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
 
           {/* Dynamic Interactive Speech Bubble (Changes on tap!) */}
           <div
-            onClick={triggerNewCheer}
+            onClick={() => triggerNewCheer()}
             className="cursor-pointer bg-white border-2 border-[#eedfc9] rounded-2xl p-2.5 sm:p-3 shadow-xs hover:border-[#c9502f] transition-all relative group"
             title="캐릭터를 누르면 신나고 따뜻한 힘찬 응원을 들려줘요!"
           >
@@ -419,91 +449,93 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
           </div>
 
           {/* Pet Stage Avatar Showcase */}
-          <div className="relative bg-gradient-to-b from-[#fdf6ec] to-[#fbf8f2] rounded-3xl p-4 sm:p-5 border-2 border-[#e4dccf] shadow-inner space-y-2">
+          <div className="relative bg-gradient-to-b from-[#fdf6ec] to-[#fbf8f2] rounded-3xl p-4 sm:p-5 border-2 border-[#e4dccf] shadow-inner space-y-2.5">
             {/* Level badge */}
             <div className="inline-block px-3 py-0.5 rounded-full bg-white border border-[#eedfc9] text-xs font-bold font-jua text-[#c9502f]">
               {petDisplay.badge} (Lv.{petState.level})
             </div>
 
-            {/* Big Animated Pet Avatar */}
-            <div className="relative w-28 h-28 mx-auto flex items-center justify-center">
-              <div
+            {/* Big Animated Pet Avatar (>=128px) */}
+            <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
+              <button
+                type="button"
                 onClick={handlePetFriend}
-                className={`w-24 h-24 rounded-full bg-white border-4 border-[#eedfc9] flex items-center justify-center text-5xl shadow-md cursor-pointer transition-transform active:scale-95 hover:scale-105 ${
+                className={`w-32 h-32 rounded-full bg-white border-4 border-[#eedfc9] flex items-center justify-center text-6xl shadow-md cursor-pointer transition-transform active:scale-95 hover:scale-105 ${
                   isEating ? 'animate-bounce' : 'animate-float'
                 }`}
                 title="친구를 톡톡 쓰다듬어주세요!"
               >
-                {petDisplay.emoji}
-              </div>
+                <span className="select-none">{petDisplay.emoji}</span>
+              </button>
 
-              {/* Special Level 5 Crown / Tiara */}
-              {petState.level === 5 && (
-                <span className="absolute -top-2 text-3xl animate-bounce">👑</span>
+              {/* Special Level 5+ Crown / Tiara */}
+              {petState.level >= 5 && (
+                <span className="absolute -top-2 text-3xl">👑</span>
               )}
 
               {/* Princess special wand badge or Prince sword badge */}
               {friend.id === 'princess' && petState.level >= 4 && (
-                <span className="absolute -bottom-1 -right-1 text-2xl animate-pulse">🪄</span>
+                <span className="absolute bottom-1 right-1 text-2xl">🪄</span>
               )}
               {friend.id === 'prince' && petState.level >= 4 && (
-                <span className="absolute -bottom-1 -right-1 text-2xl animate-pulse">⚔️</span>
+                <span className="absolute bottom-1 right-1 text-2xl">⚔️</span>
               )}
 
-              {/* Floating Heart Effect */}
+              {/* Floating Heart Particles */}
               {floatingHeart && (
-                <div className="absolute -top-5 text-4xl animate-ping pointer-events-none">
-                  💖
+                <div className="absolute -top-3 inset-x-0 flex justify-center gap-3 text-3xl animate-pop pointer-events-none">
+                  <span>💖</span>
+                  <span>✨</span>
+                  <span>💕</span>
                 </div>
               )}
             </div>
 
             <div className="space-y-0.5">
-              <h3 className="font-jua text-base sm:text-lg text-[#1b1917]">
+              <h3 className="font-jua text-base sm:text-lg text-[#1b1917] break-keep">
                 {petDisplay.title}
               </h3>
-              <p className="text-[11px] text-[#8a8178] font-hand">
-                캐릭터를 터치하면 하트를 주고 힘나는 말을 들을 수 있어요! ✨
+              <p className="text-xs text-[#8a8178] font-hand break-keep">
+                친구를 터치하면 하트가 뿅뿅 올라가요!
               </p>
             </div>
 
-            {/* Experience Bar */}
-            <div className="space-y-1 pt-1 text-left">
-              <div className="flex justify-between text-xs font-bold text-[#8a8178]">
-                <span>성장 레벨: Lv.{currentLevel} ({currentStageName})</span>
+            {/* Thick Kid-Friendly Experience Bar */}
+            <div className="space-y-1.5 pt-1 text-left">
+              <div className="flex flex-wrap justify-between gap-1 text-xs font-bold text-[#8a8178]">
+                <span>Lv.{currentLevel} · {currentStageName}</span>
                 <span>
-                  {petData.isMaxLevel ? '최고 레벨 Lv.10,000 달성! 👑' : `${petState.totalExp} / ${nextReq} EXP`}
+                  {petData.isMaxLevel ? '최고 레벨 👑' : `${petState.totalExp} / ${nextReq} EXP`}
                 </span>
               </div>
-              <div className="h-2.5 w-full bg-[#e4dccf] rounded-full overflow-hidden p-0.5 shadow-inner">
+              <div className="h-4 w-full bg-[#e4dccf] rounded-full overflow-hidden p-0.5 shadow-inner">
                 <div
                   className="h-full bg-gradient-to-r from-[#f2c14e] to-[#c9502f] rounded-full transition-all duration-500"
-                  style={{ width: `${expPercent}%` }}
+                  style={{ width: `${Math.max(6, expPercent)}%` }}
                 />
               </div>
             </div>
           </div>
 
-
-          {/* Pet Interaction Action Buttons (Simplified, Clean) */}
+          {/* Pet Interaction Action Buttons (>=48px) */}
           <div className="grid grid-cols-2 gap-2.5">
             <button
               onClick={handlePetFriend}
-              className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-white border-2 border-[#f5b8a6] text-[#c9502f] font-jua text-sm shadow-xs hover:bg-[#fff5f2] active:scale-95 transition-all"
+              className="min-h-[48px] flex items-center justify-center gap-1.5 py-3 px-2 rounded-2xl bg-white border-2 border-[#f5b8a6] text-[#c9502f] font-jua text-sm shadow-xs hover:bg-[#fff5f2] active:scale-95 transition-all whitespace-nowrap"
               title="친구를 톡톡 쓰다듬어 사랑을 전해요"
             >
-              <Heart className="w-4 h-4 fill-[#c9502f]" />
-              톡톡 쓰다듬기 💖
+              <Heart className="w-4 h-4 fill-[#c9502f] shrink-0" />
+              <span>쓰다듬기 💖</span>
             </button>
 
             <button
               onClick={handleFeedLetter}
               disabled={isEating}
-              className="flex items-center justify-center gap-1.5 py-3 rounded-2xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm shadow-md active:scale-95 transition-all disabled:opacity-70"
+              className="min-h-[48px] flex items-center justify-center gap-1.5 py-3 px-2 rounded-2xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm shadow-md active:scale-95 transition-all disabled:opacity-70 whitespace-nowrap"
               title="글자 열매 1개를 먹여요"
             >
-              <Apple className="w-4 h-4" />
-              열매 먹이기 (1개) 🍇
+              <Apple className="w-4 h-4 shrink-0" />
+              <span>열매 먹이기 🍇</span>
             </button>
           </div>
 
@@ -603,7 +635,7 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
               playSfx('tap');
               onClose();
             }}
-            className="w-full py-2.5 rounded-xl bg-[#1b1917] hover:bg-black text-white font-jua text-sm shadow-sm active:scale-98 transition-all"
+            className="w-full min-h-[48px] py-3 rounded-2xl bg-[#1b1917] hover:bg-black text-white font-jua text-sm shadow-sm active:scale-95 transition-all"
           >
             닫기
           </button>

@@ -677,23 +677,30 @@ export const CRAYON_PALETTE = [
   { name: '크레파스먹색', color: '#1b1917' },
 ];
 
-// Pet Tamagotchi Growth Levels (Scales up to Lv. 10,000 with rich milestones)
+// Pet Tamagotchi Growth Levels (Multi-day progressive EXP curve up to Lv. 10,000)
 export const MAX_PET_LEVEL = 10000;
 
+export function getCumulativeExpForLevel(level: number): number {
+  const safeLv = Math.min(MAX_PET_LEVEL, Math.max(1, Math.floor(level)));
+  const n = safeLv - 1;
+  // Level 1->2: 100 EXP, 2->3: 140 EXP (cumul 240), 3->4: 180 EXP (420), 4->5: 220 EXP (640)...
+  return 20 * n * n + 80 * n;
+}
+
 export const PET_MILESTONE_STAGES = [
-  { level: 1, title: '알 / 아기 요람', eggEmoji: '🥚', reqExp: 0, say: '안녕! 난 알 속에서 깨어날 준비 중이야!' },
-  { level: 2, title: '아장아장 아기 새싹', eggEmoji: '🐣', reqExp: 40, say: '엄마 목소리 듣고 태어났어! 옹알옹알~' },
-  { level: 10, title: '말문 트인 아기 요정', eggEmoji: '🧚', reqExp: 400, say: '글자 열매 먹고 쑥쑥 자라는 중이야!' },
-  { level: 30, title: '호기심쟁이 어린이', eggEmoji: '🎒', reqExp: 1200, say: '글자 하나씩 정복하는 재미에 푹 빠졌어!' },
-  { level: 50, title: '용감한 한글 탐험대장', eggEmoji: '🧭', reqExp: 2000, say: '어떤 어려운 글자도 씩씩하게 읽어내!' },
-  { level: 100, title: '100레벨 돌파 한글 영웅', eggEmoji: '🚀', reqExp: 4000, say: '100레벨 달성! 이제 혼자서도 척척박사!' },
-  { level: 200, title: '박학다식 척척박사', eggEmoji: '🎓', reqExp: 8000, say: '동화책 한 권을 막힘없이 술술 읽어요!' },
-  { level: 500, title: '의젓한 한글 대장군', eggEmoji: '🛡️', reqExp: 20000, say: '온 나라에 한글의 멋짐을 알릴 테야!' },
-  { level: 1000, title: '대우주 한글 마스터', eggEmoji: '🌟', reqExp: 40000, say: '빛나는 황금 왕관을 썼어요! 우리 아이 최고!' },
-  { level: 3000, title: '세종대왕 명예 수호자', eggEmoji: '🎖️', reqExp: 120000, say: '한글의 훈민정음 정신을 이어받았어요!' },
-  { level: 5000, title: '은하계 한글 대마법사', eggEmoji: '🔮', reqExp: 200000, say: '글자로 세상을 따뜻하게 만드는 마법!' },
-  { level: 7000, title: '천상계 한글 지존', eggEmoji: '🏆', reqExp: 280000, say: '하늘에서도 감탄하는 독보적인 실력!' },
-  { level: 10000, title: '전설의 만렙 한글 천황 (Lv.10,000 달성!)', eggEmoji: '👑', reqExp: 400000, say: '와아! 10,000 최고레벨 정복! 평생 소장 상장 수여!' },
+  { level: 1, title: '알 / 아기 요람', eggEmoji: '🥚', reqExp: getCumulativeExpForLevel(1), say: '안녕! 난 알 속에서 깨어날 준비 중이야!' },
+  { level: 2, title: '아장아장 아기 새싹', eggEmoji: '🐣', reqExp: getCumulativeExpForLevel(2), say: '엄마 목소리 듣고 태어났어! 옹알옹알~' },
+  { level: 10, title: '말문 트인 아기 요정', eggEmoji: '🧚', reqExp: getCumulativeExpForLevel(10), say: '글자 열매 먹고 쑥쑥 자라는 중이야!' },
+  { level: 30, title: '호기심쟁이 어린이', eggEmoji: '🎒', reqExp: getCumulativeExpForLevel(30), say: '글자 하나씩 정복하는 재미에 푹 빠졌어!' },
+  { level: 50, title: '용감한 한글 탐험대장', eggEmoji: '🧭', reqExp: getCumulativeExpForLevel(50), say: '어떤 어려운 글자도 씩씩하게 읽어내!' },
+  { level: 100, title: '100레벨 돌파 한글 영웅', eggEmoji: '🚀', reqExp: getCumulativeExpForLevel(100), say: '100레벨 달성! 이제 혼자서도 척척박사!' },
+  { level: 200, title: '박학다식 척척박사', eggEmoji: '🎓', reqExp: getCumulativeExpForLevel(200), say: '동화책 한 권을 막힘없이 술술 읽어요!' },
+  { level: 500, title: '의젓한 한글 대장군', eggEmoji: '🛡️', reqExp: getCumulativeExpForLevel(500), say: '온 나라에 한글의 멋짐을 알릴 테야!' },
+  { level: 1000, title: '대우주 한글 마스터', eggEmoji: '🌟', reqExp: getCumulativeExpForLevel(1000), say: '빛나는 황금 왕관을 썼어요! 우리 아이 최고!' },
+  { level: 3000, title: '세종대왕 명예 수호자', eggEmoji: '🎖️', reqExp: getCumulativeExpForLevel(3000), say: '한글의 훈민정음 정신을 이어받았어요!' },
+  { level: 5000, title: '은하계 한글 대마법사', eggEmoji: '🔮', reqExp: getCumulativeExpForLevel(5000), say: '글자로 세상을 따뜻하게 만드는 마법!' },
+  { level: 7000, title: '천상계 한글 지존', eggEmoji: '🏆', reqExp: getCumulativeExpForLevel(7000), say: '하늘에서도 감탄하는 독보적인 실력!' },
+  { level: 10000, title: '전설의 만렙 한글 천황 (Lv.10,000 달성!)', eggEmoji: '👑', reqExp: getCumulativeExpForLevel(10000), say: '와아! 10,000 최고레벨 정복! 평생 소장 상장 수여!' },
 ];
 
 export const PET_LEVELS = PET_MILESTONE_STAGES;
@@ -706,16 +713,26 @@ export function getPetLevelData(totalExp: number): {
   progressPercent: number;
   isMaxLevel: boolean;
 } {
-  // Smooth progressive curve up to 10,000 levels:
-  // Each level requires 40 EXP
-  const rawLevel = Math.floor(Math.max(0, totalExp) / 40) + 1;
-  const level = Math.min(MAX_PET_LEVEL, Math.max(1, rawLevel));
-  const isMaxLevel = level >= MAX_PET_LEVEL;
+  const safeExp = Math.max(0, Math.floor(totalExp));
+  // Solve 20*n^2 + 80*n <= safeExp for n = level - 1
+  const nApprox = Math.floor((-80 + Math.sqrt(6400 + 80 * safeExp)) / 40);
+  let level = Math.min(MAX_PET_LEVEL, Math.max(1, nApprox + 1));
 
-  const reqExp = (level - 1) * 40;
-  const nextReqExp = isMaxLevel ? reqExp : level * 40;
-  const expInLevel = totalExp - reqExp;
-  const progressPercent = isMaxLevel ? 100 : Math.min(100, Math.max(5, (expInLevel / 40) * 100));
+  while (level < MAX_PET_LEVEL && getCumulativeExpForLevel(level + 1) <= safeExp) {
+    level += 1;
+  }
+  while (level > 1 && getCumulativeExpForLevel(level) > safeExp) {
+    level -= 1;
+  }
+
+  const isMaxLevel = level >= MAX_PET_LEVEL;
+  const reqExp = getCumulativeExpForLevel(level);
+  const nextReqExp = isMaxLevel ? reqExp : getCumulativeExpForLevel(level + 1);
+  const levelSpan = Math.max(1, nextReqExp - reqExp);
+  const expInLevel = Math.max(0, safeExp - reqExp);
+  const progressPercent = isMaxLevel
+    ? 100
+    : Math.min(100, Math.max(4, (expInLevel / levelSpan) * 100));
 
   // Determine stage title based on milestone tier
   let stageName = '알 / 아기 요람 🥚';
@@ -730,6 +747,9 @@ export function getPetLevelData(totalExp: number): {
   else if (level >= 50) stageName = '용감한 한글 탐험대장 🧭';
   else if (level >= 30) stageName = '호기심쟁이 어린이 🎒';
   else if (level >= 10) stageName = '말문 트인 아기 요정 🧚';
+  else if (level >= 5) stageName = '빛나는 한글 마스터 👑';
+  else if (level >= 4) stageName = '씩씩한 한글 탐험가 🧭';
+  else if (level >= 3) stageName = '호기심쟁이 친구 🎒';
   else if (level >= 2) stageName = '아장아장 새싹 🐣';
 
   return { level, stageName, reqExp, nextReqExp, progressPercent, isMaxLevel };

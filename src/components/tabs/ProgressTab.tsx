@@ -63,7 +63,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
 
     if (next === 3) {
       playSfx('pop');
-      onRewardExp(10); // Pet exp reward
+      onRewardExp(2); // Pet exp reward
       confetti({
         particleCount: 15,
         spread: 45,
@@ -166,7 +166,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
     if (practiceIndex + 1 >= practiceDeck.length) {
       setPracticeDone(true);
       playSfx('fan');
-      onRewardExp(20); // Pet reward!
+      onRewardExp(10); // Pet reward!
       confetti({ particleCount: 35, spread: 70 });
     } else {
       setPracticeIndex(practiceIndex + 1);
@@ -185,19 +185,19 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
   };
 
   return (
-    <div className="p-4 sm:p-6 pt-5 sm:pt-7 max-w-xl mx-auto space-y-6 pb-32">
+    <div className="w-full max-w-xl mx-auto px-4 sm:px-5 pt-4 sm:pt-5 pb-6 space-y-5 box-border overflow-x-hidden">
       {/* Header with sufficient clearance */}
       <div className="text-center space-y-2 pt-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fdf3e4] border border-[#f3dfc6] text-xs font-bold text-[#c9502f] font-jua">
           <Sparkles className="w-3.5 h-3.5" />
-          문제집 없이 한눈에 체크해요
+          한눈에 보는 한글 진도표
         </div>
-        <h1 className="text-2xl sm:text-3xl font-jua text-[#1b1917] leading-snug">
+        <h1 className="text-2xl sm:text-3xl font-jua text-[#1b1917] leading-snug break-keep">
           우리 <span className="text-[#c9502f]">{childName || '아이'}</span>는<br />
           어디까지 뗐을까요?
         </h1>
-        <p className="text-xs sm:text-sm text-[#8a8178] font-hand">
-          칸을 터치할 때마다 ① 알아봄 → ② 소리 냄 → ③ 혼자 읽음으로 쑥쑥 올라가요!
+        <p className="text-xs sm:text-sm text-[#8a8178] font-hand break-keep">
+          터치할 때마다 ① 알아봄 → ② 소리 냄 → ③ 혼자 읽음으로 올라가요
         </p>
       </div>
 
@@ -249,7 +249,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
       </div>
 
       {/* 3 Step Legend */}
-      <div className="grid grid-cols-3 gap-2 bg-white p-3 rounded-2xl border border-[#e4dccf] text-xs">
+      <div className="w-full max-w-full box-border overflow-hidden grid grid-cols-3 gap-2 bg-white p-3 rounded-2xl border border-[#e4dccf] text-xs">
         <div className="space-y-1 text-center">
           <div className="w-7 h-7 rounded-lg border border-[#c9502f] bg-[#fff5f2] text-[#c9502f] font-jua flex items-center justify-center mx-auto text-sm">
             ✓
@@ -295,18 +295,18 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
       </button>
 
       {/* Section 1: 14 Consonants */}
-      <div className="bg-white rounded-3xl p-5 border border-[#e4dccf] shadow-xs space-y-3">
-        <div className="flex items-center justify-between border-b border-[#f0ebe1] pb-2">
-          <h2 className="font-jua text-lg text-[#1b1917] flex items-center gap-1.5">
+      <div className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#f0ebe1] pb-2">
+          <h2 className="font-jua text-base sm:text-lg text-[#1b1917] flex flex-wrap items-center gap-1.5">
             <span>① 자음 ㄱ ~ ㅎ</span>
-            <span className="text-xs font-hand text-[#c9502f] font-bold bg-[#fff5f2] px-2 py-0.5 rounded-full border border-[#fbd8ce]">
-              터치하여 발음 듣기 🔊
+            <span className="text-[11px] font-hand text-[#c9502f] font-bold bg-[#fff5f2] px-2 py-0.5 rounded-full border border-[#fbd8ce] whitespace-nowrap">
+              터치해 소리 듣기 🔊
             </span>
           </h2>
-          <span className="text-xs font-bold text-[#c9502f] font-jua">{consDone} / 14</span>
+          <span className="text-xs font-bold text-[#c9502f] font-jua whitespace-nowrap shrink-0">{consDone} / 14</span>
         </div>
 
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
           {CHO.map((c, i) => {
             const lvl = progress[`c${i}`] || 0;
             const name = NAMES[i];
@@ -314,7 +314,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
               <button
                 key={i}
                 onClick={() => cycleLevel(`c${i}`, name)}
-                className={`aspect-square rounded-xl flex flex-col items-center justify-center font-jua text-lg sm:text-xl transition-all active:scale-90 border relative ${
+                className={`min-h-[58px] py-1.5 rounded-2xl flex flex-col items-center justify-center font-jua text-xl transition-all active:scale-90 border relative ${
                   lvl === 3
                     ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-xs'
                     : lvl === 2
@@ -325,11 +325,11 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                 }`}
                 title={`${name} (${c}) - 터치하여 소리 듣기`}
               >
-                <span>{c}</span>
+                <span className="leading-none">{c}</span>
                 {lvl === 1 && (
-                  <span className="absolute top-1 right-1 text-[9px] font-bold">✓</span>
+                  <span className="absolute top-1 right-1.5 text-[9px] font-bold">✓</span>
                 )}
-                <span className={`text-[10px] font-hand scale-95 font-bold ${lvl === 3 ? 'text-white/90' : 'text-[#8a8178]'}`}>
+                <span className={`text-[11px] font-hand font-bold mt-1 ${lvl === 3 ? 'text-white/90' : 'text-[#8a8178]'}`}>
                   {name}
                 </span>
               </button>
@@ -339,31 +339,31 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
       </div>
 
       {/* Section 2: Syllable Matrix (가 ~ 하 and Vowels) */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
-        <div className="flex items-center justify-between border-b border-[#f0ebe1] pb-2">
-          <div>
-            <h2 className="font-jua text-base sm:text-lg text-[#1b1917] flex items-center gap-1.5">
-              <span>② 가 ~ 하, 그리고 가갸표</span>
-              <span className="text-[11px] font-normal text-[#c9502f] font-jua bg-[#fff5f2] px-2 py-0.5 rounded-full border border-[#fbd8ce]">
+      <div className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#f0ebe1] pb-2">
+          <div className="min-w-0">
+            <h2 className="font-jua text-base sm:text-lg text-[#1b1917] flex flex-wrap items-center gap-1.5">
+              <span>② 가 ~ 하, 가갸표</span>
+              <span className="text-[11px] font-normal text-[#c9502f] font-jua bg-[#fff5f2] px-2 py-0.5 rounded-full border border-[#fbd8ce] whitespace-nowrap">
                 소리 터치 🔊
               </span>
             </h2>
-            <p className="text-xs text-[#8a8178] font-hand">
-              표를 좌우로 스크롤하여 10가지 모음 결합을 모두 확인하세요 👉
+            <p className="text-xs text-[#8a8178] font-hand mt-0.5 break-keep">
+              표를 좌우로 밀어 10가지 모음 결합을 확인하세요
             </p>
           </div>
-          <span className="text-xs font-bold text-[#c9502f] font-jua shrink-0">{totalDone} / 140</span>
+          <span className="text-xs font-bold text-[#c9502f] font-jua shrink-0 whitespace-nowrap">{totalDone} / 140</span>
         </div>
 
         {/* Scrollable Matrix with Fixed/Sticky Consonant Column */}
         <div className="border border-[#e4dccf] rounded-2xl bg-[#faf8f5] overflow-hidden">
           {/* Top Scroll Hint Banner */}
-          <div className="flex items-center justify-between px-3 py-1.5 bg-[#f5ede2] border-b border-[#e4dccf] text-[11px] text-[#6b6257] font-hand">
-            <span className="font-bold text-[#c9502f] flex items-center gap-1">
-              👈 표를 좌우로 밀어서 전체 모음 보기 👉
+          <div className="flex flex-wrap items-center justify-between gap-1 px-3 py-1.5 bg-[#f5ede2] border-b border-[#e4dccf] text-[11px] text-[#6b6257] font-hand">
+            <span className="font-bold text-[#c9502f]">
+              👈 좌우로 밀어서 전체 모음 보기 👉
             </span>
             <span className="text-[10px] text-[#8a8178]">
-              자음·모음을 누르면 발음이 나와요!
+              글자를 누르면 소리가 나요!
             </span>
           </div>
 
@@ -428,10 +428,10 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                       const isFirstCol = ji === 0;
 
                       return (
-                        <td key={ji} className="p-0.5 min-w-[42px] w-[42px]">
+                        <td key={ji} className="p-0.5 min-w-[46px] w-[46px]">
                           <button
                             onClick={() => cycleLevel(id, ch)}
-                            className={`w-full h-9 rounded-lg text-sm sm:text-base flex items-center justify-center transition-all active:scale-90 border relative ${
+                            className={`w-full h-11 rounded-xl text-base flex items-center justify-center transition-all active:scale-90 border relative ${
                               lvl === 3
                                 ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-2xs font-bold'
                                 : lvl === 2
@@ -440,7 +440,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                                 ? 'bg-[#fff5f2] text-[#c9502f] border-[#c9502f]'
                                 : isFirstCol
                                 ? 'bg-[#fff9f4] text-[#1b1917] border-[#eedfc9] font-bold hover:border-[#c9502f]/40'
-                                : 'bg-white text-[#4a443e] border-[#e8dfd3] opacity-85 hover:opacity-100 hover:border-[#c9502f]/40'
+                                : 'bg-white text-[#4a443e] border-[#e8dfd3] opacity-90 hover:opacity-100 hover:border-[#c9502f]/40'
                             }`}
                             title={`${ch} (터치하여 진도 체크 및 소리 듣기)`}
                           >
@@ -476,8 +476,8 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
 
       {/* In-App Confirmation Modal: 정말 진도표를 초기화할까요? */}
       {showResetConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-xs overflow-hidden shadow-2xl p-6 text-center space-y-4 animate-pop">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-xs box-border overflow-hidden shadow-2xl p-5 sm:p-6 text-center space-y-4 animate-pop">
             <div className="w-12 h-12 rounded-full bg-red-100 text-red-500 flex items-center justify-center mx-auto text-2xl">
               ⚠️
             </div>
@@ -514,17 +514,18 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
         </div>
       )}
 
-      {/* Practice Modal Drawer (FIXED: Header spacing so X button never overlaps text) */}
+      {/* Practice Modal Drawer */}
       {practiceOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl p-6 text-center space-y-4 animate-pop relative">
-            {/* Modal Header Bar with clean non-overlapping layout */}
-            <div className="flex items-center justify-between pb-2 border-b border-[#eedfc9]">
-              <div className="flex items-center gap-1.5 text-xs font-jua text-[#c9502f]">
-                <span>카드 {practiceIndex + 1} / {practiceDeck.length}</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-sm box-border overflow-hidden flex flex-col max-h-[90vh] shadow-2xl p-4 sm:p-6 text-center animate-pop relative">
+            <div className="overflow-y-auto overflow-x-hidden flex-1 space-y-3.5 box-border">
+            {/* Modal Header Bar */}
+            <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#eedfc9]">
+              <div className="flex flex-wrap items-center gap-1.5 text-xs font-jua text-[#c9502f] text-left">
+                <span>카드 {practiceIndex + 1}/{practiceDeck.length}</span>
                 <span className="text-[#8a8178]">•</span>
                 <span className="text-[#4a443e]">
-                  {practiceCategory === 'cons' ? '자음(ㄱ~ㅎ)' : practiceCategory === 'vowel' ? '모음(ㅏ~ㅣ)' : practiceCategory === 'syl' ? '음절(가~하)' : practiceCategory === 'word' ? '동물·사물 낱말' : '전체 믹스 퀴즈'}
+                  {practiceCategory === 'cons' ? '자음(ㄱ~ㅎ)' : practiceCategory === 'vowel' ? '모음(ㅏ~ㅣ)' : practiceCategory === 'syl' ? '음절(가~하)' : practiceCategory === 'word' ? '동물·사물 낱말' : '전체 믹스'}
                 </span>
               </div>
               <button
@@ -532,7 +533,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                   playSfx('tap');
                   setPracticeOpen(false);
                 }}
-                className="w-8 h-8 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] hover:bg-[#f6f1e7] transition-all"
+                className="w-10 h-10 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] hover:bg-[#f6f1e7] transition-all shrink-0"
                 title="닫기"
               >
                 <X className="w-4 h-4" />
@@ -540,7 +541,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
             </div>
 
             {/* Category Filter Pills inside Practice Modal */}
-            <div className="flex items-center justify-center gap-1 overflow-x-auto py-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
               {[
                 { id: 'all', label: '🎲 전체' },
                 { id: 'cons', label: 'ㄱ 자음' },
@@ -555,7 +556,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                     setPracticeCategory(newCat);
                     startPractice(newCat);
                   }}
-                  className={`text-[11px] font-jua px-2.5 py-1 rounded-full transition-all ${
+                  className={`min-h-[36px] text-xs font-jua px-3 py-1.5 rounded-full transition-all whitespace-nowrap shrink-0 ${
                     practiceCategory === c.id
                       ? 'bg-[#c9502f] text-white shadow-xs'
                       : 'bg-white text-[#8a8178] border border-[#e4dccf] hover:bg-[#f6f1e7]'
@@ -567,17 +568,17 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
             </div>
 
             {/* Parent Voice Mission Praise Banner / Settings Button */}
-            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200 text-xs font-jua">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200 text-xs font-jua">
               <div className="flex items-center gap-1.5 text-rose-800">
                 <span className="text-base">🎙️</span>
-                <span>정답 시 엄마/아빠 칭찬 목소리 재생</span>
+                <span>정답 시 부모님 칭찬 재생</span>
               </div>
               {onOpenParentVoice && (
                 <button
                   onClick={onOpenParentVoice}
-                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-rose-100 text-[#c9502f] border border-rose-300 text-[11px] font-jua active:scale-95 shadow-2xs"
+                  className="min-h-[34px] px-2.5 py-1 rounded-lg bg-white hover:bg-rose-100 text-[#c9502f] border border-rose-300 text-[11px] font-jua active:scale-95 whitespace-nowrap"
                 >
-                  설정 / 5초 녹음
+                  설정/녹음
                 </button>
               )}
             </div>
@@ -586,14 +587,14 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
             {praiseNotice && (
               <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-jua text-center animate-fadeIn shadow-xs flex items-center justify-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>{praiseNotice}</span>
+                <span className="break-keep">{praiseNotice}</span>
               </div>
             )}
 
             {!practiceDone ? (
               <>
                 {/* Big Flashcard */}
-                <div className="bg-white rounded-3xl border-2 border-[#e4dccf] p-8 shadow-sm flex flex-col items-center justify-center min-h-[180px] relative">
+                <div className="bg-white rounded-3xl border-2 border-[#e4dccf] p-6 sm:p-8 shadow-sm flex flex-col items-center justify-center min-h-[170px] relative">
                   {practiceDeck[practiceIndex]?.sub && (
                     <span className="text-xs font-hand text-[#8a8178] mb-1">
                       {practiceDeck[practiceIndex].sub}
@@ -604,26 +605,26 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                   </span>
                   <button
                     onClick={() => speakKorean(practiceDeck[practiceIndex]?.ch)}
-                    className="mt-3 flex items-center gap-1 text-xs text-[#c9502f] bg-[#fdf3e4] hover:bg-[#fce9d0] px-3 py-1 rounded-full font-jua transition-all"
+                    className="mt-3 min-h-[40px] flex items-center gap-1.5 text-xs text-[#c9502f] bg-[#fdf3e4] hover:bg-[#fce9d0] px-4 py-1.5 rounded-full font-jua transition-all active:scale-95"
                   >
-                    <Volume2 className="w-3.5 h-3.5" /> 부드러운 소리 듣기
+                    <Volume2 className="w-4 h-4" /> 소리 듣기
                   </button>
                 </div>
 
-                <p className="text-xs text-[#8a8178] font-hand">
+                <p className="text-xs text-[#8a8178] font-hand break-keep">
                   아이가 글자를 보고 소리 내어 읽었나요?
                 </p>
 
-                <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="grid grid-cols-2 gap-3 pt-1">
                   <button
                     onClick={() => handlePracticeAnswer(false)}
-                    className="py-3 rounded-2xl bg-white border border-[#e4dccf] text-[#8a8178] font-jua text-base hover:bg-[#f6f1e7] active:scale-95 transition-all"
+                    className="min-h-[52px] py-3 rounded-2xl bg-white border border-[#e4dccf] text-[#8a8178] font-jua text-base hover:bg-[#f6f1e7] active:scale-95 transition-all"
                   >
                     아직이에요
                   </button>
                   <button
                     onClick={() => handlePracticeAnswer(true)}
-                    className="py-3 rounded-2xl bg-[#c9502f] text-white font-jua text-base shadow-md hover:bg-[#b84324] active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                    className="min-h-[52px] py-3 rounded-2xl bg-[#c9502f] text-white font-jua text-base shadow-md hover:bg-[#b84324] active:scale-95 transition-all flex items-center justify-center gap-1.5"
                   >
                     읽었어요! 🎉
                   </button>
@@ -639,7 +640,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                     {practiceResults.filter((r) => r.ok).length}개 성공!
                   </h3>
                   <p className="text-xs text-[#8a8178] font-hand mt-1">
-                    다마고치 경험치 +20 획득! 진도표에 한 단계 올릴까요?
+                    다마고치 경험치 +10 획득! 진도표에 한 단계 올릴까요?
                   </p>
                 </div>
 
@@ -675,6 +676,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                 </div>
               </div>
             )}
+            </div>
           </div>
         </div>
       )}

@@ -411,51 +411,52 @@ export const DailyDiaryModal: React.FC<DailyDiaryModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-5 sm:p-6 text-left space-y-3.5 animate-pop max-h-[92vh] flex flex-col relative font-body">
+      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-md box-border overflow-hidden shadow-2xl p-4 sm:p-6 text-left space-y-3.5 animate-pop max-h-[92vh] flex flex-col relative font-body">
         
         {/* Close Button */}
         <button
+          type="button"
           onClick={() => {
             playSfx('tap');
             onClose();
           }}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] transition-colors z-10"
+          className="absolute top-3.5 right-3.5 w-10 h-10 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] transition-colors z-10"
           title="닫기"
         >
           <X className="w-4 h-4" />
         </button>
 
         {/* Modal Header */}
-        <div className="border-b border-[#eedfc9] pb-2">
+        <div className="border-b border-[#eedfc9] pb-2.5 pr-11">
           <div className="flex items-center gap-1.5 text-xs font-bold text-[#c9502f] font-jua">
-            <Heart className="w-3.5 h-3.5 fill-[#c9502f]" />
-            <span>엄마의 30일 성장 일기 &amp; 아이 목소리 보관함</span>
+            <Heart className="w-3.5 h-3.5 fill-[#c9502f] shrink-0" />
+            <span>성장 일기 &amp; 목소리 기록</span>
           </div>
-          <h2 className="text-xl font-jua text-[#1b1917] mt-0.5">
-            D+{day}일차: {childName || '우리 아이'}의 기록
+          <h2 className="text-lg sm:text-xl font-jua text-[#1b1917] mt-0.5 break-keep">
+            D+{day}일차 · {childName || '우리 아이'}
           </h2>
-          <p className="text-xs text-[#8a8178] font-hand mt-0.5">
-            오늘의 미션: <b>{mission.t}</b> ({mission.s})
+          <p className="text-xs text-[#8a8178] font-hand mt-0.5 break-keep">
+            오늘 미션: <b>{mission.t}</b>
           </p>
         </div>
 
-        {/* 2 Top Tabs: 아이 목소리 녹음 | 엄마 일기 쓰기 */}
-        <div className="grid grid-cols-2 p-1 bg-[#f0e8dc] rounded-2xl gap-1 font-jua text-xs">
+        {/* 2 Top Tabs */}
+        <div className="grid grid-cols-2 p-1 bg-[#f0e8dc] rounded-2xl gap-1 font-jua text-xs sm:text-sm">
           <button
             type="button"
             onClick={() => {
               playSfx('tap');
               setActiveSubTab('voice');
             }}
-            className={`py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            className={`min-h-[44px] py-2 px-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeSubTab === 'voice'
                 ? 'bg-white text-[#ea580c] shadow-xs font-bold'
                 : 'text-[#8a8178] hover:text-[#1b1917]'
             }`}
           >
-            <Mic className="w-3.5 h-3.5 text-[#ea580c]" />
-            <span>🎙️ 아이 목소리 녹음</span>
-            {audioUrl && <span className="w-2 h-2 rounded-full bg-green-500" />}
+            <Mic className="w-4 h-4 text-[#ea580c] shrink-0" />
+            <span>목소리 녹음</span>
+            {audioUrl && <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />}
           </button>
           <button
             type="button"
@@ -463,15 +464,15 @@ export const DailyDiaryModal: React.FC<DailyDiaryModalProps> = ({
               playSfx('tap');
               setActiveSubTab('diary');
             }}
-            className={`py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            className={`min-h-[44px] py-2 px-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeSubTab === 'diary'
                 ? 'bg-white text-[#c9502f] shadow-xs font-bold'
                 : 'text-[#8a8178] hover:text-[#1b1917]'
             }`}
           >
-            <BookOpen className="w-3.5 h-3.5 text-[#c9502f]" />
-            <span>✏️ 엄마 성장 일기</span>
-            {content && <span className="w-2 h-2 rounded-full bg-orange-400" />}
+            <BookOpen className="w-4 h-4 text-[#c9502f] shrink-0" />
+            <span>엄마 일기</span>
+            {content && <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" />}
           </button>
         </div>
 
@@ -485,33 +486,33 @@ export const DailyDiaryModal: React.FC<DailyDiaryModalProps> = ({
 
         {/* TAB 1: Voice Recording Dedicated Section */}
         {activeSubTab === 'voice' ? (
-          <div className="space-y-3.5 overflow-y-auto flex-1 pr-1 font-body">
+          <div className="space-y-3.5 overflow-y-auto overflow-x-hidden flex-1 box-border font-body">
             <div className="p-4 bg-gradient-to-br from-[#fff7ed] via-[#fef3c7] to-[#fffaf0] rounded-2xl border border-[#fed7aa] space-y-3 shadow-xs">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-jua text-sm text-[#9a3412] flex items-center gap-1.5">
-                  <Mic className="w-4 h-4 text-[#ea580c]" />
-                  <span>{childName || '아이'}의 생생한 목소리 보관</span>
+                  <Mic className="w-4 h-4 text-[#ea580c] shrink-0" />
+                  <span>{childName || '아이'}의 목소리 간직하기</span>
                 </span>
                 {audioUrl && !isRecording && (
-                  <span className="text-[11px] text-[#16a34a] font-jua bg-white px-2.5 py-0.5 rounded-full border border-[#bbf7d0] shadow-2xs">
-                    ✓ 목소리 준비됨
+                  <span className="text-[11px] text-[#16a34a] font-jua bg-white px-2.5 py-0.5 rounded-full border border-[#bbf7d0] whitespace-nowrap">
+                    ✓ 저장 가능
                   </span>
                 )}
               </div>
 
-              <p className="text-xs text-[#78350f] font-hand leading-relaxed">
-                오늘 배운 <b>"{mission.t}"</b>을 아이가 씩씩하게 발음하는 소리나, "엄마 사랑해!" 하는 목소리를 녹음해보세요. 한 달 뒤 상장과 책자에 담기는 평생 보물이 됩니다!
+              <p className="text-xs text-[#78350f] font-hand leading-relaxed break-keep">
+                <b>"{mission.t}"</b> 발음하는 아이 목소리를 녹음해 보세요.
               </p>
 
               {/* RECORDING IN PROGRESS STATE */}
               {isRecording ? (
-                <div className="p-4 bg-white rounded-2xl border-2 border-[#ea580c] shadow-sm space-y-3 text-center animate-pulse">
+                <div className="p-4 bg-white rounded-2xl border-2 border-[#ea580c] shadow-sm space-y-3 text-center">
                   <div className="flex items-center justify-center gap-2 text-sm font-jua text-[#ea580c]">
                     <span className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
-                    <span>목소리 녹음 중... <b>{recordingSeconds}초</b> / 60초</span>
+                    <span>녹음 중 · <b>{recordingSeconds}초</b> / 60초</span>
                   </div>
 
-                  {/* Pulsing Audio Waveform Animation */}
+                  {/* Audio Waveform Animation */}
                   <div className="flex items-center justify-center gap-1 py-1 text-[#ea580c]">
                     <span className="animate-bounce" style={{ animationDelay: '0ms' }}>▂</span>
                     <span className="animate-bounce" style={{ animationDelay: '100ms' }}>▃</span>
@@ -528,15 +529,15 @@ export const DailyDiaryModal: React.FC<DailyDiaryModalProps> = ({
                     <button
                       type="button"
                       onClick={() => stopRecording(true)}
-                      className="py-2 px-5 rounded-xl bg-[#ea580c] hover:bg-[#c2410c] text-white font-jua text-sm flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
+                      className="min-h-[44px] py-2.5 px-5 rounded-xl bg-[#ea580c] hover:bg-[#c2410c] text-white font-jua text-sm flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
                     >
                       <Square className="w-3.5 h-3.5 fill-white" />
-                      <span>녹음 완료 ⏹️</span>
+                      <span>녹음 끝내기</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => stopRecording(false)}
-                      className="py-2 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 font-jua text-xs transition-colors"
+                      className="min-h-[44px] py-2.5 px-4 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 font-jua text-xs transition-colors"
                     >
                       취소
                     </button>
@@ -545,46 +546,46 @@ export const DailyDiaryModal: React.FC<DailyDiaryModalProps> = ({
               ) : audioUrl ? (
                 /* AUDIO RECORDED: PLAYBACK & DIRECT SAVE BAR */
                 <div className="p-3.5 bg-white rounded-2xl border-2 border-[#fed7aa] shadow-xs space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <button
                       type="button"
                       onClick={togglePlayAudio}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-jua text-xs sm:text-sm shadow-xs transition-all active:scale-95 ${
+                      className={`min-h-[44px] flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-jua text-sm shadow-xs transition-all active:scale-95 whitespace-nowrap ${
                         isPlayingAudio
-                          ? 'bg-[#ea580c] text-white animate-pulse'
+                          ? 'bg-[#ea580c] text-white'
                           : 'bg-[#ffedd5] hover:bg-[#fed7aa] text-[#9a3412]'
                       }`}
                     >
                       {isPlayingAudio ? (
                         <>
-                          <Pause className="w-4 h-4" />
-                          <span>목소리 재생 멈추기 ⏸️</span>
+                          <Pause className="w-4 h-4 shrink-0" />
+                          <span>멈추기</span>
                         </>
                       ) : (
                         <>
-                          <Play className="w-4 h-4 fill-[#9a3412]" />
-                          <span>아이 목소리 다시 듣기 ▶️</span>
+                          <Play className="w-4 h-4 fill-[#9a3412] shrink-0" />
+                          <span>목소리 듣기</span>
                         </>
                       )}
                     </button>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
                         onClick={startRecording}
-                        className="py-1.5 px-2.5 rounded-lg border border-[#fed7aa] hover:bg-[#fff7ed] text-[#9a3412] font-jua text-xs flex items-center gap-1 transition-colors"
+                        className="min-h-[44px] px-3 rounded-xl border border-[#fed7aa] hover:bg-[#fff7ed] text-[#9a3412] font-jua text-xs flex items-center gap-1 transition-colors whitespace-nowrap"
                         title="다시 녹음하기"
                       >
-                        <RotateCcw className="w-3 h-3" />
+                        <RotateCcw className="w-3.5 h-3.5" />
                         <span>재녹음</span>
                       </button>
                       <button
                         type="button"
                         onClick={deleteAudio}
-                        className="p-1.5 text-stone-400 hover:text-red-500 rounded-lg transition-colors"
+                        className="w-11 h-11 flex items-center justify-center text-stone-400 hover:text-red-500 rounded-xl border border-stone-200 transition-colors"
                         title="녹음 삭제"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -593,10 +594,10 @@ export const DailyDiaryModal: React.FC<DailyDiaryModalProps> = ({
                   <button
                     type="button"
                     onClick={handleSaveVoiceOnly}
-                    className="w-full py-3 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
+                    className="w-full min-h-[48px] py-3 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
                     <Save className="w-4 h-4" />
-                    <span>이 목소리만 바로 저장하기 (완료) 🎉</span>
+                    <span>목소리 바로 저장하기</span>
                   </button>
                 </div>
               ) : (
@@ -606,27 +607,27 @@ export const DailyDiaryModal: React.FC<DailyDiaryModalProps> = ({
                   <button
                     type="button"
                     onClick={startRecording}
-                    className="w-full py-3.5 px-4 bg-[#ea580c] hover:bg-[#c2410c] text-white rounded-2xl font-jua text-sm sm:text-base flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
+                    className="w-full min-h-[52px] py-3.5 px-4 bg-[#ea580c] hover:bg-[#c2410c] text-white rounded-2xl font-jua text-base flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
                   >
-                    <Mic className="w-5 h-5 text-white animate-pulse" />
-                    <span>아이 목소리 녹음하기 (터치하여 시작)</span>
+                    <Mic className="w-5 h-5 text-white shrink-0" />
+                    <span>녹음 시작하기</span>
                   </button>
 
-                  {/* Guaranteed One-Click Test Voice Generation Button */}
+                  {/* Sample Voice Generation Button */}
                   <button
                     type="button"
                     onClick={handleGenerateTestVoice}
-                    className="w-full py-2.5 px-3 bg-white hover:bg-amber-50 border border-amber-300 text-amber-900 rounded-xl font-jua text-xs flex items-center justify-center gap-1.5 transition-all shadow-2xs"
+                    className="w-full min-h-[44px] py-2.5 px-3 bg-white hover:bg-amber-50 border border-amber-300 text-amber-900 rounded-xl font-jua text-xs flex items-center justify-center gap-1.5 transition-all shadow-2xs"
                   >
-                    <Wand2 className="w-3.5 h-3.5 text-amber-600" />
-                    <span>⚡ 테스트용 아이 목소리 자동 녹음 (모의 녹음)</span>
+                    <Wand2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>테스트용 샘플 목소리 만들기</span>
                   </button>
 
                   {/* Upload Audio File Option */}
-                  <div className="text-center pt-1">
-                    <label className="inline-flex items-center gap-1.5 text-xs text-[#9a3412] hover:text-[#ea580c] cursor-pointer font-hand py-1 px-3 rounded-xl hover:bg-white/80 transition-colors">
-                      <Upload className="w-3.5 h-3.5 text-[#ea580c]" />
-                      <span>또는 스마트폰 녹음 파일(.mp3, .m4a, .wav) 올리기</span>
+                  <div className="text-center pt-0.5">
+                    <label className="inline-flex min-h-[40px] items-center gap-1.5 text-xs text-[#9a3412] hover:text-[#ea580c] cursor-pointer font-hand py-1.5 px-3 rounded-xl hover:bg-white/80 transition-colors">
+                      <Upload className="w-3.5 h-3.5 text-[#ea580c] shrink-0" />
+                      <span>음성 파일 올리기 (.mp3, .m4a, .wav)</span>
                       <input
                         type="file"
                         accept="audio/*"
@@ -662,11 +663,11 @@ export const DailyDiaryModal: React.FC<DailyDiaryModalProps> = ({
           </div>
         ) : (
           /* TAB 2: Diary & Photo Form Section */
-          <form onSubmit={handleSave} className="space-y-3.5 overflow-y-auto flex-1 pr-1 font-body">
+          <form onSubmit={handleSave} className="space-y-3.5 overflow-y-auto overflow-x-hidden flex-1 box-border font-body">
             {/* Mood Selector */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-[#4a443e] block">오늘 엄마의 마음 표정</label>
-              <div className="flex gap-1.5">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-[#4a443e] block">오늘 엄마의 기분</label>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                 {MOODS.map((m) => (
                   <button
                     type="button"
@@ -675,15 +676,15 @@ export const DailyDiaryModal: React.FC<DailyDiaryModalProps> = ({
                       playSfx('tap');
                       setMood(m.emoji);
                     }}
-                    className={`flex-1 p-1.5 rounded-xl text-center border transition-all ${
+                    className={`min-h-[52px] p-1.5 rounded-xl text-center border transition-all ${
                       mood === m.emoji
-                        ? 'bg-[#fdf3e4] border-[#c9502f] shadow-xs scale-105'
+                        ? 'bg-[#fdf3e4] border-[#c9502f] shadow-xs ring-2 ring-[#c9502f]/20'
                         : 'bg-white border-[#e4dccf]'
                     }`}
                     title={m.label}
                   >
                     <span className="text-lg block">{m.emoji}</span>
-                    <span className="text-[9px] font-hand text-[#8a8178] block truncate">
+                    <span className="text-[10px] font-hand text-[#8a8178] block truncate">
                       {m.label}
                     </span>
                   </button>
@@ -694,23 +695,21 @@ export const DailyDiaryModal: React.FC<DailyDiaryModalProps> = ({
             {/* Diary Textarea */}
             <div className="space-y-1">
               <label className="text-xs font-bold text-[#4a443e] block">
-                오늘 가장 기억에 남는 아이의 말이나 표정
+                기억에 남는 한마디
               </label>
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="예) 오늘 카드를 보더니 '엄마 이거 기린 목처럼 꺾였어!' 하면서 활짝 웃었다. 매일 이렇게 눈 맞추며 놀아줘야지."
+                placeholder="예) 오늘 카드를 보더니 '기린 목 같다!' 하며 활짝 웃었어요."
                 rows={4}
                 maxLength={400}
                 className="w-full p-3 rounded-2xl border-2 border-[#e4dccf] bg-white text-xs sm:text-sm text-[#1b1917] outline-none focus:border-[#c9502f] font-hand resize-none"
               />
               <div className="flex justify-between text-[11px] text-[#8a8178]">
-                <span>한 달 뒤 예쁜 책자로 인쇄할 수 있어요!</span>
-                <span>{content.length} / 400자</span>
+                <span>A4 일기장으로 인쇄할 수 있어요</span>
+                <span>{content.length} / 400</span>
               </div>
             </div>
-
-
 
             {/* Action buttons */}
             <div className="pt-2 flex gap-2">
@@ -718,7 +717,7 @@ export const DailyDiaryModal: React.FC<DailyDiaryModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="p-2.5 rounded-xl bg-white border border-[#e4dccf] text-red-500 hover:bg-red-50 transition-colors"
+                  className="w-12 min-h-[48px] rounded-xl bg-white border border-[#e4dccf] text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center shrink-0"
                   title="일기 삭제"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -728,14 +727,14 @@ export const DailyDiaryModal: React.FC<DailyDiaryModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3 rounded-xl bg-white border border-[#e4dccf] text-[#8a8178] font-jua text-sm"
+                className="flex-1 min-h-[48px] py-3 rounded-xl bg-white border border-[#e4dccf] text-[#8a8178] font-jua text-sm"
               >
                 닫기
               </button>
 
               <button
                 type="submit"
-                className="flex-1 py-3 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                className="flex-1 min-h-[48px] py-3 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
               >
                 <Save className="w-4 h-4" />
                 저장하기
@@ -746,8 +745,8 @@ export const DailyDiaryModal: React.FC<DailyDiaryModalProps> = ({
 
         {/* In-App Delete Confirmation Modal */}
         {showDeleteConfirm && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-            <div className="bg-white rounded-3xl p-5 border border-[#eedfc9] shadow-2xl max-w-xs w-full text-center space-y-3">
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+            <div className="bg-white rounded-3xl p-5 border-2 border-[#eedfc9] shadow-2xl max-w-xs w-full box-border overflow-hidden text-center space-y-3">
               <Trash2 className="w-10 h-10 text-red-500 mx-auto" />
               <h4 className="font-jua text-base text-[#1b1917]">D+{day}일차 일기와 녹음을 삭제할까요?</h4>
               <p className="text-xs text-[#8a8178] font-hand">삭제된 내용은 복구할 수 없습니다.</p>

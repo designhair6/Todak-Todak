@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized administrator account mapped to a Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the administrator.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified administrator email address.",
+          "maxLength": 200
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when admin record was created."
+        }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "Voucher": {
+      "title": "Voucher",
+      "description": "Single-use subscription or trial extension voucher code issued by admin and redeemable once without login.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Unique voucher or SmartStore order code matching the document ID.",
+          "minLength": 4,
+          "maxLength": 64,
+          "pattern": "^[A-Z0-9_\\-]+$"
+        },
+        "type": {
+          "type": "string",
+          "description": "Voucher benefit type.",
+          "enum": ["subscription", "trial_days"]
+        },
+        "value": {
+          "type": "number",
+          "description": "Number of trial days granted (or 365 for full subscription pass)."
+        },
+        "title": {
+          "type": "string",
+          "description": "Display label for the voucher pass.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "orderNote": {
+          "type": "string",
+          "description": "Non-PII admin note such as SmartStore batch or channel label.",
+          "maxLength": 120
+        },
+        "status": {
+          "type": "string",
+          "description": "Single-use redemption status.",
+          "enum": ["unused", "used"]
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "UID of the admin who issued this voucher.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the voucher was created."
+        },
+        "usedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the voucher was redeemed."
+        },
+        "redeemedBy": {
+          "type": "string",
+          "description": "Opaque device member ID that redeemed this voucher.",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        }
+      },
+      "required": ["code", "type", "value", "title", "status", "createdBy", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Administrator registry for RBAC verification."
+    },
+    "/vouchers/{voucherId}": {
+      "schema": { "$ref": "#/entities/Voucher" },
+      "description": "Single-use voucher codes verified and redeemed atomically via Firestore transactions."
+    }
+  }
+}

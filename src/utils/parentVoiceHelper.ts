@@ -4,7 +4,7 @@
  * played when a child successfully solves or reads a Hangul quiz/card/mission.
  */
 
-import { playSfx, speakKorean } from './sound';
+import { playSfx, speakKorean, stopAllSpeech, registerExternalAudioStopper } from './sound';
 import { audioBufferToWav } from './audioRecordHelper';
 
 export interface ParentVoiceMissionConfig {
@@ -56,6 +56,18 @@ export function saveParentVoiceMission(config: ParentVoiceMissionConfig): void {
 
 let activeAudioInstance: HTMLAudioElement | null = null;
 
+function stopParentPraiseAudio() {
+  if (activeAudioInstance) {
+    try {
+      activeAudioInstance.pause();
+      activeAudioInstance.currentTime = 0;
+    } catch {}
+    activeAudioInstance = null;
+  }
+}
+
+registerExternalAudioStopper(stopParentPraiseAudio);
+
 /**
  * Plays the parent's recorded voice when child answers correctly.
  * If no custom recording exists, falls back gracefully to warm Korean TTS ("정답이에요! 참 잘했어요!").
@@ -69,13 +81,9 @@ export function playParentPraiseVoice(options?: {
   const name = options?.childName || '우리 아이';
   const letter = options?.letter || '글자';
 
-  // Stop any currently playing audio
-  if (activeAudioInstance) {
-    try {
-      activeAudioInstance.pause();
-      activeAudioInstance = null;
-    } catch {}
-  }
+  // Stop ALL currently playing TTS or parent audio before playing
+  stopAllSpeech();
+  stopParentPraiseAudio();
 
   // 1. If parent recorded custom voice and enabled
   if (config.audioUrl && config.enabled) {
@@ -84,12 +92,15 @@ export function playParentPraiseVoice(options?: {
       const audio = new Audio(config.audioUrl);
       activeAudioInstance = audio;
       audio.onended = () => {
-        activeAudioInstance = null;
+        if (activeAudioInstance === audio) {
+          activeAudioInstance = null;
+        }
         options?.onEnd?.();
       };
       audio.onerror = () => {
-        // Fallback to TTS if audio playback fails
-        activeAudioInstance = null;
+        if (activeAudioInstance === audio) {
+          activeAudioInstance = null;
+        }
         speakFallback(config.fallbackTTS, name, letter, options?.onEnd);
       };
       audio.play().catch(() => {

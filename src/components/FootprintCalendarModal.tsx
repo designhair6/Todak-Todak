@@ -148,20 +148,20 @@ export const FootprintCalendarModal: React.FC<FootprintCalendarModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-[#fcfaf7] border-2 border-[#e4dccf] rounded-3xl w-full max-w-lg max-h-[92vh] overflow-hidden shadow-2xl flex flex-col relative font-body">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+      <div className="bg-[#fcfaf7] border-2 border-[#e4dccf] rounded-3xl w-full max-w-lg max-h-[92vh] box-border overflow-hidden shadow-2xl flex flex-col relative font-body">
         {/* Header */}
-        <div className="px-4 py-3 sm:px-5 sm:py-3.5 bg-white border-b border-[#eedfc9] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-[#fff2ec] border border-[#fcd2c0] flex items-center justify-center text-lg">
+        <div className="px-4 py-3 sm:px-5 sm:py-3.5 bg-white border-b border-[#eedfc9] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-[#fff2ec] border border-[#fcd2c0] flex items-center justify-center text-lg shrink-0">
               🐾
             </div>
-            <div>
-              <h2 className="font-jua text-base sm:text-lg text-[#1b1917] flex items-center gap-1.5">
-                <span>{childName || '아이'}의 한글 발자국 달력</span>
+            <div className="min-w-0">
+              <h2 className="font-jua text-base sm:text-lg text-[#1b1917] truncate">
+                {childName || '아이'}의 발자국 달력
               </h2>
-              <p className="text-[11px] text-[#8a8178] font-hand">
-                하루 이틀 쉬어가도 괜찮아요. 함께 웃은 날만 도장 쾅! 🐾
+              <p className="text-[11px] text-[#8a8178] font-hand break-keep">
+                함께 웃은 날만 도장 쾅! 🐾
               </p>
             </div>
           </div>
@@ -171,14 +171,14 @@ export const FootprintCalendarModal: React.FC<FootprintCalendarModalProps> = ({
               playSfx('tap');
               onClose();
             }}
-            className="w-8 h-8 rounded-full bg-[#f6f1e7] hover:bg-[#ebd9c7] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] transition-colors"
+            className="w-9 h-9 rounded-full bg-[#f6f1e7] hover:bg-[#ebd9c7] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] transition-colors shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Scrollable Body */}
-        <div className="p-4 sm:p-5 overflow-y-auto space-y-4">
+        <div className="p-4 sm:p-5 overflow-y-auto overflow-x-hidden space-y-4 box-border">
           {/* Calendar Month Navigation */}
           <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-[#e4dccf] shadow-2xs">
             <button
@@ -265,7 +265,7 @@ export const FootprintCalendarModal: React.FC<FootprintCalendarModalProps> = ({
                     }}
                     className={`h-10 sm:h-12 rounded-xl flex flex-col items-center justify-between py-1 px-0.5 transition-all relative border ${
                       isSelected
-                        ? 'border-[#c9502f] bg-[#fdf3e4] shadow-xs scale-105 z-10'
+                        ? 'border-[#c9502f] bg-[#fdf3e4] shadow-xs ring-2 ring-[#c9502f]/25 z-10'
                         : hasCompleted
                         ? 'border-[#fbd8c9] bg-[#fff5f0] hover:bg-[#ffebe3]'
                         : 'border-transparent hover:bg-[#faf7f2]'
@@ -284,7 +284,7 @@ export const FootprintCalendarModal: React.FC<FootprintCalendarModalProps> = ({
                     {/* Stamp or Empty gentle indicator */}
                     {hasCompleted ? (
                       <div className="flex items-center gap-0.5">
-                        <span className="text-sm sm:text-base leading-none animate-bounce">
+                        <span className="text-sm sm:text-base leading-none">
                           🐾
                         </span>
                         {hasVoice && (
@@ -416,15 +416,15 @@ export const FootprintCalendarModal: React.FC<FootprintCalendarModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-3 bg-white border-t border-[#eedfc9] flex items-center justify-between text-xs text-[#8a8178] font-hand">
-          <span>💡 아이와 함께 달력을 넘기며 추억을 되돌아보세요</span>
+        <div className="p-3 bg-white border-t border-[#eedfc9] flex flex-wrap items-center justify-between gap-2 text-xs text-[#8a8178] font-hand">
+          <span className="break-keep">💡 달력을 눌러 추억을 확인해요</span>
           <button
             onClick={() => {
               if (audioRef.current) audioRef.current.pause();
               playSfx('tap');
               onClose();
             }}
-            className="px-4 py-1.5 rounded-xl bg-[#c9502f] text-white font-jua hover:bg-[#b84324] transition-colors"
+            className="min-h-[44px] px-5 py-2 rounded-xl bg-[#c9502f] text-white font-jua hover:bg-[#b84324] transition-colors active:scale-95"
           >
             닫기
           </button>

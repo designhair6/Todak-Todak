@@ -231,41 +231,60 @@ export const VOICE_TONES: VoiceToneInfo[] = [
     id: 'mom',
     name: '다정한 엄마',
     emoji: '👩',
-    desc: '부드럽고 포근하게 감싸주는 따뜻한 톤 (기본)',
-    pitch: 1.15,
-    rate: 0.92,
-    playbackRate: 1.02,
+    desc: '포근하고 부드러운 엄마 목소리 (기본)',
+    pitch: 1.12,
+    rate: 0.9,
+    playbackRate: 1.0,
   },
   {
     id: 'dad',
     name: '친근한 아빠',
     emoji: '👨',
-    desc: '자상하고 든든하게 응원해주는 톤',
-    pitch: 0.82,
-    rate: 0.93,
-    playbackRate: 0.88,
+    desc: '자상하고 든든한 아빠 목소리',
+    pitch: 0.85,
+    rate: 0.92,
+    playbackRate: 0.92,
   },
   {
     id: 'teacher',
     name: '선생님',
     emoji: '👩‍🏫',
-    desc: '또랑또랑하고 정확한 발음의 친절한 톤',
-    pitch: 1.25,
-    rate: 0.96,
-    playbackRate: 1.08,
+    desc: '또렷하고 차분한 선생님 목소리',
+    pitch: 1.18,
+    rate: 0.94,
+    playbackRate: 1.04,
   },
   {
     id: 'friend',
     name: '귀여운 친구',
     emoji: '🧒',
-    desc: '신나고 발랄하게 함께 배우는 톤',
-    pitch: 1.35,
-    rate: 1.0,
-    playbackRate: 1.12,
+    desc: '밝고 신나는 친구 목소리',
+    pitch: 1.28,
+    rate: 0.98,
+    playbackRate: 1.08,
   },
 ];
 
 let currentVoiceTone: VoiceTone = 'mom';
+let cachedVoices: SpeechSynthesisVoice[] = [];
+let ttsFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingSpeakTimer: ReturnType<typeof setTimeout> | null = null;
+let speechGenerationId = 0;
+
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  const loadVoices = () => {
+    try {
+      const list = window.speechSynthesis.getVoices();
+      if (list && list.length > 0) {
+        cachedVoices = list;
+      }
+    } catch {}
+  };
+  loadVoices();
+  try {
+    window.speechSynthesis.addEventListener?.('voiceschanged', loadVoices);
+  } catch {}
+}
 
 export function getVoiceTone(): VoiceTone {
   try {
@@ -289,21 +308,116 @@ export function setVoiceTone(tone: VoiceTone) {
   }
 }
 
-// In-memory audio buffer cache and active sources for instant, natural speech
-const audioBufferCache = new Map<string, AudioBuffer>();
 let activeSpeechAudio: HTMLAudioElement | null = null;
 let currentSourceNode: AudioBufferSourceNode | null = null;
+let externalAudioStopper: (() => void) | null = null;
 
-function playAudioFallback(audioUrl: string, volMult: number, toneInfo: VoiceToneInfo) {
+export function registerExternalAudioStopper(stopper: () => void) {
+  externalAudioStopper = stopper;
+}
+
+export function stopAllSpeech() {
+  speechGenerationId += 1;
+
+  if (pendingSpeakTimer) {
+    clearTimeout(pendingSpeakTimer);
+    pendingSpeakTimer = null;
+  }
+  if (ttsFallbackTimer) {
+    clearTimeout(ttsFallbackTimer);
+    ttsFallbackTimer = null;
+  }
+
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {}
+  }
+
+  if (activeSpeechAudio) {
+    try {
+      activeSpeechAudio.pause();
+      activeSpeechAudio.currentTime = 0;
+      activeSpeechAudio.src = '';
+    } catch {}
+    activeSpeechAudio = null;
+  }
+
+  if (currentSourceNode) {
+    try {
+      currentSourceNode.stop();
+    } catch {}
+    currentSourceNode = null;
+  }
+
+  if (externalAudioStopper) {
+    try {
+      externalAudioStopper();
+    } catch {}
+  }
+}
+
+function playAudioFallback(
+  audioUrl: string,
+  volMult: number,
+  toneInfo: VoiceToneInfo,
+  genId: number
+) {
+  if (genId !== speechGenerationId) return;
   try {
+    // Guarantee speechSynthesis is fully cancelled before starting HTMLAudio fallback
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
+    if (activeSpeechAudio) {
+      try {
+        activeSpeechAudio.pause();
+        activeSpeechAudio.currentTime = 0;
+      } catch {}
+      activeSpeechAudio = null;
+    }
+
     const audio = new Audio(audioUrl);
-    audio.volume = volMult;
-    audio.playbackRate = toneInfo.playbackRate;
+    audio.volume = Math.min(1, volMult);
+    // Keep playbackRate in a gentle female clarity band so voice never sounds deep/distorted
+    const safeRate = toneInfo.id === 'dad' ? 0.98 : Math.min(1.08, Math.max(0.96, toneInfo.playbackRate));
+    audio.playbackRate = safeRate;
     activeSpeechAudio = audio;
+    audio.onended = () => {
+      if (activeSpeechAudio === audio) {
+        activeSpeechAudio = null;
+      }
+    };
     audio.play().catch(() => {});
   } catch (e) {
     // ignore
   }
+}
+
+const MALE_VOICE_BLACKLIST =
+  /injoon|in-joon|hyunsu|hyun-su|bongjin|bong-jin|gookmin|gook-min|minsu|male|남성|남자|\bman\b|\bboy\b/i;
+
+const FEMALE_KO_VOICE_WHITELIST =
+  /yuna|sunhi|sun-hi|sora|heami|hae-mi|jimin|ji-min|yujin|yu-jin|seohyeon|seo-hyeon|soonbok|seoyeon|jiyeon|narae|google 한국의|female|여성|여자/i;
+
+function pickKoreanFemaleVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+  const live = window.speechSynthesis.getVoices();
+  const voices = live.length > 0 ? live : cachedVoices;
+  const koreanVoices = voices.filter((v) => {
+    const lang = (v.lang || '').toLowerCase();
+    const name = v.name || '';
+    return lang.startsWith('ko') || lang.includes('kr') || name.includes('Korean') || name.includes('한국');
+  });
+  if (koreanVoices.length === 0) return null;
+
+  // Strictly exclude any male / ambiguous system voices and keep verified ko-KR female voices only
+  const verifiedFemale = koreanVoices.find(
+    (v) => !MALE_VOICE_BLACKLIST.test(v.name) && FEMALE_KO_VOICE_WHITELIST.test(v.name)
+  );
+  return verifiedFemale || null;
 }
 
 export function speakKorean(text: string, withSoftChime = false, customTone?: VoiceTone) {
@@ -314,97 +428,81 @@ export function speakKorean(text: string, withSoftChime = false, customTone?: Vo
     playSfx('bell');
   }
 
-  // Convert single consonant/vowel jamos into full Korean phonetic names (e.g. 'ㄱ' -> '기역')
   const rawText = text.trim();
+  if (!rawText) return;
   const spokenText = JAMO_NAME_MAP[rawText] || rawText;
 
-  // Selected Voice Tone info
   const toneId = customTone || getVoiceTone();
   const toneInfo = VOICE_TONES.find((t) => t.id === toneId) || VOICE_TONES[0];
 
-  // Stop any ongoing native speech synthesis or audio playback
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    try {
-      window.speechSynthesis.cancel();
-    } catch (e) {}
-  }
-  if (activeSpeechAudio) {
-    activeSpeechAudio.pause();
-    activeSpeechAudio.currentTime = 0;
-    activeSpeechAudio = null;
-  }
-  if (currentSourceNode) {
-    try {
-      currentSourceNode.stop();
-    } catch (e) {}
-    currentSourceNode = null;
-  }
+  // Unconditionally stop/cancel every currently active or queued voice before starting a new one
+  stopAllSpeech();
+  const myGen = speechGenerationId;
 
-  // Priority 1: High-fidelity Native Web Speech API (Sounds 100% human, gentle and natural on iOS, Mac, Android, and Windows)
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    try {
-      const utterance = new SpeechSynthesisUtterance(spokenText);
-      utterance.lang = 'ko-KR';
-      utterance.pitch = toneInfo.pitch;
-      utterance.rate = toneInfo.rate;
-      utterance.volume = Math.min(1.0, volMult * 1.1);
-
-      // Select matching gender/persona Korean voice if available in system
-      const voices = window.speechSynthesis.getVoices();
-      const koreanVoices = voices.filter(
-        (v) => v.lang.startsWith('ko') || v.lang.includes('KR') || v.lang.includes('Korean')
-      );
-
-      if (koreanVoices.length > 0) {
-        if (toneInfo.id === 'dad') {
-          const maleVoice = koreanVoices.find(
-            (v) =>
-              v.name.includes('InJoon') ||
-              v.name.includes('Male') ||
-              v.name.includes('남') ||
-              v.name.includes('남자')
-          );
-          utterance.voice = maleVoice || koreanVoices[0];
-        } else {
-          // Warm maternal female voice prioritized
-          const femaleVoice = koreanVoices.find(
-            (v) =>
-              v.name.includes('Yuna') ||
-              v.name.includes('SunHi') ||
-              v.name.includes('Sora') ||
-              v.name.includes('Heami') ||
-              v.name.includes('Female') ||
-              v.name.includes('여') ||
-              v.name.includes('여성') ||
-              v.name.includes('Google 한국의')
-          );
-          utterance.voice = femaleVoice || koreanVoices[0];
-        }
-      }
-
-      let speechStarted = false;
-      utterance.onstart = () => {
-        speechStarted = true;
-      };
-
-      window.speechSynthesis.speak(utterance);
-
-      // Fallback check: If browser speech synthesis was muted or suspended (e.g. mobile silent mode)
-      const audioUrl = `/api/tts?text=${encodeURIComponent(spokenText)}`;
-      setTimeout(() => {
-        if (!speechStarted && !window.speechSynthesis.speaking) {
-          playAudioFallback(audioUrl, volMult, toneInfo);
-        }
-      }, 350);
-
-      return;
-    } catch (e) {
-      // Fall through to server audio fallback
-    }
-  }
-
-  // Priority 2: Server TTS Proxy Fallback
   const audioUrl = `/api/tts?text=${encodeURIComponent(spokenText)}`;
-  playAudioFallback(audioUrl, volMult, toneInfo);
-}
+  const chosenFemaleVoice = pickKoreanFemaleVoice();
 
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window && chosenFemaleVoice) {
+    // Brief 45ms flush after speechSynthesis.cancel() prevents browsers from dropping or overlapping utterances
+    pendingSpeakTimer = setTimeout(() => {
+      pendingSpeakTimer = null;
+      if (myGen !== speechGenerationId) return;
+
+      try {
+        const utterance = new SpeechSynthesisUtterance(spokenText);
+        utterance.voice = chosenFemaleVoice;
+        utterance.lang = 'ko-KR';
+        // Enforce warm mom/female pitch (>= 1.06) so male voice register never leaks through
+        utterance.pitch = toneInfo.id === 'dad' ? 1.08 : Math.max(1.06, toneInfo.pitch);
+        utterance.rate = Math.min(1.0, Math.max(0.86, toneInfo.rate));
+        utterance.volume = Math.min(1.0, volMult * 1.1);
+
+        let speechStarted = false;
+        let endedOrFailed = false;
+
+        utterance.onstart = () => {
+          speechStarted = true;
+          if (ttsFallbackTimer) {
+            clearTimeout(ttsFallbackTimer);
+            ttsFallbackTimer = null;
+          }
+        };
+        utterance.onend = () => {
+          endedOrFailed = true;
+          if (ttsFallbackTimer) {
+            clearTimeout(ttsFallbackTimer);
+            ttsFallbackTimer = null;
+          }
+        };
+        utterance.onerror = () => {
+          if (endedOrFailed || myGen !== speechGenerationId) return;
+          endedOrFailed = true;
+          if (ttsFallbackTimer) {
+            clearTimeout(ttsFallbackTimer);
+            ttsFallbackTimer = null;
+          }
+          if (!speechStarted) {
+            playAudioFallback(audioUrl, volMult, toneInfo, myGen);
+          }
+        };
+
+        window.speechSynthesis.speak(utterance);
+
+        // Only trigger fallback if speechSynthesis genuinely failed to start after 900ms
+        ttsFallbackTimer = setTimeout(() => {
+          ttsFallbackTimer = null;
+          if (myGen !== speechGenerationId || endedOrFailed || speechStarted) return;
+          if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+            playAudioFallback(audioUrl, volMult, toneInfo, myGen);
+          }
+        }, 900);
+      } catch {
+        playAudioFallback(audioUrl, volMult, toneInfo, myGen);
+      }
+    }, 45);
+    return;
+  }
+
+  // If no verified ko-KR female SpeechSynthesis voice exists, use single clean server female TTS directly
+  playAudioFallback(audioUrl, volMult, toneInfo, myGen);
+}

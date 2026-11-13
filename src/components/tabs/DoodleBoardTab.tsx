@@ -148,9 +148,60 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
   // Filter tracing items by category
   const filteredTracingItems = TRACING_ITEMS.filter((item) => item.category === tracingCategory);
 
+  const drawBackgroundLayer = (bgCtx: CanvasRenderingContext2D, width: number, height: number) => {
+    bgCtx.fillStyle = '#ffffff';
+    bgCtx.fillRect(0, 0, width, height);
+
+    if (mode === 'tracing' && currentTracing) {
+      drawTracingGuide(bgCtx, width, height, currentTracing);
+    } else {
+      drawFreeGrid(bgCtx, width, height);
+    }
+  };
+
   // Initialize or resize both canvases
   useEffect(() => {
     setupCanvases();
+  }, [mode, currentTracing]);
+
+  // Redraw background guide cleanly when fonts finish loading or container resizes
+  useEffect(() => {
+    let cancelled = false;
+    const redrawBgOnly = () => {
+      if (cancelled) return;
+      const bgCanvas = bgCanvasRef.current;
+      const container = containerRef.current;
+      if (!bgCanvas || !container) return;
+      const rect = container.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const dpr = window.devicePixelRatio || 1;
+      const targetW = Math.round(rect.width * dpr);
+      const targetH = Math.round(rect.height * dpr);
+      if (Math.abs(bgCanvas.width - targetW) > 2 || Math.abs(bgCanvas.height - targetH) > 2) {
+        setupCanvases();
+        return;
+      }
+      const bgCtx = bgCanvas.getContext('2d');
+      if (!bgCtx) return;
+      bgCtx.resetTransform();
+      bgCtx.scale(dpr, dpr);
+      drawBackgroundLayer(bgCtx, rect.width, rect.height);
+    };
+
+    if (typeof document !== 'undefined' && 'fonts' in document) {
+      document.fonts.ready.then(redrawBgOnly).catch(() => {});
+    }
+
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      redrawBgOnly();
+    });
+    ro.observe(container);
+    return () => {
+      cancelled = true;
+      ro.disconnect();
+    };
   }, [mode, currentTracing]);
 
   const setupCanvases = () => {
@@ -160,15 +211,16 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
     if (!bgCanvas || !drawCanvas || !container) return;
 
     const rect = container.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
     const dpr = window.devicePixelRatio || 1;
     const width = rect.width;
     const height = rect.height;
 
     // Set physical resolution
-    bgCanvas.width = width * dpr;
-    bgCanvas.height = height * dpr;
-    drawCanvas.width = width * dpr;
-    drawCanvas.height = height * dpr;
+    bgCanvas.width = Math.round(width * dpr);
+    bgCanvas.height = Math.round(height * dpr);
+    drawCanvas.width = Math.round(width * dpr);
+    drawCanvas.height = Math.round(height * dpr);
 
     // Scale contexts
     const bgCtx = bgCanvas.getContext('2d');
@@ -181,14 +233,7 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
     drawCtx.scale(dpr, dpr);
 
     // Draw background layer
-    bgCtx.fillStyle = '#ffffff';
-    bgCtx.fillRect(0, 0, width, height);
-
-    if (mode === 'tracing' && currentTracing) {
-      drawTracingGuide(bgCtx, width, height, currentTracing);
-    } else {
-      drawFreeGrid(bgCtx, width, height);
-    }
+    drawBackgroundLayer(bgCtx, width, height);
 
     // Clear draw canvas (transparent)
     drawCtx.clearRect(0, 0, width, height);
@@ -200,68 +245,70 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
 
 
 
-  // Draw numbered badge circle with text on the guideline canvas (Large, high-contrast, kid-friendly)
+  // Draw numbered badge circle with text on the guideline canvas (Proportional, high-contrast, kid-friendly)
   const drawStrokeNumberBadge = (
     ctx: CanvasRenderingContext2D,
     x: number,
     y: number,
     num: string,
-    arrow: string
+    arrow: string,
+    radius: number = 13
   ) => {
     ctx.save();
-    // High-visibility drop shadow
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.28)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetY = 2;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.22)';
+    ctx.shadowBlur = 5;
+    ctx.shadowOffsetY = 1.5;
 
-    const r = 16; // Big 32px diameter circle (easy for kids to spot)
+    const r = radius;
 
     // Red-orange circular badge
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = '#dc2626'; // Vivid red/coral
+    ctx.fillStyle = '#dc2626';
     ctx.fill();
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
     ctx.strokeStyle = '#ffffff';
     ctx.stroke();
 
     // Number text
     ctx.shadowColor = 'transparent';
     ctx.fillStyle = '#ffffff';
-    ctx.font = "bold 15px 'Jua', sans-serif";
+    ctx.font = `bold ${Math.round(r * 0.96)}px 'Jua', sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(num, x, y + 1);
+    ctx.fillText(num, x, y + 0.5);
 
     // Direction arrow in small attached indicator bubble
     if (arrow) {
-      let arrowX = x + r + 10;
+      const ar = Math.max(8, Math.round(r * 0.68));
+      const offset = r + ar + 2;
+      let arrowX = x + offset;
       let arrowY = y;
       if (arrow === '↓') {
         arrowX = x;
-        arrowY = y + r + 10;
+        arrowY = y + offset;
       } else if (arrow === '↙') {
-        arrowX = x - r - 6;
-        arrowY = y + r + 6;
+        arrowX = x - Math.round(offset * 0.72);
+        arrowY = y + Math.round(offset * 0.72);
       } else if (arrow === '↘') {
-        arrowX = x + r + 6;
-        arrowY = y + r + 6;
+        arrowX = x + Math.round(offset * 0.72);
+        arrowY = y + Math.round(offset * 0.72);
       } else if (arrow === '⟲') {
         arrowX = x;
-        arrowY = y + r + 10;
+        arrowY = y + offset;
       }
 
       ctx.beginPath();
-      ctx.arc(arrowX, arrowY, 11, 0, Math.PI * 2);
+      ctx.arc(arrowX, arrowY, ar, 0, Math.PI * 2);
       ctx.fillStyle = '#fff1f2';
       ctx.fill();
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.4;
       ctx.strokeStyle = '#dc2626';
       ctx.stroke();
 
       ctx.fillStyle = '#dc2626';
-      ctx.font = "bold 12px 'Jua', sans-serif";
-      ctx.fillText(arrow, arrowX, arrowY + 1);
+      ctx.font = `bold ${Math.round(ar * 1.05)}px 'Jua', sans-serif`;
+      ctx.fillText(arrow, arrowX, arrowY + 0.5);
     }
     ctx.restore();
   };
@@ -714,12 +761,76 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
             { x: xm + w * 0.4, y: y1, num: '3', arrow: '↓' },
           ],
         };
+      case 'ㅢ':
+        return {
+          strokes: [
+            { points: [[x1, ym + h * 0.15], [xm + w * 0.15, ym + h * 0.15]] },
+            { points: [[xm + w * 0.45, y1], [xm + w * 0.45, y2]] },
+          ],
+          badges: [
+            { x: x1, y: ym + h * 0.15, num: '1', arrow: '➔' },
+            { x: xm + w * 0.45, y: y1, num: '2', arrow: '↓' },
+          ],
+        };
+      case 'ㅚ':
+        return {
+          strokes: [
+            { points: [[xm - w * 0.3, ym - h * 0.5], [xm - w * 0.3, ym + h * 0.15]] },
+            { points: [[x1, ym + h * 0.15], [xm + w * 0.12, ym + h * 0.15]] },
+            { points: [[xm + w * 0.42, y1], [xm + w * 0.42, y2]] },
+          ],
+          badges: [
+            { x: xm - w * 0.3, y: ym - h * 0.5, num: '1', arrow: '↓' },
+            { x: x1, y: ym + h * 0.15, num: '2', arrow: '➔' },
+            { x: xm + w * 0.42, y: y1, num: '3', arrow: '↓' },
+          ],
+        };
       default:
         return null;
     }
   };
 
-  // Draw background cross line and letter guide (Layer 1) - Ultra-clean & kid-friendly
+  // Draw clean rounded manuscript card helper
+  const drawManuscriptCard = (
+    ctx: CanvasRenderingContext2D,
+    bx: number,
+    by: number,
+    boxSize: number
+  ) => {
+    const radius = Math.min(22, Math.max(12, boxSize * 0.08));
+    ctx.save();
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(bx, by, boxSize, boxSize, radius);
+    } else {
+      ctx.rect(bx, by, boxSize, boxSize);
+    }
+    ctx.fillStyle = '#fffcf8';
+    ctx.fill();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = '#ead9c6';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Delicate pastel dashed crosshairs inside card
+    const inset = Math.max(12, boxSize * 0.07);
+    const cx = bx + boxSize / 2;
+    const cy = by + boxSize / 2;
+    ctx.setLineDash([4, 6]);
+    ctx.strokeStyle = '#efe2d3';
+    ctx.lineWidth = 1.25;
+    ctx.beginPath();
+    ctx.moveTo(cx, by + inset);
+    ctx.lineTo(cx, by + boxSize - inset);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(bx + inset, cy);
+    ctx.lineTo(bx + boxSize - inset, cy);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  // Draw background cross line and letter guide (Layer 1) - High-readability kid-friendly workbook style
   const drawTracingGuide = (
     ctx: CanvasRenderingContext2D,
     width: number,
@@ -728,39 +839,25 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
   ) => {
     ctx.save();
 
-    // Check if this is a supported single-stroke letter
-    const maxSquare = Math.min(width - 24, height - 24, 460);
-    const skeleton = item.label.length === 1 ? getLetterSkeleton(item.label, width / 2, height / 2, maxSquare * 0.78) : null;
+    const outerPad = Math.max(10, Math.round(Math.min(width, height) * 0.032));
+    const maxSquare = Math.min(width - outerPad * 2, height - outerPad * 2, 420);
+    const skeleton =
+      item.label.length === 1
+        ? getLetterSkeleton(item.label, width / 2, height / 2, maxSquare * 0.68)
+        : null;
 
     if (skeleton) {
-      // 1. Single Letter Mode: Draw single large manuscript square + center crosshairs
+      // 1. Single Letter Skeleton Mode: Spacious manuscript card + wide finger track + crisp round dots
       const boxSize = maxSquare;
       const bx = (width - boxSize) / 2;
       const by = (height - boxSize) / 2;
 
-      // Outer manuscript box
-      ctx.setLineDash([]);
-      ctx.strokeStyle = '#e6d3c2';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(bx, by, boxSize, boxSize);
+      drawManuscriptCard(ctx, bx, by, boxSize);
 
-      // Delicate dashed center crosshairs
-      ctx.setLineDash([5, 5]);
-      ctx.strokeStyle = '#ebd9ca';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(width / 2, by + 10);
-      ctx.lineTo(width / 2, by + boxSize - 10);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(bx + 10, height / 2);
-      ctx.lineTo(bx + boxSize - 10, height / 2);
-      ctx.stroke();
-
-      // Pass A: Soft wide finger path (comfortable pastel track, NOT double outlines)
+      // Pass A: Soft pastel finger corridor (generous width for tiny fingers)
       ctx.setLineDash([]);
-      ctx.strokeStyle = '#faede1';
-      ctx.lineWidth = Math.max(38, boxSize * 0.12);
+      ctx.strokeStyle = 'rgba(244, 162, 97, 0.22)';
+      ctx.lineWidth = Math.max(28, Math.min(42, boxSize * 0.125));
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
@@ -782,10 +879,11 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
         });
       }
 
-      // Pass B: Clear, simple, single dotted centerline (ONE line, high contrast)
-      ctx.setLineDash([16, 12]);
-      ctx.strokeStyle = '#6b4f3b';
-      ctx.lineWidth = 5;
+      // Pass B: Crisp, well-spaced circular dots along stroke centerline
+      const dotGap = Math.max(14, Math.round(boxSize * 0.056));
+      ctx.setLineDash([0.6, dotGap]);
+      ctx.strokeStyle = '#c9502f';
+      ctx.lineWidth = Math.max(5, Math.min(7, boxSize * 0.02));
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
@@ -807,110 +905,113 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
         });
       }
 
-      // Pass C: Numbered stroke badges (①, ② with directions)
+      // Pass C: Numbered stroke badges scaled safely inside card bounds
+      const badgeRadius = Math.max(11, Math.min(14, Math.round(boxSize * 0.044)));
       skeleton.badges.forEach((b) => {
-        drawStrokeNumberBadge(ctx, b.x, b.y, b.num, b.arrow);
+        drawStrokeNumberBadge(ctx, b.x, b.y, b.num, b.arrow, badgeRadius);
       });
-
     } else if (item.label.length >= 2) {
-      // 2. Multi-character Word Mode (e.g. "코끼리", "사자", and child's name like "시아")
-      // Split into clean, separate, beautiful manuscript boxes side by side!
+      // 2. Multi-character Word Mode (e.g. "시아", "나비", "호랑이", "토마토")
       const chars = Array.from(item.label);
       const count = chars.length;
-      const gap = count >= 4 ? 6 : 10;
-      const maxBoxW = (width - 24 - (count - 1) * gap) / count;
-      const boxSize = Math.min(maxBoxW, height - 28, 250);
-      const totalW = count * boxSize + (count - 1) * gap;
-      const startX = (width - totalW) / 2;
-      const startY = (height - boxSize) / 2;
+      const sidePad = Math.max(10, Math.round(width * 0.03));
+      const vertPad = Math.max(12, Math.round(height * 0.035));
+      const cols = count >= 5 ? 3 : 2;
+      const rows = Math.ceil(count / cols);
+      const gap = count === 2 ? 12 : 10;
+
+      const maxBoxW = (width - sidePad * 2 - (cols - 1) * gap) / cols;
+      const maxBoxH = (height - vertPad * 2 - (rows - 1) * gap) / rows;
+      const boxSize = Math.min(maxBoxW, maxBoxH, count === 2 ? 236 : count <= 4 ? 196 : 145);
+
+      const gridTotalH = rows * boxSize + (rows - 1) * gap;
+      const gridStartY = (height - gridTotalH) / 2;
 
       chars.forEach((char, idx) => {
-        const bx = startX + idx * (boxSize + gap);
-        const by = startY;
+        const row = Math.floor(idx / cols);
+        const col = idx % cols;
+        const itemsInThisRow = row === rows - 1 && count % cols !== 0 ? count % cols : cols;
+        const rowW = itemsInThisRow * boxSize + (itemsInThisRow - 1) * gap;
+        const rowStartX = (width - rowW) / 2;
+
+        const bx = rowStartX + col * (boxSize + gap);
+        const by = gridStartY + row * (boxSize + gap);
         const charCx = bx + boxSize / 2;
         const charCy = by + boxSize / 2;
 
-        // Manuscript box border
-        ctx.setLineDash([]);
-        ctx.strokeStyle = '#e6d3c2';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(bx, by, boxSize, boxSize);
+        drawManuscriptCard(ctx, bx, by, boxSize);
 
-        // Dashed center crosshairs in each box
-        ctx.setLineDash([5, 5]);
-        ctx.strokeStyle = '#ebd9ca';
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.moveTo(charCx, by + 8);
-        ctx.lineTo(charCx, by + boxSize - 8);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(bx + 8, charCy);
-        ctx.lineTo(bx + boxSize - 8, charCy);
-        ctx.stroke();
-
-        // 1. Soft pastel fill
-        ctx.setLineDash([]);
-        const charFontSize = boxSize * 0.72;
-        ctx.font = `bold ${charFontSize}px 'Jua', sans-serif`;
+        // Rounded, uniform-stroke kid workbook font ('Jua') so every jamo & batchim is razor-sharp
+        const charFontSize = Math.round(boxSize * 0.64);
+        ctx.font = `400 ${charFontSize}px 'Jua', 'Pretendard', sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        ctx.fillStyle = '#fbeee2';
-        ctx.fillText(char, charCx, charCy + 4);
+        const glyphY = charCy + boxSize * 0.045;
 
-        // 2. Smooth clean dotted outline
-        ctx.setLineDash([12, 10]);
-        ctx.strokeStyle = '#7c533f';
-        ctx.lineWidth = 4;
+        // 1. Clear warm-terracotta workbook base silhouette (instantly readable at a glance)
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(198, 118, 86, 0.27)';
+        ctx.fillText(char, charCx, glyphY);
+
+        // 2. Clean, evenly dashed tracing contour (zero blurry dot blobs!)
+        const dashLen = Math.max(4, Number((boxSize * 0.032).toFixed(1)));
+        ctx.setLineDash([dashLen, dashLen]);
+        ctx.strokeStyle = 'rgba(186, 78, 46, 0.68)';
+        ctx.lineWidth = Math.max(1.4, Math.min(2.2, boxSize * 0.011));
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.strokeText(char, charCx, charCy + 4);
+        ctx.strokeText(char, charCx, glyphY);
 
-        // Number badge for each syllable box (1st letter, 2nd letter)
-        drawStrokeNumberBadge(ctx, bx + 16, by + 16, String(idx + 1), '');
+        // Compact top-left order badge tucked neatly away from character strokes
+        ctx.save();
+        const r = Math.min(11, Math.max(9, Math.round(boxSize * 0.068)));
+        const badgeX = bx + r + 5;
+        const badgeY = by + r + 5;
+        ctx.beginPath();
+        ctx.arc(badgeX, badgeY, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#e76f51';
+        ctx.fill();
+        ctx.lineWidth = 1.6;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${Math.round(r * 1.1)}px 'Jua', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(idx + 1), badgeX, badgeY + 0.5);
+        ctx.restore();
       });
-
     } else {
-      // 3. Fallback for single characters not in skeleton map (e.g. ㄲ, ㄸ, ㅃ, ㅆ, ㅉ)
-      const boxSize = Math.min(width - 24, height - 24, 440);
+      // 3. Single syllable with batchim / fallback character (e.g. '곰', '꿈')
+      const boxSize = maxSquare;
       const bx = (width - boxSize) / 2;
       const by = (height - boxSize) / 2;
 
-      ctx.setLineDash([]);
-      ctx.strokeStyle = '#e6d3c2';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(bx, by, boxSize, boxSize);
+      drawManuscriptCard(ctx, bx, by, boxSize);
 
-      ctx.setLineDash([5, 5]);
-      ctx.strokeStyle = '#ebd9ca';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(width / 2, by + 10);
-      ctx.lineTo(width / 2, by + boxSize - 10);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(bx + 10, height / 2);
-      ctx.lineTo(bx + boxSize - 10, height / 2);
-      ctx.stroke();
-
-      ctx.setLineDash([]);
-      const fontSize = boxSize * 0.72;
-      ctx.font = `bold ${fontSize}px 'Jua', sans-serif`;
+      const fontSize = Math.round(boxSize * 0.68);
+      ctx.font = `400 ${fontSize}px 'Jua', 'Pretendard', sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      ctx.fillStyle = '#fbeee2';
-      ctx.fillText(item.label, width / 2, height / 2 + 5);
+      const glyphY = height / 2 + boxSize * 0.035;
 
-      ctx.setLineDash([14, 12]);
-      ctx.strokeStyle = '#7c533f';
-      ctx.lineWidth = 5;
+      // Clear warm-terracotta base fill
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(198, 118, 86, 0.27)';
+      ctx.fillText(item.label, width / 2, glyphY);
+
+      // Clean dashed guide border
+      const dashLen = Math.max(6, Number((boxSize * 0.03).toFixed(1)));
+      ctx.setLineDash([dashLen, dashLen]);
+      ctx.strokeStyle = 'rgba(186, 78, 46, 0.68)';
+      ctx.lineWidth = Math.max(1.8, Math.min(2.6, boxSize * 0.009));
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.strokeText(item.label, width / 2, height / 2 + 5);
+      ctx.strokeText(item.label, width / 2, glyphY);
 
-      drawStrokeNumberBadge(ctx, bx + 20, by + 20, '1', '➔');
+      drawStrokeNumberBadge(ctx, bx + 22, by + 22, '1', '➔', 12);
     }
 
     ctx.restore();
@@ -1095,7 +1196,7 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
 
     playSfx('fan');
     confetti({ particleCount: 35, spread: 65 });
-    onRewardExp(15); // Pet reward!
+    onRewardExp(5); // Pet reward!
 
     const fileName = `${childName || '우리_아이'}_한글놀이_${Date.now()}.png`;
 
@@ -1129,7 +1230,7 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
       localStorage.setItem('hangul_saved_doodles', JSON.stringify(updated));
     } catch {}
 
-    setSaveNotice(`🎉 '${newDoodle.title}'이 기기 사진첩과 앱 내 갤러리에 저장되었습니다! (EXP +15 획득 ✨)`);
+    setSaveNotice(`🎉 '${newDoodle.title}'이 기기 사진첩과 앱 내 갤러리에 저장되었습니다! (EXP +5 획득 ✨)`);
     setTimeout(() => {
       setSaveNotice(null);
     }, 4000);
@@ -1141,7 +1242,7 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
     if (!dataUrl) return;
 
     playSfx('pop');
-    onRewardExp(20); // Pet reward!
+    onRewardExp(5); // Pet reward!
     const title =
       mode === 'tracing'
         ? `[따라쓰기] 우리 아이가 그린 "${currentTracing.label}" 자랑해요!`
@@ -1150,7 +1251,7 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
   };
 
   return (
-    <div className="p-4 sm:p-5 max-w-xl mx-auto space-y-3 pb-32 sm:pb-36">
+    <div className="w-full max-w-xl mx-auto px-4 sm:px-5 pt-3 pb-6 space-y-3.5 box-border overflow-x-hidden">
       {/* Save Notification Toast */}
       {saveNotice && (
         <div className="p-3 rounded-2xl bg-[#f0f9ed] border-2 border-[#a3e635] text-[#1e6a34] font-jua text-xs sm:text-sm flex items-center justify-between shadow-md animate-pop">
@@ -1170,36 +1271,36 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
       <div className="text-center space-y-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fdf3e4] border border-[#f3dfc6] text-xs font-bold text-[#c9502f] font-jua">
           <Sparkles className="w-3.5 h-3.5" />
-          손가락으로 쓱쓱! 신나는 낙서보드
+          손가락으로 쓱쓱! 낙서보드
         </div>
-        <h1 className="text-2xl sm:text-3xl font-jua text-[#1b1917]">
+        <h1 className="text-xl sm:text-2xl font-jua text-[#1b1917] break-keep">
           그려보고, 따라 쓰고, 자랑해요!
         </h1>
-        <p className="text-xs text-[#8a8178] font-hand">
-          지우개로 지워도 글자 모양은 그대로 남아있어요! 마음껏 그려보세요.
+        <p className="text-xs text-[#8a8178] font-hand break-keep">
+          지우개로 지워도 글자 점선은 지워지지 않아요
         </p>
       </div>
 
       {/* Focus Play Routine Timer with 5/10/20/30 Preset Buttons */}
-      <div className="bg-gradient-to-r from-[#fff7ed] to-[#fef3c7] p-3.5 rounded-3xl border border-[#fed7aa] shadow-xs space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xl animate-pulse">⏳</span>
-            <div>
-              <div className="flex items-center gap-1.5 font-jua text-xs text-[#9a3412]">
-                <span>한글놀이 모래시계</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white text-[#ea580c] font-bold">
-                  {timerMinutes}분 목표
+      <div className="w-full max-w-full box-border overflow-hidden bg-gradient-to-r from-[#fff7ed] to-[#fef3c7] p-3.5 rounded-3xl border border-[#fed7aa] shadow-xs space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xl shrink-0">⏳</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 font-jua text-xs sm:text-sm text-[#9a3412]">
+                <span>모래시계</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white text-[#ea580c] font-bold whitespace-nowrap">
+                  {timerMinutes}분
                 </span>
               </div>
-              <p className="text-[11px] text-[#78350f] font-hand">
-                아이의 집중력에 맞게 시간을 골라보세요!
+              <p className="text-[11px] text-[#78350f] font-hand break-keep">
+                집중 시간을 골라보세요
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="font-jua text-lg text-[#c2410c] px-3 py-1 bg-white rounded-xl border border-[#fed7aa] shadow-2xs font-mono">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="font-jua text-base sm:text-lg text-[#c2410c] px-3 py-1 bg-white rounded-xl border border-[#fed7aa] shadow-2xs font-mono">
               {Math.floor(timerSeconds / 60)}:
               {(timerSeconds % 60).toString().padStart(2, '0')}
             </span>
@@ -1208,7 +1309,7 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
                 playSfx('tap');
                 setIsTimerRunning(!isTimerRunning);
               }}
-              className={`px-3 py-1.5 rounded-xl font-jua text-xs shadow-xs transition-all active:scale-95 ${
+              className={`min-h-[40px] px-3.5 py-1.5 rounded-xl font-jua text-xs shadow-xs transition-all active:scale-95 whitespace-nowrap ${
                 isTimerRunning
                   ? 'bg-[#ea580c] text-white hover:bg-[#c2410c]'
                   : 'bg-white text-[#ea580c] border border-[#fed7aa] hover:bg-[#fff7ed]'
@@ -1220,17 +1321,17 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
         </div>
 
         {/* 5, 10, 20, 30 min Presets */}
-        <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-[#fed7aa]/60">
-          <span className="text-[11px] font-jua text-[#9a3412] flex-none">시간 선택:</span>
-          <div className="flex gap-1.5 flex-1 justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-[#fed7aa]/60">
+          <span className="text-[11px] font-jua text-[#9a3412] flex-none">시간:</span>
+          <div className="flex gap-1.5 flex-wrap justify-end">
             {[5, 10, 20, 30].map((mins) => (
               <button
                 key={mins}
                 onClick={() => selectTimerPreset(mins)}
-                className={`px-2.5 py-1 rounded-xl text-xs font-jua transition-all ${
+                className={`min-h-[36px] px-3 py-1 rounded-xl text-xs font-jua transition-all active:scale-95 ${
                   timerMinutes === mins
                     ? 'bg-[#c9502f] text-white shadow-2xs'
-                    : 'bg-white/80 text-[#78350f] hover:bg-white border border-[#fed7aa]'
+                    : 'bg-white/85 text-[#78350f] hover:bg-white border border-[#fed7aa]'
                 }`}
               >
                 {mins}분
@@ -1274,7 +1375,7 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
 
       {/* If Tracing mode: Streamlined, kid-friendly category tabs */}
       {mode === 'tracing' && (
-        <div className="bg-white p-3 sm:p-3.5 rounded-3xl border border-[#e4dccf] shadow-xs space-y-2.5">
+        <div className="w-full max-w-full box-border overflow-hidden bg-white p-3 sm:p-3.5 rounded-3xl border border-[#e4dccf] shadow-xs space-y-2.5">
           {/* Streamlined Category Filter Tabs */}
           <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
             {[
@@ -1451,7 +1552,7 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
                 </button>
               </div>
 
-              <div className="flex gap-2 overflow-x-auto pb-1.5 pt-0.5 scrollbar-thin">
+              <div className="flex gap-2 overflow-x-auto px-1 py-1.5 scrollbar-thin">
                 {filteredTracingItems.map((item) => {
                   const isSelected = currentTracing.id === item.id;
                   return (
@@ -1465,7 +1566,7 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
                       }}
                       className={`px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-2xl min-w-[64px] sm:min-w-[72px] shrink-0 transition-all flex flex-col items-center justify-center gap-0.5 border-2 active:scale-95 ${
                         isSelected
-                          ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-md scale-105'
+                          ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-md ring-2 ring-[#c9502f]/25'
                           : 'bg-[#faf8f5] text-[#1b1917] border-[#e4dccf] hover:border-[#c9502f]/50'
                       }`}
                     >
@@ -1506,234 +1607,272 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
         </div>
       )}
 
-      {/* External Canvas Toolbar */}
-      <div className="flex items-center justify-between gap-1.5 bg-[#fdfaf5] p-2 sm:p-2.5 rounded-2xl border border-[#eedfc9] shadow-2xs">
-        <span className="px-2.5 py-1 rounded-xl bg-white border border-[#eedfc9] text-xs font-jua text-[#1b1917] flex items-center gap-1 shadow-2xs shrink-0">
-          {mode === 'tracing' ? '✏️ 점선 따라 쓰기' : '🎨 신나는 자유 낙서장'}
+      {/* External Canvas Toolbar with Clear Touch Separation */}
+      <div className="w-full box-border flex flex-wrap items-center justify-between gap-2.5 bg-[#fdfaf5] p-3.5 sm:p-4 mb-2 rounded-2xl border border-[#eedfc9] shadow-2xs">
+        <span className="px-3 py-1.5 rounded-xl bg-white border border-[#eedfc9] text-xs font-jua text-[#1b1917] flex items-center gap-1.5 shadow-2xs whitespace-nowrap">
+          {mode === 'tracing' ? `✏️ 따라 쓰기 · ${currentTracing.label}` : '🎨 자유 낙서장'}
         </span>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={undoLastStroke}
-            className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-[#f6f1e7] border border-[#e4dccf] text-[#4a443e] font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95"
+            className="min-h-[42px] px-3 py-1.5 rounded-xl bg-white hover:bg-[#f6f1e7] border border-[#e4dccf] text-[#4a443e] font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95 whitespace-nowrap"
             title="한 획 뒤로"
           >
             <RotateCcw className="w-3.5 h-3.5 text-[#8a8178]" />
-            <span className="text-[11px]">취소</span>
+            <span>취소</span>
           </button>
           <button
             type="button"
             onClick={clearDrawLayer}
-            className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-red-50 border border-[#e4dccf] hover:border-red-200 text-red-600 font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95"
+            className="min-h-[42px] px-3 py-1.5 rounded-xl bg-white hover:bg-red-50 border border-[#e4dccf] hover:border-red-200 text-red-600 font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95 whitespace-nowrap"
             title="내가 그린 선만 지우기"
           >
             <Trash2 className="w-3.5 h-3.5 text-red-500" />
-            <span className="text-[11px]">지우기</span>
+            <span>지우기</span>
           </button>
           <button
             type="button"
             onClick={saveToGallery}
-            className="px-2.5 py-1.5 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95"
+            className="min-h-[42px] px-3.5 py-1.5 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95 whitespace-nowrap"
             title="갤러리에 저장"
           >
             <Download className="w-3.5 h-3.5" />
-            <span className="text-[11px]">저장</span>
+            <span>저장</span>
           </button>
           <button
             type="button"
             onClick={handleShare}
-            className="px-2.5 py-1.5 rounded-xl bg-[#ea580c] hover:bg-[#d94e08] text-white font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95"
+            className="min-h-[42px] px-3.5 py-1.5 rounded-xl bg-[#ea580c] hover:bg-[#d94e08] text-white font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95 whitespace-nowrap"
             title="커뮤니티 자랑"
           >
             <Share2 className="w-3.5 h-3.5" />
-            <span className="text-[11px]">자랑</span>
+            <span>자랑</span>
           </button>
         </div>
       </div>
 
-      {/* Layered Canvas Container - Significantly enlarged & spacious for young kids */}
-      <div
-        ref={containerRef}
-        className="relative bg-white rounded-3xl border-2 border-[#e4dccf] overflow-hidden shadow-sm w-full h-[390px] sm:h-[450px] md:h-[500px] min-h-[360px]"
-      >
-        {/* Layer 1: Background Guideline Canvas (Static & protected from eraser) */}
-        <canvas ref={bgCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+      {/* Layered Canvas Container with Generous Padding & Spacious Kid-Friendly Height */}
+      <div className="w-full box-border bg-[#fdfaf5] p-3 sm:p-4 mt-1 rounded-3xl border-2 border-[#e4dccf] shadow-sm">
+        <div
+          ref={containerRef}
+          className="relative bg-white rounded-2xl border border-[#f0e6d8] overflow-hidden w-full h-[370px] sm:h-[440px] md:h-[480px]"
+        >
+          {/* Layer 1: Background Guideline Canvas */}
+          <canvas ref={bgCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
 
-        {/* Layer 2: Drawing Layer (Transparent overlay for kid's drawing) */}
-        <canvas
-          ref={drawCanvasRef}
-          onMouseDown={startDrawing}
-          onMouseMove={drawMove}
-          onMouseUp={stopDrawing}
-          onMouseLeave={stopDrawing}
-          onTouchStart={startDrawing}
-          onTouchMove={drawMove}
-          onTouchEnd={stopDrawing}
-          className="absolute inset-0 w-full h-full cursor-crosshair block"
-        />
+          {/* Layer 2: Drawing Layer */}
+          <canvas
+            ref={drawCanvasRef}
+            onMouseDown={startDrawing}
+            onMouseMove={drawMove}
+            onMouseUp={stopDrawing}
+            onMouseLeave={stopDrawing}
+            onTouchStart={startDrawing}
+            onTouchMove={drawMove}
+            onTouchEnd={stopDrawing}
+            className="absolute inset-0 w-full h-full cursor-crosshair block touch-none"
+          />
+        </div>
       </div>
 
-      {/* Tool Palette: Crayon, Rainbow, Eraser, Stamps */}
-      <div className="bg-white p-3.5 rounded-3xl border border-[#e4dccf] shadow-xs space-y-3">
-        {/* Tool Mode selector & Thickness */}
-        <div className="flex items-center justify-between gap-2 border-b border-[#f0ebe1] pb-2.5">
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-            <button
-              onClick={() => {
-                playSfx('tap');
-                setTool('crayon');
-              }}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl font-jua text-xs sm:text-sm transition-all active:scale-95 ${
-                tool === 'crayon'
-                  ? 'bg-[#1b1917] text-white shadow-xs'
-                  : 'bg-[#f6f1e7] text-[#4a443e] hover:bg-[#eee7dc]'
-              }`}
-            >
-              <span className="text-base">🖍️</span>
-              <span>크레파스</span>
-            </button>
-            <button
-              onClick={() => {
-                playSfx('pop');
-                setTool('rainbow');
-              }}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl font-jua text-xs sm:text-sm transition-all active:scale-95 ${
-                tool === 'rainbow'
-                  ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white shadow-xs'
-                  : 'bg-[#f6f1e7] text-[#4a443e] hover:bg-[#eee7dc]'
-              }`}
-            >
-              <span className="text-base">🌈</span>
-              <span>무지개펜</span>
-            </button>
-            <button
-              onClick={() => {
-                playSfx('tap');
-                setTool('eraser');
-              }}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl font-jua text-xs sm:text-sm transition-all active:scale-95 ${
-                tool === 'eraser'
-                  ? 'bg-[#c9502f] text-white shadow-xs'
-                  : 'bg-[#f6f1e7] text-[#4a443e] hover:bg-[#eee7dc]'
-              }`}
-              title="내가 그린 선만 깔끔하게 지워요"
-            >
-              <Eraser className="w-4 h-4" />
-              <span>안심 지우개</span>
-            </button>
-            <button
-              onClick={() => {
-                playSfx('pop');
-                setTool('stamp');
-              }}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl font-jua text-xs sm:text-sm transition-all active:scale-95 ${
-                tool === 'stamp'
-                  ? 'bg-[#f2c14e] text-[#1b1917] shadow-xs'
-                  : 'bg-[#f6f1e7] text-[#4a443e] hover:bg-[#eee7dc]'
-              }`}
-            >
-              <span className="text-base">⭐</span>
-              <span>스탬프</span>
-            </button>
-          </div>
+      {/* Tool Palette: Stable Height, Generous Padding (p-4), Zero Overflow/Shift */}
+      <div className="w-full box-border bg-white p-4 sm:p-5 rounded-3xl border border-[#e4dccf] shadow-xs space-y-3.5">
+        {/* Tool Mode Selector Grid (2x2 mobile, 4-col desktop, fixed border-2 to avoid shift) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              playSfx('tap');
+              setTool('crayon');
+            }}
+            className={`min-h-[46px] w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-2xl border-2 font-jua text-xs sm:text-sm transition-colors active:scale-95 whitespace-nowrap ${
+              tool === 'crayon'
+                ? 'bg-[#1b1917] text-white border-[#1b1917] shadow-xs'
+                : 'bg-[#f6f1e7] text-[#4a443e] border-transparent hover:bg-[#eee7dc]'
+            }`}
+          >
+            <span className="text-base leading-none">🖍️</span>
+            <span>크레파스</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              playSfx('pop');
+              setTool('rainbow');
+            }}
+            className={`min-h-[46px] w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-2xl border-2 font-jua text-xs sm:text-sm transition-colors active:scale-95 whitespace-nowrap ${
+              tool === 'rainbow'
+                ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white border-purple-500 shadow-xs'
+                : 'bg-[#f6f1e7] text-[#4a443e] border-transparent hover:bg-[#eee7dc]'
+            }`}
+          >
+            <span className="text-base leading-none">🌈</span>
+            <span>무지개펜</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              playSfx('tap');
+              setTool('eraser');
+            }}
+            className={`min-h-[46px] w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-2xl border-2 font-jua text-xs sm:text-sm transition-colors active:scale-95 whitespace-nowrap ${
+              tool === 'eraser'
+                ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-xs'
+                : 'bg-[#f6f1e7] text-[#4a443e] border-transparent hover:bg-[#eee7dc]'
+            }`}
+            title="내가 그린 선만 깔끔하게 지워요"
+          >
+            <Eraser className="w-4 h-4 shrink-0" />
+            <span>지우개</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              playSfx('pop');
+              setTool('stamp');
+            }}
+            className={`min-h-[46px] w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-2xl border-2 font-jua text-xs sm:text-sm transition-colors active:scale-95 whitespace-nowrap ${
+              tool === 'stamp'
+                ? 'bg-[#f2c14e] text-[#1b1917] border-[#e2ae32] shadow-xs'
+                : 'bg-[#f6f1e7] text-[#4a443e] border-transparent hover:bg-[#eee7dc]'
+            }`}
+          >
+            <span className="text-base leading-none">⭐</span>
+            <span>스탬프</span>
+          </button>
+        </div>
 
-          {/* Brush Thickness selector (Larger touch targets) */}
-          <div className="flex items-center gap-1.5 flex-none">
+        {/* Dedicated Brush Thickness Row */}
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-[#faf8f5] border border-[#f0ebe1]">
+          <span className="text-xs font-jua text-[#6d635b] whitespace-nowrap">선 굵기</span>
+          <div className="flex items-center gap-2.5">
             {[10, 18, 26].map((sz) => (
               <button
                 key={sz}
+                type="button"
                 onClick={() => {
                   playSfx('tap');
                   setBrushSize(sz);
                 }}
-                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center border-2 transition-all active:scale-95 ${
+                className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-colors active:scale-95 shrink-0 ${
                   brushSize === sz
-                    ? 'border-[#c9502f] bg-[#fff5f2] scale-110 shadow-xs'
-                    : 'border-[#e4dccf] bg-[#faf8f5] hover:bg-[#f3ece0]'
+                    ? 'border-[#c9502f] bg-[#fff5f2] shadow-xs'
+                    : 'border-[#e4dccf] bg-white hover:bg-[#f3ece0]'
                 }`}
                 title={`선 굵기 ${sz}`}
               >
                 <span
                   className="rounded-full bg-[#1b1917]"
-                  style={{ width: sz / 2.5, height: sz / 2.5 }}
+                  style={{ width: sz / 2.2, height: sz / 2.2 }}
                 />
               </button>
             ))}
           </div>
         </div>
 
-        {/* Crayon Colors Palette (Large circles for 5-year-old fingers) */}
-        {tool === 'crayon' && (
-          <div className="flex items-center gap-2.5 overflow-x-auto py-2 px-1 scrollbar-thin">
-            {CRAYON_PALETTE.map((c) => {
-              const isSelected = selectedColor === c.color;
-              return (
-                <button
-                  key={c.name}
-                  onClick={() => {
-                    playSfx('tap');
-                    setSelectedColor(c.color);
-                  }}
-                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex-none transition-all active:scale-95 relative ${
-                    isSelected
-                      ? 'scale-120 ring-3 ring-[#c9502f] ring-offset-2 ring-offset-white shadow-md z-10'
-                      : 'hover:scale-110 border border-black/15'
-                  }`}
-                  style={{ backgroundColor: c.color }}
-                  title={c.name}
-                />
-              );
-            })}
-          </div>
-        )}
+        {/* Sub-Palette Box: Consistent min-h & generous p-4 so switching colors/tools NEVER shifts layout */}
+        <div className="w-full box-border p-4 rounded-2xl bg-[#faf8f5] border border-[#f0ebe1] min-h-[124px] flex flex-col justify-center">
+          {tool === 'crayon' && (
+            <div className="flex flex-wrap items-center justify-center gap-3 p-1">
+              {CRAYON_PALETTE.map((c) => {
+                const isSelected = selectedColor === c.color;
+                return (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => {
+                      playSfx('tap');
+                      setSelectedColor(c.color);
+                    }}
+                    aria-label={c.name}
+                    className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full shrink-0 transition-shadow active:scale-95 relative flex items-center justify-center ${
+                      isSelected
+                        ? 'ring-2 ring-[#c9502f] ring-offset-2 ring-offset-[#faf8f5] shadow-md'
+                        : 'border border-black/15 hover:opacity-90'
+                    }`}
+                    style={{ backgroundColor: c.color }}
+                    title={c.name}
+                  >
+                    {isSelected && (
+                      <Check className="w-4 h-4 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)] stroke-[3]" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-        {/* Sticker Stamps Palette */}
-        {tool === 'stamp' && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            <span className="text-xs font-hand text-[#8a8178] flex-none">도화지에 콕 터치하세요:</span>
-            {DOODLE_STAMPS.map((stamp) => (
-              <button
-                key={stamp}
-                onClick={() => {
-                  playSfx('pop');
-                  setSelectedStamp(stamp);
-                }}
-                className={`text-xl p-1.5 rounded-xl transition-transform flex-none ${
-                  selectedStamp === stamp
-                    ? 'bg-[#fdf3e4] border border-[#f3dfc6] scale-125'
-                    : 'hover:scale-110'
-                }`}
-              >
-                {stamp}
-              </button>
-            ))}
-          </div>
-        )}
+          {tool === 'stamp' && (
+            <div className="flex flex-wrap items-center justify-center gap-2.5 p-1">
+              {DOODLE_STAMPS.map((stamp) => {
+                const isSelected = selectedStamp === stamp;
+                return (
+                  <button
+                    key={stamp}
+                    type="button"
+                    onClick={() => {
+                      playSfx('pop');
+                      setSelectedStamp(stamp);
+                    }}
+                    className={`w-11 h-11 text-2xl rounded-xl border-2 transition-colors shrink-0 flex items-center justify-center active:scale-95 ${
+                      isSelected
+                        ? 'bg-[#fdf3e4] border-[#c9502f] shadow-xs'
+                        : 'bg-white border-[#e4dccf] hover:bg-[#f6f1e7]'
+                    }`}
+                  >
+                    {stamp}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {tool === 'rainbow' && (
+            <div className="flex flex-col items-center justify-center text-center gap-1.5 py-2 px-2">
+              <div className="w-28 h-3 rounded-full bg-gradient-to-r from-rose-400 via-amber-400 via-emerald-400 to-indigo-400 shadow-2xs" />
+              <p className="font-jua text-xs sm:text-sm text-[#4a443e] break-keep">
+                무지개펜으로 그으면 색깔이 알록달록 변해요!
+              </p>
+            </div>
+          )}
+
+          {tool === 'eraser' && (
+            <div className="flex flex-col items-center justify-center text-center gap-1 py-2 px-2">
+              <span className="text-2xl leading-none">🧼</span>
+              <p className="font-jua text-xs sm:text-sm text-[#4a443e] break-keep">
+                내가 그린 선만 지워지고 글자 점선은 남아요!
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Prominent Action Buttons: Save to Gallery & Share to Community */}
       <div className="grid grid-cols-2 gap-3 pt-1">
         <button
+          type="button"
           onClick={saveToGallery}
-          className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-white border-2 border-[#e4dccf] font-jua text-sm sm:text-base text-[#1b1917] hover:bg-[#f6f1e7] shadow-sm active:scale-95 transition-all"
+          className="min-h-[52px] flex items-center justify-center gap-2 py-3.5 px-3 rounded-2xl bg-white border-2 border-[#e4dccf] font-jua text-sm sm:text-base text-[#1b1917] hover:bg-[#f6f1e7] shadow-sm active:scale-95 transition-all whitespace-nowrap"
         >
-          <Download className="w-4.5 h-4.5 text-[#c9502f]" />
-          내 갤러리에 저장
+          <Download className="w-4 h-4 text-[#c9502f] shrink-0" />
+          <span>갤러리에 저장</span>
         </button>
 
         <button
+          type="button"
           onClick={handleShare}
-          className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm sm:text-base shadow-md active:scale-95 transition-all"
+          className="min-h-[52px] flex items-center justify-center gap-2 py-3.5 px-3 rounded-2xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm sm:text-base shadow-md active:scale-95 transition-all whitespace-nowrap"
         >
-          <Share2 className="w-4.5 h-4.5" />
-          커뮤니티에 자랑하기 💖
+          <Share2 className="w-4 h-4 shrink-0" />
+          <span>자랑하기 💖</span>
         </button>
       </div>
 
       {/* Child's Saved Gallery Drawer */}
       {savedDoodles.length > 0 && (
-        <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
+        <div className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ImageIcon className="w-4 h-4 text-[#c9502f]" />
@@ -1811,8 +1950,8 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
 
       {/* Rename Doodle Title Modal */}
       {editingDoodle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-xs overflow-hidden shadow-2xl p-5 text-center space-y-3.5 animate-pop relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-xs box-border overflow-hidden shadow-2xl p-5 text-center space-y-3.5 animate-pop relative">
             <h3 className="font-jua text-base text-[#1b1917]">그림 제목 수정</h3>
             <input
               type="text"
@@ -1842,8 +1981,8 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
 
       {/* Delete Doodle Confirmation Modal */}
       {deleteDoodleTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-xs overflow-hidden shadow-2xl p-5 text-center space-y-3.5 animate-pop relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-xs box-border overflow-hidden shadow-2xl p-5 text-center space-y-3.5 animate-pop relative">
             <div className="w-11 h-11 rounded-full bg-red-100 text-red-500 flex items-center justify-center mx-auto text-xl">
               🗑️
             </div>

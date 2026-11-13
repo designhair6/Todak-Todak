@@ -3,6 +3,7 @@ import { X, Heart, Sparkles, Check, Crown, AlertCircle, Mic, Volume2 } from 'luc
 import { FRIENDS, THEMES, WISHES } from '../data/hangulData';
 import { AnimalFriend, BoardTheme, StickerBoardState } from '../types';
 import { playSfx, speakKorean, getVoiceTone, setVoiceTone, VOICE_TONES, VoiceTone } from '../utils/sound';
+import { generateUniqueUserId, getOrCreateUserIdentity, saveUserIdentity } from '../utils/userIdentity';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -25,7 +26,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenSoundBlend,
   onOpenParentVoice,
 }) => {
-  const [name, setName] = useState(boardState.name || '시아');
+  const [name, setName] = useState(boardState.name || '우리 아이');
   const [childAge, setChildAge] = useState(boardState.childAge || '5세');
   const [voiceTone, setVoiceToneState] = useState<VoiceTone>(getVoiceTone);
   const [selectedFriend, setSelectedFriend] = useState(boardState.friend || 'bear');
@@ -34,32 +35,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [customWish, setCustomWish] = useState('');
   const [msg, setMsg] = useState(boardState.msg || '30일 동안 정말 멋졌어! 엄마가 꼭 들어줄게!');
 
-  // Customizable Member Account Information
-  const [initialStoredId] = useState(() => {
-    try {
-      return localStorage.getItem('hangul_user_id') || 'sia_mom';
-    } catch {
-      return 'sia_mom';
-    }
-  });
+  // Unique per-device Member Account Information (no hardcoded owner email/ID)
+  const [initialIdentity] = useState(() => getOrCreateUserIdentity(boardState.name));
+  const initialStoredId = initialIdentity.userId;
 
-  const [userId, setUserId] = useState(initialStoredId);
-
-  const [userNickname, setUserNickname] = useState(() => {
-    try {
-      return localStorage.getItem('hangul_user_nickname') || `${boardState.name || '시아'}맘`;
-    } catch {
-      return '시아맘';
-    }
-  });
-
-  const [userEmail, setUserEmail] = useState(() => {
-    try {
-      return localStorage.getItem('hangul_user_email') || 'designhair6@gmail.com';
-    } catch {
-      return 'designhair6@gmail.com';
-    }
-  });
+  const [userId, setUserId] = useState(initialIdentity.userId);
+  const [userNickname, setUserNickname] = useState(initialIdentity.userNickname);
+  const [userEmail, setUserEmail] = useState(initialIdentity.userEmail);
 
   const [isEditingAccount, setIsEditingAccount] = useState(false);
   const [copiedIdNotice, setCopiedIdNotice] = useState(false);
@@ -160,9 +142,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleGenerateSafeRandomId = () => {
     let attempt = 0;
     let genId = '';
-    const base = (name.trim() ? name.trim().toLowerCase().replace(/[^a-z0-9]/g, '') : 'hangul') || 'user';
+    const base = (name.trim() ? name.trim().toLowerCase().replace(/[^a-z0-9]/g, '') : 'todak') || 'todak';
     do {
-      genId = `${base}_${Math.floor(100 + Math.random() * 900)}`;
+      genId = generateUniqueUserId(base);
       attempt++;
     } while (isIdDuplicated(genId) && attempt < 30);
     setUserId(genId);
@@ -174,9 +156,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const finalWish = customWish.trim() || selectedWish;
-    const finalUserId = userId.trim() || 'sia_mom';
-    const finalNickname = userNickname.trim() || `${name.trim() || '아이'}맘`;
-    const finalEmail = userEmail.trim() || 'designhair6@gmail.com';
+    const finalUserId = userId.trim() || initialStoredId;
+    const finalNickname = userNickname.trim() || `${name.trim() || '우리 아이'}맘`;
+    const finalEmail = userEmail.trim();
 
     // Duplicate check validation
     if (isIdDuplicated(finalUserId)) {
@@ -204,11 +186,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     playSfx('fan');
 
-    try {
-      localStorage.setItem('hangul_user_id', finalUserId);
-      localStorage.setItem('hangul_user_nickname', finalNickname);
-      localStorage.setItem('hangul_user_email', finalEmail);
+    saveUserIdentity({
+      userId: finalUserId,
+      userNickname: finalNickname,
+      userEmail: finalEmail,
+    });
 
+    try {
       // Sync user profile update into hangul_admin_members immediately
       const stored = localStorage.getItem('hangul_admin_members');
       if (stored) {
@@ -217,14 +201,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           const updatedList = list.map((m: any) => {
             if (
               m.id.toLowerCase() === initialStoredId.toLowerCase() ||
-              m.id.toLowerCase() === 'sia_mom' ||
-              m.name.includes('🌟')
+              m.name.includes('내 접속 계정')
             ) {
               return {
                 ...m,
                 id: finalUserId,
-                name: `${finalNickname} (🌟 내 접속 계정)`,
-                email: finalEmail,
+                name: `${finalNickname} (내 접속 계정)`,
+                email: finalEmail || `${finalUserId}@user.local`,
               };
             }
             return m;
@@ -239,46 +222,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-6 text-left space-y-4 animate-pop max-h-[92vh] flex flex-col relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-md box-border overflow-hidden shadow-2xl p-4 sm:p-5 text-left space-y-4 animate-pop max-h-[90vh] flex flex-col relative">
         <button
           onClick={() => {
             playSfx('tap');
             onClose();
           }}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917]"
+          className="absolute top-3.5 right-3.5 w-9 h-9 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917]"
         >
           <X className="w-4 h-4" />
         </button>
 
-        <div className="border-b border-[#eedfc9] pb-2">
+        <div className="border-b border-[#eedfc9] pb-2 pr-10">
           <div className="inline-block px-2.5 py-0.5 rounded-full bg-[#fdf3e4] text-[#c9502f] text-xs font-jua mb-1">
-            아이와 함께 맞춰봐요!
+            아이와 함께 맞춰봐요
           </div>
-          <h2 className="text-xl font-jua text-[#1b1917]">아이 프로필 &amp; 약속 설정</h2>
-          <p className="text-xs text-[#8a8178] font-body">
-            5세부터 7세까지 우리 아이 연령과 관심사에 딱 맞게 조절해요.
-          </p>
+          <h2 className="text-lg sm:text-xl font-jua text-[#1b1917] break-keep">아이 프로필 &amp; 약속 설정</h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-1 font-body">
-          {/* Member Account ID Card (Editable & Clearly Explained) */}
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto overflow-x-hidden flex-1 font-body box-border">
+          {/* Member Account ID Card */}
           <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#FFF9EE] via-[#FFF6EB] to-[#FFF1DF] border-2 border-[#F6D8A6] space-y-2.5 shadow-2xs">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-jua text-[#8a5d1b] flex items-center gap-1.5">
                 <span>👤</span>
-                <span>내 회원 계정 정보 (고유 ID)</span>
+                <span>내 회원 ID</span>
               </span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={handleToggleEditAccount}
-                  className="text-[11px] px-2.5 py-0.5 rounded-lg bg-white text-[#c9502f] font-jua border border-[#fed7aa] hover:bg-[#fff7ed] transition-all cursor-pointer shadow-2xs"
+                  className="min-h-[34px] text-[11px] px-2.5 py-1 rounded-lg bg-white text-[#c9502f] font-jua border border-[#fed7aa] hover:bg-[#fff7ed] transition-all cursor-pointer shadow-2xs whitespace-nowrap"
                 >
-                  {isEditingAccount ? '확인' : '✏️ 아이디 변경'}
+                  {isEditingAccount ? '확인' : '✏️ 변경'}
                 </button>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-[#b45309] font-jua">
-                  현재 접속 중
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-[#b45309] font-jua whitespace-nowrap">
+                  접속 중
                 </span>
               </div>
             </div>
@@ -286,22 +266,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {isEditingAccount ? (
               <div className="space-y-2.5 bg-white p-3 rounded-xl border border-[#eedfc9] animate-fadeIn">
                 <div>
-                  <div className="flex items-center justify-between mb-0.5">
+                  <div className="flex items-center justify-between mb-1">
                     <label className="text-[11px] font-jua text-[#4a443e]">
-                      내 고유 회원 ID (영문/숫자)
+                      고유 ID (영문/숫자)
                     </label>
                     <span className="text-[10px] text-[#8a8178] font-mono">
                       {userId.trim().length}/18자
                     </span>
                   </div>
-                  <div className="flex gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
                     <input
                       type="text"
                       value={userId}
                       onChange={(e) => setUserId(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
-                      placeholder="예) sia_mom, minjun2026"
+                      placeholder="예) minjun_mom"
                       maxLength={18}
-                      className={`flex-1 px-2.5 py-1.5 text-xs font-mono font-bold rounded-lg border bg-[#faf8f5] text-[#1b1917] outline-none transition-colors ${
+                      className={`w-full sm:w-auto flex-1 min-w-0 px-2.5 py-2 text-xs font-mono font-bold rounded-lg border bg-[#faf8f5] text-[#1b1917] outline-none transition-colors ${
                         isIdDuplicated(userId.trim())
                           ? 'border-red-500 bg-red-50/50 focus:border-red-600'
                           : userId.trim().length >= 3
@@ -312,16 +292,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <button
                       type="button"
                       onClick={handleCheckDuplicateClick}
-                      className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-[#8a5d1b] text-[10px] font-jua rounded-lg border border-[#f6d8a6] shrink-0 active:scale-95 transition-transform cursor-pointer"
+                      className="min-h-[36px] px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-[#8a5d1b] text-[11px] font-jua rounded-lg border border-[#f6d8a6] shrink-0 active:scale-95 transition-transform cursor-pointer whitespace-nowrap"
                     >
                       중복 확인
                     </button>
                     <button
                       type="button"
                       onClick={handleGenerateSafeRandomId}
-                      className="px-2 py-1 bg-[#fdf3e4] hover:bg-[#fae7ce] text-[#c9502f] text-[10px] font-jua rounded-lg border border-[#f5d7b5] shrink-0 active:scale-95 transition-transform cursor-pointer"
+                      className="min-h-[36px] px-2.5 py-1 bg-[#fdf3e4] hover:bg-[#fae7ce] text-[#c9502f] text-[11px] font-jua rounded-lg border border-[#f5d7b5] shrink-0 active:scale-95 transition-transform cursor-pointer whitespace-nowrap"
                     >
-                      랜덤 생성
+                      랜덤 ID
                     </button>
                   </div>
 
@@ -354,35 +334,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       type="text"
                       value={userNickname}
                       onChange={(e) => setUserNickname(e.target.value)}
-                      placeholder="예) 시아맘, 민준맘"
+                      placeholder="예) 민준맘, 시우맘"
                       maxLength={10}
                       className="w-full px-2.5 py-1.5 text-xs font-jua rounded-lg border border-[#e4dccf] bg-white text-[#1b1917] outline-none focus:border-[#c9502f]"
                     />
                   </div>
                   <div>
                     <label className="text-[11px] font-jua text-[#4a443e] block mb-0.5">
-                      등록 이메일
+                      이메일 (선택)
                     </label>
                     <input
                       type="email"
                       value={userEmail}
                       onChange={(e) => setUserEmail(e.target.value)}
-                      placeholder="email@example.com"
+                      placeholder="미입력 가능"
                       className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-[#e4dccf] bg-white text-[#1b1917] outline-none focus:border-[#c9502f]"
                     />
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between bg-white/95 p-2.5 rounded-xl border border-[#eedfc9]">
-                <div>
-                  <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-white/95 p-2.5 rounded-xl border border-[#eedfc9]">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-mono text-sm font-bold text-[#c9502f] bg-[#fff5f2] px-2 py-0.5 rounded-md border border-[#fbd4c7]">
                       {userId}
                     </span>
                     <span className="text-xs text-[#1b1917] font-jua">({userNickname})</span>
                   </div>
-                  <p className="text-[11px] text-[#78716c] font-body mt-0.5">{userEmail}</p>
+                  {userEmail ? (
+                    <p className="text-[11px] text-[#78716c] font-body mt-0.5 truncate">{userEmail}</p>
+                  ) : (
+                    <p className="text-[10px] text-[#8a8178] font-hand mt-0.5">
+                      이 기기 전용 고유 ID (원하는 ID로 변경 가능)
+                    </p>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -394,27 +380,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     setCopiedIdNotice(true);
                     setTimeout(() => setCopiedIdNotice(false), 2000);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-jua border active:scale-95 transition-all shrink-0 cursor-pointer ${
+                  className={`min-h-[38px] px-3 py-1.5 rounded-lg text-xs font-jua border active:scale-95 transition-all shrink-0 cursor-pointer whitespace-nowrap ${
                     copiedIdNotice
                       ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                       : 'bg-[#fdf3e4] hover:bg-[#fbe7ce] text-[#c9502f] border-[#f5d7b5]'
                   }`}
                 >
-                  {copiedIdNotice ? '✓ 복사완료!' : 'ID 복사'}
+                  {copiedIdNotice ? '✓ 복사됨' : 'ID 복사'}
                 </button>
               </div>
             )}
 
-            {/* Clear Explanation of How to Use the Member ID */}
-            <div className="p-2.5 rounded-xl bg-white/85 border border-[#eedfc9] space-y-1 text-[11px] font-body text-[#78350f] leading-relaxed">
-              <div className="font-bold font-jua text-[#b45309] flex items-center gap-1">
-                <span>💡</span>
-                <span>회원 ID 사용법 &amp; 안내</span>
-              </div>
-              <p>• <b>내 고유 ID</b>: 이 기기에서 사용하는 회원님의 전용 아이디입니다. 원하는 이름으로 자유롭게 변경하여 사용하실 수 있습니다.</p>
-              <p>• <b>결제 승인 시</b>: 무통장 입금 후 위 회원 ID(<b>{userId}</b>)를 관리자에게 알려주시면 계정을 찾아 즉시 구독을 승인해 드립니다.</p>
-              <p>• <b>글자 열매 / 선물 지급</b>: 이벤트 당첨이나 보너스 선물 지급 시 위 회원 ID로 포인트가 충전됩니다.</p>
-            </div>
+            <p className="text-[11px] font-body text-[#78350f] leading-relaxed break-keep">
+              💡 접속 기기마다 고유한 <b>{userId}</b> ID가 자동 부여되며, 이용권 인증·문의 시 활용됩니다.
+            </p>
           </div>
 
           {/* 1. Child Name & Age (5세, 6세, 7세) */}
@@ -504,12 +483,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </p>
           </div>
 
-          {/* 2. Companion Animal Friend */}
+          {/* 2. Companion Animal Friend (Horizontal Snap Carousel >=76px) */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-[#1b1917] block">
-              2. 함께 모험할 다마고치 동물 친구
+              2. 함께 모험할 다마고치 친구
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto snap-x snap-mandatory no-scrollbar py-1.5 px-1.5">
               {FRIENDS.map((f) => (
                 <button
                   type="button"
@@ -518,14 +497,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     playSfx('pop');
                     setSelectedFriend(f.id);
                   }}
-                  className={`p-2 rounded-2xl border text-center transition-all ${
+                  className={`snap-center min-w-[76px] min-h-[76px] p-2.5 rounded-2xl text-center transition-all flex-none flex flex-col items-center justify-center gap-1 active:scale-95 shadow-sm ${
                     selectedFriend === f.id
-                      ? 'border-[#c9502f] bg-[#fff5f2] shadow-xs scale-105'
-                      : 'border-[#e4dccf] bg-white hover:border-[#c9502f]/40'
+                      ? 'border-2 border-orange-500 bg-[#fff5f2] ring-2 ring-orange-500/20'
+                      : 'border border-[#e4dccf] bg-white hover:border-orange-300'
                   }`}
                 >
-                  <span className="text-2xl block">{f.e}</span>
-                  <span className="text-xs font-jua text-[#1b1917] mt-0.5 block">
+                  <span className="text-3xl leading-none select-none">{f.e}</span>
+                  <span className="text-xs font-jua text-[#1b1917] whitespace-nowrap">
                     {f.name}
                   </span>
                 </button>
@@ -689,7 +668,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
                 <div>
                   <p className="font-jua text-xs text-amber-950">서비스 관리자 콘솔 (대표님 전용)</p>
-                  <p className="text-[10px] text-amber-800 font-hand">30일 체험일수 조절, 커뮤니티 검수, 백업</p>
+                  <p className="text-[10px] text-amber-800 font-hand">1회용 이용권 코드 발급, 커뮤니티 검수, 체험 관리</p>
                 </div>
               </div>
               <button
@@ -710,13 +689,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-1/3 py-2.5 rounded-xl bg-white border border-[#e4dccf] text-[#8a8178] font-jua text-sm"
+              className="w-1/3 min-h-[48px] py-2.5 rounded-xl bg-white border border-[#e4dccf] text-[#8a8178] font-jua text-sm"
             >
               닫기
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm shadow-md"
+              className="flex-1 min-h-[48px] py-2.5 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm shadow-md active:scale-95 transition-all"
             >
               설정 저장하기 ✨
             </button>

@@ -152,7 +152,7 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
         childName,
         letter: `D+${day}`,
       });
-      onRewardExp(20);
+      onRewardExp(12);
       confetti({
         particleCount: 25,
         spread: 60,
@@ -178,20 +178,20 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
   const writtenCount = Object.keys(diaries).length;
 
   return (
-    <div className="p-4 sm:p-6 max-w-xl mx-auto space-y-5 pb-32">
-      {/* Game Stage Map: 1~10 Stages (Non-colliding responsive header & sequential padlock progression) */}
-      <div className="bg-white p-3.5 rounded-3xl border border-[#e4dccf] shadow-xs space-y-2.5">
-        <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#f0ebd9]">
-          <div className="flex items-center gap-1.5 font-jua text-xs text-[#1b1917] shrink-0">
-            <span className="text-sm">🗺️</span>
+    <div className="w-full max-w-xl mx-auto px-4 sm:px-5 pt-4 sm:pt-5 pb-6 space-y-5 box-border overflow-x-hidden">
+      {/* Game Stage Map: 1~10 Stages */}
+      <div className="w-full max-w-full box-border overflow-hidden bg-white p-3.5 sm:p-4 rounded-3xl border border-[#e4dccf] shadow-xs space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#f0ebd9]">
+          <div className="flex items-center gap-1.5 font-jua text-sm text-[#1b1917]">
+            <span>🗺️</span>
             <span>한글 모험 지도 (1~10단계)</span>
           </div>
-          <span className="text-[11px] font-bold text-[#c9502f] font-jua bg-[#fff4f0] border border-[#fcd8cd] px-2.5 py-0.5 rounded-full shrink-0">
+          <span className="text-[11px] font-bold text-[#c9502f] font-jua bg-[#fff4f0] border border-[#fcd8cd] px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
             현재 {currentStage}단계 · {stageInfo.badge} {stageInfo.tag}
           </span>
         </div>
 
-        {/* 10-Stage Grid Map: 5 columns x 2 rows with clean, simple design */}
+        {/* 10-Stage Grid Map: 5 columns x 2 rows */}
         <div className="grid grid-cols-5 gap-1.5 font-jua">
           {STAGES.map((stg) => {
             const isActive = currentStage === stg.id;
@@ -209,11 +209,11 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
                     setLockedStagePrompt(stg);
                   }
                 }}
-                className={`py-2 px-1 rounded-2xl flex flex-col items-center justify-center transition-all border text-center relative ${
+                className={`min-h-[52px] py-2 px-1 rounded-2xl flex flex-col items-center justify-center transition-all border text-center relative active:scale-95 ${
                   isActive
-                    ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-md scale-102 z-10'
+                    ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-md z-10'
                     : !isUnlocked
-                    ? 'bg-[#faf8f5] text-[#9e9488] border-[#ebe5dc] opacity-75 hover:opacity-95 cursor-pointer'
+                    ? 'bg-[#faf8f5] text-[#9e9488] border-[#ebe5dc] opacity-80 hover:opacity-95 cursor-pointer'
                     : 'bg-white text-[#4a443e] border-[#e4dccf] hover:border-[#c9502f]/40 cursor-pointer shadow-2xs'
                 }`}
                 title={!isUnlocked ? `${stg.id}단계 잠김 (1단계 완료 후 오픈)` : `${stg.id}단계: ${stg.name}`}
@@ -224,7 +224,7 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
                   </span>
                 )}
                 {isUnlocked && !isActive && (
-                  <span className="absolute top-1 right-1 text-[8px] text-emerald-600 font-bold">
+                  <span className="absolute top-1 right-1 text-[9px] text-emerald-600 font-bold">
                     ✓
                   </span>
                 )}
@@ -233,65 +233,63 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
                 }`}>
                   {stg.badge}
                 </span>
-                <span className="text-[11px] font-bold leading-tight">
+                <span className="text-[11px] font-bold leading-tight whitespace-nowrap">
                   {stg.id}단계
                 </span>
               </button>
             );
           })}
         </div>
-        <div className="flex justify-between items-center text-[10px] font-body text-[#8a8178] px-1 pt-0.5">
-          <span>🌱 1단계: 자음 기초</span>
-          <span className="text-[10px] text-[#c9502f] font-jua">
-            {completedCount >= 30 ? '🎉 1단계 완주 완료! 2단계 오픈' : `🔒 1단계 30일 모두 체크 시 2단계 오픈`}
-          </span>
-          <span>🏆 10단계 완독</span>
+        <div className="text-center text-[11px] font-jua text-[#c9502f] pt-0.5 break-keep">
+          {completedCount >= 30
+            ? '🎉 1단계 완주! 2단계가 열렸어요'
+            : '🌱 1단계 30일 완료 시 다음 단계가 열려요'}
         </div>
       </div>
 
       {/* Current Stage Overview Banner */}
-      <div className="bg-gradient-to-r from-[#fdf3e4] to-[#fbebe3] p-4 rounded-3xl border border-[#eedfc9] space-y-2.5 shadow-2xs">
-        <div className="flex items-center justify-between">
-          <h2 className="font-jua text-base sm:text-lg text-[#1b1917]">
+      <div className="w-full max-w-full box-border overflow-hidden bg-gradient-to-r from-[#fdf3e4] to-[#fbebe3] p-4 rounded-3xl border border-[#eedfc9] space-y-2.5 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-jua text-base sm:text-lg text-[#1b1917] break-keep">
             {stageInfo.name}
           </h2>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-[#c9502f] border border-[#f3dfc6]">
+          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white text-[#c9502f] border border-[#f3dfc6] whitespace-nowrap shrink-0">
             {stageInfo.tag}
           </span>
         </div>
-        <p className="text-xs text-[#4a443e] font-hand">
+        <p className="text-xs text-[#4a443e] font-hand break-keep">
           {stageInfo.desc}
         </p>
-        <div className="flex items-center justify-between text-[11px] font-bold text-[#c9502f] pt-0.5">
-          <span>🎯 목표: {stageInfo.target}</span>
-          <span className="text-[10px] text-[#8a8178] font-hand font-normal">
-            체크 완료: <b>{completedCount}</b> / 30일 ({Math.round((completedCount / 30) * 100)}%)
+        <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs font-bold text-[#c9502f] pt-0.5">
+          <span className="break-keep">🎯 {stageInfo.target}</span>
+          <span className="text-[11px] text-[#8a8178] font-hand font-normal whitespace-nowrap">
+            완료 <b>{completedCount}</b>/30일 ({Math.round((completedCount / 30) * 100)}%)
           </span>
         </div>
 
-        {/* Stage Advancement Control: 1단계 30일 다 체크해야 2단계로 열림 */}
+        {/* Stage Advancement Control */}
         {currentStage < 10 && (
           <div className="pt-2 border-t border-[#eedfc9]/60">
             {completedCount >= 30 ? (
               <button
                 onClick={handleAdvanceToNextStage}
-                className="w-full py-2.5 px-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-jua text-xs sm:text-sm shadow-md flex items-center justify-between transition-all active:scale-[0.99] cursor-pointer animate-pop"
+                className="w-full min-h-[48px] py-2.5 px-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-jua text-xs sm:text-sm shadow-md flex flex-wrap items-center justify-between gap-2 transition-all active:scale-[0.98] cursor-pointer animate-pop"
               >
                 <span className="flex items-center gap-1.5">
                   <span>🎉</span>
-                  <span>1단계 30일 완주 성공! 2단계로 넘어가기</span>
+                  <span>30일 완주! {currentStage + 1}단계 열기</span>
                 </span>
-                <span className="text-[11px] bg-white/20 px-2.5 py-0.5 rounded-full font-hand">
-                  2단계 모험 출발 👉
+                <span className="text-[11px] bg-white/20 px-2.5 py-0.5 rounded-full font-hand whitespace-nowrap">
+                  출발 👉
                 </span>
               </button>
             ) : (
-              <div className="py-2 px-3 rounded-2xl bg-white/80 border border-[#eedfc9] flex items-center justify-between text-xs font-jua text-[#7D736A]">
-                <span className="flex items-center gap-1.5">
-                  <span className="text-sm">🔒</span>
-                  <span>1단계를 모두 체크(30일)해야 2단계로 갈 수 있어요!</span>
+              <div className="py-2 px-3 rounded-2xl bg-white/80 border border-[#eedfc9] flex flex-wrap items-center justify-between gap-2 text-xs font-jua text-[#7D736A]">
+                <span className="flex items-center gap-1.5 break-keep">
+                  <span>🔒</span>
+                  <span>30일 모두 완료 시 다음 단계 오픈</span>
                 </span>
-                <span className="text-[11px] font-mono font-bold text-[#c9502f] bg-[#fff5f2] px-2 py-0.5 rounded-md border border-[#fcd2c0]">
+                <span className="text-[11px] font-mono font-bold text-[#c9502f] bg-[#fff5f2] px-2 py-0.5 rounded-md border border-[#fcd2c0] whitespace-nowrap shrink-0">
                   {30 - completedCount}일 남음
                 </span>
               </div>
@@ -301,22 +299,22 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
       </div>
 
       {/* Parent Voice Mission Banner (5-second praise recording) */}
-      <div className="bg-gradient-to-r from-[#fff3eb] via-[#fdf5f0] to-[#fff7f0] border-2 border-dashed border-[#eecbb5] rounded-3xl p-3.5 sm:p-4 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="w-full max-w-full box-border overflow-hidden bg-gradient-to-r from-[#fff3eb] via-[#fdf5f0] to-[#fff7f0] border-2 border-dashed border-[#eecbb5] rounded-3xl p-4 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#c9502f] to-[#ea580c] text-white flex items-center justify-center shadow-xs shrink-0">
-            <Mic className="w-5 h-5 animate-pulse" />
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#c9502f] to-[#ea580c] text-white flex items-center justify-center shadow-xs shrink-0">
+            <Mic className="w-5 h-5" />
           </div>
-          <div className="space-y-0.5 text-left">
+          <div className="space-y-0.5 text-left min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-jua text-xs sm:text-sm text-[#1b1917]">
-                엄마/아빠 목소리 칭찬 미션
+              <span className="font-jua text-sm text-[#1b1917]">
+                엄마/아빠 목소리 칭찬
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-jua">
+              <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-jua whitespace-nowrap">
                 5초 녹음 💖
               </span>
             </div>
-            <p className="text-xs text-[#8a8178] font-hand">
-              "아이가 문제를 맞히면 들려줄 엄마/아빠 목소리를 5초간 녹음해주세요!"
+            <p className="text-xs text-[#8a8178] font-hand break-keep">
+              아이가 문제를 맞히면 엄마 목소리가 나와요!
             </p>
           </div>
         </div>
@@ -326,10 +324,10 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
               playSfx('tap');
               onOpenParentVoice();
             }}
-            className="w-full sm:w-auto px-4 py-2 rounded-2xl bg-[#c9502f] hover:bg-[#b54122] text-white font-jua text-xs shadow-xs active:scale-95 shrink-0 transition-all flex items-center justify-center gap-1.5"
+            className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-2xl bg-[#c9502f] hover:bg-[#b54122] text-white font-jua text-xs sm:text-sm shadow-xs active:scale-95 shrink-0 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
           >
-            <Mic className="w-3.5 h-3.5" />
-            <span>목소리 5초 녹음하기</span>
+            <Mic className="w-4 h-4" />
+            <span>5초 녹음하기</span>
           </button>
         )}
       </div>
@@ -341,25 +339,25 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
             playSfx('pop');
             onOpenSoundBlend();
           }}
-          className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-[#ffebe6] via-[#fff3e0] to-[#fef9eb] border border-[#f5b8a6] flex items-center justify-between text-left shadow-2xs hover:shadow-xs transition-all active:scale-[0.99] group"
+          className="w-full min-h-[60px] p-3.5 rounded-2xl bg-gradient-to-r from-[#ffebe6] via-[#fff3e0] to-[#fef9eb] border border-[#f5b8a6] flex items-center justify-between gap-2 text-left shadow-2xs hover:shadow-xs transition-all active:scale-[0.98] group"
         >
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-white border border-[#f5b8a6] flex items-center justify-center text-xl shadow-2xs group-hover:scale-110 transition-transform flex-none">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-11 h-11 rounded-xl bg-white border border-[#f5b8a6] flex items-center justify-center text-xl shadow-2xs group-hover:scale-110 transition-transform flex-none">
               🧩
             </div>
-            <div>
-              <div className="flex items-center gap-1.5 font-jua text-xs sm:text-sm text-[#c9502f]">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 font-jua text-xs sm:text-sm text-[#c9502f]">
                 <span>자음+모음 소리 합체 연구소</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#c9502f] text-white">
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#c9502f] text-white whitespace-nowrap">
                   뽀뽀 놀이
                 </span>
               </div>
-              <p className="text-[11px] text-[#4a443e] font-hand">
-                ㄱ과 ㅏ가 만나면 어떤 소리가 날까? 직접 결합하고 소리 들어보기!
+              <p className="text-xs text-[#4a443e] font-hand break-keep mt-0.5">
+                ㄱ + ㅏ = 가! 직접 합치고 소리 들어보기
               </p>
             </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-[#c9502f] group-hover:translate-x-0.5 transition-transform flex-none" />
+          <ChevronRight className="w-5 h-5 text-[#c9502f] group-hover:translate-x-0.5 transition-transform flex-none" />
         </button>
       )}
 
@@ -419,7 +417,7 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
             <span className="text-2xl">🌟</span>
             <div>
               <p className="font-jua text-sm text-[#1b1917]">
-                D+{showPromptForSticker} 완료! 다마고치 경험치 +20!
+                D+{showPromptForSticker} 완료! 다마고치 경험치 +12!
               </p>
               <p className="text-[11px] text-[#8a8178] font-hand">
                 오늘의 칭찬 스티커를 뽑으러 가볼까요?
@@ -439,28 +437,28 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
         </div>
       )}
 
-      {/* Daily Diary Showcase & A4 Print Banner (User requested!) */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
-        <div className="flex items-center justify-between border-b border-[#f0ebe1] pb-2">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-4.5 h-4.5 text-[#c9502f]" />
-            <div>
-              <h3 className="font-jua text-base text-[#1b1917]">
-                엄마의 30일 날짜별 한글 성장 일기장
+      {/* Daily Diary Showcase & A4 Print Banner */}
+      <div className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-[#f0ebe1] pb-2.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <BookOpen className="w-5 h-5 text-[#c9502f] shrink-0" />
+            <div className="min-w-0">
+              <h3 className="font-jua text-base text-[#1b1917] break-keep">
+                엄마의 30일 한글 성장 일기장
               </h3>
-              <p className="text-[11px] text-[#8a8178] font-hand">
-                날짜별로 저장하고, 한 달 뒤 책자처럼 A4 인쇄할 수 있어요!
+              <p className="text-xs text-[#8a8178] font-hand break-keep">
+                날짜별로 기록하고 A4 책자로 인쇄해요
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 flex-none">
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
             {onOpenCalendar && (
               <button
                 onClick={() => {
                   playSfx('tap');
                   onOpenCalendar();
                 }}
-                className="flex items-center gap-1 text-xs font-jua text-[#1b1917] bg-[#fbf8f2] hover:bg-[#efe7d8] px-2.5 py-1.5 rounded-xl border border-[#e4dccf] transition-all active:scale-95"
+                className="flex items-center gap-1.5 min-h-[40px] text-xs font-jua text-[#1b1917] bg-[#fbf8f2] hover:bg-[#efe7d8] px-3 py-1.5 rounded-xl border border-[#e4dccf] transition-all active:scale-95 whitespace-nowrap"
                 title="이번 달 한글 발자국 달력 보기"
               >
                 <Calendar className="w-3.5 h-3.5 text-[#c9502f]" /> 발자국 달력
@@ -471,9 +469,9 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
                 playSfx('tap');
                 onOpenPrintBook();
               }}
-              className="flex items-center gap-1 text-xs font-jua text-[#c9502f] bg-[#fdf3e4] hover:bg-[#fce9d0] px-2.5 py-1.5 rounded-xl border border-[#eedfc9] transition-all active:scale-95"
+              className="flex items-center gap-1.5 min-h-[40px] text-xs font-jua text-[#c9502f] bg-[#fdf3e4] hover:bg-[#fce9d0] px-3 py-1.5 rounded-xl border border-[#eedfc9] transition-all active:scale-95 whitespace-nowrap"
             >
-              <Printer className="w-3.5 h-3.5" /> 인쇄
+              <Printer className="w-3.5 h-3.5" /> A4 인쇄
             </button>
           </div>
         </div>
@@ -520,7 +518,7 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
           const isWeekFull = weekCompleted === weekMissions.length;
 
           return (
-            <div key={wi} className="bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
+            <div key={wi} className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
               <div className="flex items-center justify-between border-b border-[#f0ebe1] pb-2.5">
                 <div>
                   <span className="text-[11px] font-bold text-[#c9502f] uppercase tracking-wider block font-jua">
@@ -550,7 +548,7 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
                   return (
                     <div
                       key={dayNum}
-                      className={`flex items-center justify-between p-3 rounded-2xl border text-left transition-all ${
+                      className={`p-3 sm:p-3.5 rounded-2xl border text-left transition-all space-y-2.5 ${
                         isDone
                           ? 'bg-[#fbf4ee] border-[#e9bcaf]'
                           : m.goal
@@ -560,100 +558,119 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
                           : 'bg-white border-[#ece3d4]'
                       }`}
                     >
-                      {/* Left: Checkmark & Mission info */}
+                      {/* Top Tier: Day Badge, Mission Title & Large Check Circle */}
                       <div
                         onClick={() => handleDayClick(dayNum)}
-                        className="flex items-center gap-3 flex-1 cursor-pointer"
+                        className="flex items-center justify-between gap-2.5 cursor-pointer"
                       >
-                        <span
-                          className={`font-jua text-xs sm:text-sm px-2 py-1 rounded-lg ${
-                            isDone
-                              ? 'bg-[#c9502f] text-white'
-                              : m.goal
-                              ? 'bg-[#ffdcd2] text-[#c9502f]'
-                              : 'bg-[#f6f1e7] text-[#8a8178]'
-                          }`}
-                        >
-                          D+{dayNum}
-                        </span>
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <span
+                            className={`font-jua text-xs sm:text-sm px-2.5 py-1 rounded-xl shrink-0 whitespace-nowrap ${
+                              isDone
+                                ? 'bg-[#c9502f] text-white'
+                                : m.goal
+                                ? 'bg-[#ffdcd2] text-[#c9502f]'
+                                : 'bg-[#f6f1e7] text-[#8a8178]'
+                            }`}
+                          >
+                            D+{dayNum}
+                          </span>
 
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`font-bold text-sm sm:text-base ${
-                                isDone
-                                  ? 'text-[#c9502f] line-through opacity-85'
-                                  : 'text-[#1b1917]'
-                              }`}
-                            >
-                              {m.t}
-                            </span>
-                            {m.rest && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#fef3d6] text-[#b8860b]">
-                                쉬는 날 ☕
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className={`font-bold text-sm sm:text-base break-keep ${
+                                  isDone
+                                    ? 'text-[#c9502f] line-through opacity-85'
+                                    : 'text-[#1b1917]'
+                                }`}
+                              >
+                                {m.t}
                               </span>
-                            )}
-                            {m.goal && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ffdcd2] text-[#c9502f] animate-pulse">
-                                대망의 목표! 💖
-                              </span>
-                            )}
+                              {m.rest && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#fef3d6] text-[#b8860b] whitespace-nowrap">
+                                  쉬는 날 ☕
+                                </span>
+                              )}
+                              {m.goal && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ffdcd2] text-[#c9502f] whitespace-nowrap">
+                                  대망의 목표! 💖
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-xs text-[#8a8178] font-hand mt-0.5">
-                            {m.s}
-                          </p>
-                          {dayNum === 30 && currentStage < 10 && completedDays.length >= 30 && (
-                            <div className="pt-2">
+                        </div>
+
+                        {/* Large Kid-Friendly Check Circle (>=44px) */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDayClick(dayNum);
+                          }}
+                          className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition-all active:scale-90 ${
+                            isDone
+                              ? 'bg-[#c9502f] text-white shadow-sm'
+                              : 'border-2 border-[#d6cfc4] bg-[#fdfcf9] hover:border-[#c9502f]'
+                          }`}
+                          aria-label={`D+${dayNum} 완료 체크`}
+                        >
+                          {isDone ? <Check className="w-5 h-5 stroke-[3]" /> : null}
+                        </button>
+                      </div>
+
+                      {/* Bottom Tier: Subtitle Hint + Voice & Diary Action Buttons */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#f0ebe1]/80">
+                        <p
+                          onClick={() => handleDayClick(dayNum)}
+                          className="text-xs text-[#8a8178] font-hand break-keep flex-1 min-w-0 cursor-pointer"
+                        >
+                          {m.s}
+                        </p>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {hasDiary && diaries[dayNum]?.audioUrl ? (
+                            <>
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleAdvanceToNextStage();
+                                  handleToggleInlineVoice(dayNum, diaries[dayNum].audioUrl!);
                                 }}
-                                className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-jua text-xs shadow-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer animate-pop"
+                                className={`min-h-[38px] px-3 py-1.5 rounded-xl border flex items-center gap-1 text-xs font-jua transition-all active:scale-95 whitespace-nowrap ${
+                                  inlinePlayingDay === dayNum
+                                    ? 'bg-[#ea580c] text-white border-[#ea580c] shadow-xs'
+                                    : 'bg-[#fff7ed] hover:bg-[#fed7aa] border-[#fed7aa] text-[#9a3412]'
+                                }`}
+                                title="아이 목소리 듣기"
                               >
-                                <span>🎉 30일 완주 성공! {currentStage + 1}단계로 이동하기</span>
-                                <span>👉</span>
+                                {inlinePlayingDay === dayNum ? (
+                                  <>
+                                    <Pause className="w-3.5 h-3.5" />
+                                    <span>정지</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="w-3.5 h-3.5 fill-[#9a3412]" />
+                                    <span>목소리</span>
+                                  </>
+                                )}
                               </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Right: Voice Recording, Diary & Checkbox */}
-                      <div className="flex items-center gap-1.5 flex-none">
-
-                        {/* Separate Voice Recording & Direct Play button */}
-                        {hasDiary && diaries[dayNum]?.audioUrl ? (
-                          <div className="flex items-center gap-1">
-                            {/* Instant Playback Button */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleInlineVoice(dayNum, diaries[dayNum].audioUrl!);
-                              }}
-                              className={`px-2 py-1.5 rounded-xl border flex items-center gap-1 text-xs font-jua transition-all cursor-pointer ${
-                                inlinePlayingDay === dayNum
-                                  ? 'bg-[#ea580c] text-white border-[#ea580c] animate-pulse shadow-xs'
-                                  : 'bg-[#fff7ed] hover:bg-[#fed7aa] border-[#fed7aa] text-[#9a3412] shadow-2xs'
-                              }`}
-                              title="아이 목소리 즉시 듣기 (클릭하여 재생/정지)"
-                            >
-                              {inlinePlayingDay === dayNum ? (
-                                <>
-                                  <Pause className="w-3 h-3" />
-                                  <span className="text-[11px]">정지</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Play className="w-3 h-3 fill-[#9a3412]" />
-                                  <span className="text-[11px]">목소리</span>
-                                </>
-                              )}
-                            </button>
-
-                            {/* Re-record icon button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  playSfx('tap');
+                                  setModalInitialTab('voice');
+                                  setSelectedDiaryDay(dayNum);
+                                }}
+                                className="w-9 h-9 rounded-xl bg-white hover:bg-orange-50 border border-[#fed7aa] text-[#ea580c] flex items-center justify-center transition-colors active:scale-95"
+                                title="다시 녹음하기"
+                              >
+                                <Mic className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -662,61 +679,49 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
                                 setModalInitialTab('voice');
                                 setSelectedDiaryDay(dayNum);
                               }}
-                              className="w-7 h-7 rounded-xl bg-white hover:bg-orange-50 border border-[#fed7aa] text-[#ea580c] flex items-center justify-center text-xs transition-colors cursor-pointer"
-                              title="아이 목소리 다시 녹음하기"
+                              className="min-h-[38px] px-3 py-1.5 rounded-xl border border-[#fed7aa] bg-[#fffaf5] hover:bg-[#ffedd5] text-[#ea580c] flex items-center gap-1 text-xs font-jua transition-all active:scale-95 whitespace-nowrap"
+                              title="아이 목소리 녹음하기"
                             >
-                              <Mic className="w-3 h-3" />
+                              <Mic className="w-3.5 h-3.5 text-[#ea580c]" />
+                              <span>녹음</span>
                             </button>
-                          </div>
-                        ) : (
+                          )}
+
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               playSfx('tap');
-                              setModalInitialTab('voice');
+                              setModalInitialTab('diary');
                               setSelectedDiaryDay(dayNum);
                             }}
-                            className="px-2 py-1.5 rounded-xl border border-[#fed7aa] bg-[#fffaf5] hover:bg-[#ffedd5] text-[#ea580c] flex items-center gap-1 text-xs font-jua transition-all cursor-pointer shadow-2xs"
-                            title="아이 목소리 녹음하기"
+                            className={`min-h-[38px] px-3 py-1.5 rounded-xl border flex items-center gap-1 text-xs font-jua transition-all active:scale-95 whitespace-nowrap ${
+                              hasDiary && diaries[dayNum]?.content
+                                ? 'bg-[#fdf3e4] border-[#eedfc9] text-[#c9502f]'
+                                : 'bg-[#faf8f5] border-[#e4dccf] text-[#8a8178] hover:text-[#1b1917]'
+                            }`}
+                            title="엄마 일기 쓰기"
                           >
-                            <Mic className="w-3 h-3 text-[#ea580c]" />
-                            <span className="text-[11px]">녹음</span>
+                            <span>{hasDiary && diaries[dayNum]?.mood ? diaries[dayNum].mood : '✏️'}</span>
+                            <span>일기</span>
                           </button>
-                        )}
-
-                        {/* Separate Diary button */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            playSfx('tap');
-                            setModalInitialTab('diary');
-                            setSelectedDiaryDay(dayNum);
-                          }}
-                          className={`px-2 py-1.5 rounded-xl border flex items-center gap-1 text-xs font-jua transition-all cursor-pointer ${
-                            hasDiary && diaries[dayNum]?.content
-                              ? 'bg-[#fdf3e4] border-[#eedfc9] text-[#c9502f] shadow-2xs'
-                              : 'bg-[#faf8f5] border-[#e4dccf] text-[#8a8178] hover:text-[#1b1917]'
-                          }`}
-                          title="엄마 일기 쓰기"
-                        >
-                          <span>{hasDiary && diaries[dayNum]?.mood ? diaries[dayNum].mood : '✏️'}</span>
-                          <span className="text-[11px]">일기</span>
-                        </button>
-
-                        {/* Check Circle */}
-                        <div
-                          onClick={() => handleDayClick(dayNum)}
-                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center cursor-pointer transition-all ${
-                            isDone
-                              ? 'bg-[#c9502f] text-white shadow-xs scale-105'
-                              : 'border-2 border-[#d6cfc4] bg-[#fdfcf9] hover:border-[#c9502f]'
-                          }`}
-                        >
-                          {isDone ? <Check className="w-4 h-4 stroke-[3]" /> : null}
                         </div>
                       </div>
+
+                      {dayNum === 30 && currentStage < 10 && completedDays.length >= 30 && (
+                        <div className="pt-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAdvanceToNextStage();
+                            }}
+                            className="w-full min-h-[44px] py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-jua text-xs shadow-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer animate-pop"
+                          >
+                            <span>🎉 30일 완주! {currentStage + 1}단계로 이동 👉</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -728,33 +733,35 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
 
 
       {/* Bottom Action: Reset this stage */}
-      <div className="flex items-center justify-between pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2">
         <button
+          type="button"
           onClick={() => {
             playSfx('tap');
             setShowResetConfirmModal(true);
           }}
-          className="flex items-center gap-1.5 text-xs text-[#8a8178] hover:text-[#c9502f] transition-colors py-2 px-3 rounded-xl bg-white border border-[#e4dccf]"
+          className="flex items-center gap-1.5 min-h-[42px] text-xs text-[#8a8178] hover:text-[#c9502f] transition-colors py-2 px-3 rounded-xl bg-white border border-[#e4dccf] active:scale-95 whitespace-nowrap"
         >
-          <RotateCcw className="w-3.5 h-3.5" />
-          {currentStage}단계 체크 초기화
+          <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+          <span>{currentStage}단계 체크 초기화</span>
         </button>
 
         <button
+          type="button"
           onClick={() => {
             playSfx('tap');
             onGoToStickers();
           }}
-          className="font-jua text-sm text-[#c9502f] hover:underline flex items-center gap-1"
+          className="min-h-[42px] px-2 font-jua text-sm text-[#c9502f] hover:underline flex items-center gap-1 whitespace-nowrap active:scale-95"
         >
-          스티커 보드로 이동하기 🌟
+          <span>스티커 보드로 이동하기 🌟</span>
         </button>
       </div>
 
       {/* In-App Confirmation Modal: 삭제하시겠습니까? */}
       {showResetConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-xs overflow-hidden shadow-2xl p-6 text-center space-y-4 animate-pop">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-xs box-border overflow-hidden shadow-2xl p-5 sm:p-6 text-center space-y-4 animate-pop">
             <div className="w-12 h-12 rounded-full bg-red-100 text-red-500 flex items-center justify-center mx-auto text-2xl">
               🗑️
             </div>
@@ -801,7 +808,7 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
           diary={diaries[selectedDiaryDay]}
           onSaveDiary={(entry) => {
             onSaveDiary(entry);
-            onRewardExp(15);
+            onRewardExp(8);
           }}
           onDeleteDiary={onDeleteDiary}
           onOpenPrintBook={onOpenPrintBook}
@@ -812,8 +819,8 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
 
       {/* Locked Stage Modal: 🔒 단계 잠금 안내 & 학부모 권한 잠금 해제 */}
       {lockedStagePrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-xs overflow-hidden shadow-2xl p-6 text-center space-y-3.5 animate-pop">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-xs box-border overflow-hidden shadow-2xl p-5 sm:p-6 text-center space-y-3.5 animate-pop">
             <div className="w-14 h-14 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto text-2xl border border-amber-300 shadow-inner">
               🔒
             </div>
@@ -855,8 +862,8 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
 
       {/* Stage Completion Modal: 1단계 완주 축하 및 2단계로 출발 */}
       {showStageCompleteModal && currentStage < 10 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#eedfc9] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl p-6 text-center space-y-4 animate-pop">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#fbf8f2] border-2 border-[#eedfc9] rounded-3xl w-full max-w-sm box-border overflow-hidden shadow-2xl p-5 sm:p-6 text-center space-y-4 animate-pop">
             <div className="w-16 h-16 rounded-full bg-amber-100 border border-amber-300 text-amber-600 text-3xl flex items-center justify-center mx-auto animate-bounce shadow-inner">
               👑
             </div>

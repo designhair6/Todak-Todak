@@ -36,7 +36,7 @@ export const SoundBlendingModal: React.FC<SoundBlendingModalProps> = ({
       setHasBlended(true);
       playSfx('kiss');
       confetti({ particleCount: 35, spread: 65, origin: { y: 0.6 } });
-      onRewardExp(10);
+      onRewardExp(3);
 
       // Speak combination formula
       speakKorean(`${currentChoName}의 ${currentCho}... ${currentJung}... 합쳐서 ${resultSyllable}!`);
@@ -84,19 +84,19 @@ export const SoundBlendingModal: React.FC<SoundBlendingModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-lg shadow-2xl p-4 sm:p-6 text-center space-y-4 animate-pop max-h-[88vh] overflow-y-auto flex flex-col relative">
+      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-lg box-border shadow-2xl text-center animate-pop max-h-[90vh] overflow-hidden flex flex-col relative">
         {/* Close Button */}
         <button
           onClick={() => {
             playSfx('tap');
             onClose();
           }}
-          className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917]"
+          className="absolute top-3.5 right-3.5 z-10 w-8 h-8 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917]"
         >
           <X className="w-4 h-4" />
         </button>
 
-        <div className="border-b border-[#eedfc9] pb-2 text-center">
+        <div className="border-b border-[#eedfc9] px-4 pt-4 pb-2.5 sm:px-6 sm:pt-5 text-center flex-none">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fdf3e4] text-[#c9502f] text-xs font-jua mb-1">
             <Sparkles className="w-3.5 h-3.5" />
             자음 + 모음 소리 뽀뽀 놀이
@@ -109,81 +109,87 @@ export const SoundBlendingModal: React.FC<SoundBlendingModalProps> = ({
           </p>
         </div>
 
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-5 space-y-4 box-border">
+
         {/* Interactive Combination Stage */}
-        <div className="bg-white rounded-3xl p-4 sm:p-5 border-2 border-[#e4dccf] shadow-inner space-y-4">
-          <div className="flex items-center justify-center gap-2 sm:gap-3">
+        <div className="bg-white rounded-3xl p-3.5 sm:p-5 border-2 border-[#e4dccf] shadow-inner space-y-4">
+          <div className="flex items-center justify-center gap-1.5 sm:gap-3">
             {/* Consonant Card */}
-            <div
+            <button
+              type="button"
               onClick={() => speakKorean(`${currentChoName}의 ${currentCho}`)}
-              className={`w-18 sm:w-22 h-24 rounded-2xl bg-[#faf8f5] border-2 border-[#eedfc9] flex flex-col items-center justify-center shadow-xs cursor-pointer transition-transform ${
-                isBlending ? 'translate-x-3 scale-110' : 'hover:scale-105'
+              className={`flex-1 max-w-[92px] h-24 rounded-2xl bg-[#faf8f5] border-2 border-[#eedfc9] flex flex-col items-center justify-center shadow-xs cursor-pointer transition-transform active:scale-95 ${
+                isBlending ? 'translate-x-2 scale-105' : 'hover:scale-105'
               }`}
               title="소리 듣기"
             >
-              <span className="text-[11px] font-hand text-[#8a8178]">{currentChoName}</span>
+              <span className="text-[10px] font-hand text-[#8a8178]">{currentChoName}</span>
               <span className="text-3xl sm:text-4xl font-jua text-[#1b1917] mt-0.5">{currentCho}</span>
               <span className="text-[10px] text-[#c9502f]">🔊 듣기</span>
-            </div>
+            </button>
 
             {/* Plus / Kiss Icon */}
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#fff5f2] border border-[#f5b8a6] text-[#c9502f] flex items-center justify-center text-lg animate-pulse flex-none">
-              <Heart className="w-4 h-4 fill-[#c9502f]" />
+            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-[#fff5f2] border border-[#f5b8a6] text-[#c9502f] flex items-center justify-center flex-none">
+              <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-[#c9502f]" />
             </div>
 
             {/* Vowel Card */}
-            <div
+            <button
+              type="button"
               onClick={() => speakKorean(currentJung)}
-              className={`w-18 sm:w-22 h-24 rounded-2xl bg-[#faf8f5] border-2 border-[#eedfc9] flex flex-col items-center justify-center shadow-xs cursor-pointer transition-transform ${
-                isBlending ? '-translate-x-3 scale-110' : 'hover:scale-105'
+              className={`flex-1 max-w-[92px] h-24 rounded-2xl bg-[#faf8f5] border-2 border-[#eedfc9] flex flex-col items-center justify-center shadow-xs cursor-pointer transition-transform active:scale-95 ${
+                isBlending ? '-translate-x-2 scale-105' : 'hover:scale-105'
               }`}
               title="소리 듣기"
             >
-              <span className="text-[11px] font-hand text-[#8a8178]">모음</span>
+              <span className="text-[10px] font-hand text-[#8a8178]">모음</span>
               <span className="text-3xl sm:text-4xl font-jua text-[#c9502f] mt-0.5">{currentJung}</span>
               <span className="text-[10px] text-[#c9502f]">🔊 듣기</span>
-            </div>
+            </button>
 
-            <ArrowRight className="w-5 h-5 text-[#8a8178] flex-none hidden xs:block" />
+            <ArrowRight className="w-4 h-4 text-[#8a8178] flex-none" />
 
             {/* Result Syllable Card */}
-            <div
+            <button
+              type="button"
               onClick={() => speakKorean(resultSyllable)}
-              className={`w-22 sm:w-26 h-24 rounded-2xl bg-gradient-to-b from-[#fdf3e4] to-[#fce3cc] border-2 border-[#f5d7b5] flex flex-col items-center justify-center shadow-md relative cursor-pointer hover:scale-105 ${
+              className={`flex-1 max-w-[104px] h-24 rounded-2xl bg-gradient-to-b from-[#fdf3e4] to-[#fce3cc] border-2 border-[#f5d7b5] flex flex-col items-center justify-center shadow-md relative cursor-pointer active:scale-95 ${
                 hasBlended ? 'animate-pop' : ''
               }`}
               title="클릭하여 완성 글자 소리 듣기"
             >
-              <span className="text-[10px] font-jua text-[#c9502f]">완성 글자</span>
-              <span className="text-4xl sm:text-5xl font-jua text-[#1b1917]">{resultSyllable}</span>
-              <div className="absolute -bottom-2.5 px-2 py-0.5 rounded-full bg-[#c9502f] text-white text-[10px] font-jua flex items-center gap-1 shadow-xs">
-                <Volume2 className="w-3 h-3" /> 소리 듣기
+              <span className="text-[10px] font-jua text-[#c9502f]">완성</span>
+              <span className="text-4xl sm:text-5xl font-jua text-[#1b1917] leading-none">{resultSyllable}</span>
+              <div className="absolute -bottom-2.5 px-2 py-0.5 rounded-full bg-[#c9502f] text-white text-[10px] font-jua flex items-center gap-1 shadow-xs whitespace-nowrap">
+                <Volume2 className="w-3 h-3" /> 듣기
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Words containing this syllable */}
           <div className="pt-3 border-t border-[#f0ebe1] flex items-center justify-center gap-1.5 flex-wrap">
-            <span className="text-[11px] text-[#8a8178] font-hand">이 글자로 시작하는 낱말:</span>
+            <span className="text-[11px] text-[#8a8178] font-hand">낱말:</span>
             {words.map((w, i) => (
-              <span
+              <button
+                type="button"
                 key={i}
                 onClick={() => speakKorean(w)}
-                className="text-xs font-jua px-2.5 py-1 rounded-xl bg-[#fdfaf5] border border-[#eedfc9] text-[#1b1917] cursor-pointer hover:bg-[#fff5f2] active:scale-95 transition-all flex items-center gap-1"
+                className="min-h-[34px] text-xs font-jua px-2.5 py-1 rounded-xl bg-[#fdfaf5] border border-[#eedfc9] text-[#1b1917] cursor-pointer hover:bg-[#fff5f2] active:scale-95 transition-all flex items-center gap-1"
               >
                 <span>{w}</span>
                 <span className="text-[10px] text-[#c9502f]">🔊</span>
-              </span>
+              </button>
             ))}
           </div>
         </div>
 
-        {/* Consonant Selector */}
+        {/* Consonant Selector (44px touch targets) */}
         <div className="space-y-1 text-left">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-jua text-[#4a443e]">1. 첫소리 자음 골라보세요</span>
+            <span className="text-xs font-jua text-[#4a443e]">1. 첫소리 자음</span>
             <span className="text-[11px] text-[#c9502f] font-bold font-jua">{currentChoName}</span>
           </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1.5">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1.5">
             {CHO.map((c, i) => (
               <button
                 key={i}
@@ -193,7 +199,7 @@ export const SoundBlendingModal: React.FC<SoundBlendingModalProps> = ({
                   setHasBlended(false);
                   speakKorean(c);
                 }}
-                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl font-jua text-base sm:text-lg flex items-center justify-center flex-none border transition-all ${
+                className={`w-11 h-11 rounded-xl font-jua text-lg flex items-center justify-center flex-none border transition-all active:scale-95 ${
                   selectedChoIdx === i
                     ? 'bg-[#1b1917] text-white border-[#1b1917] shadow-sm scale-105'
                     : 'bg-white text-[#1b1917] border-[#e4dccf] hover:border-[#1b1917]/40'
@@ -205,13 +211,13 @@ export const SoundBlendingModal: React.FC<SoundBlendingModalProps> = ({
           </div>
         </div>
 
-        {/* Vowel Selector */}
+        {/* Vowel Selector (44px touch targets) */}
         <div className="space-y-1 text-left">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-jua text-[#4a443e]">2. 가운데 모음 골라보세요</span>
+            <span className="text-xs font-jua text-[#4a443e]">2. 가운데 모음</span>
             <span className="text-[11px] text-[#c9502f] font-bold font-jua">{currentJung}</span>
           </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1.5">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1.5">
             {JUNG.map((j, i) => (
               <button
                 key={i}
@@ -221,7 +227,7 @@ export const SoundBlendingModal: React.FC<SoundBlendingModalProps> = ({
                   setHasBlended(false);
                   speakKorean(j);
                 }}
-                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl font-jua text-base sm:text-lg flex items-center justify-center flex-none border transition-all ${
+                className={`w-11 h-11 rounded-xl font-jua text-lg flex items-center justify-center flex-none border transition-all active:scale-95 ${
                   selectedJungIdx === i
                     ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-sm scale-105'
                     : 'bg-white text-[#1b1917] border-[#e4dccf] hover:border-[#c9502f]/40'
@@ -233,16 +239,17 @@ export const SoundBlendingModal: React.FC<SoundBlendingModalProps> = ({
           </div>
         </div>
 
-        {/* Blend Action Button - Fully visible, never cut off! */}
+        {/* Blend Action Button */}
         <div className="pt-2 pb-1">
           <button
             onClick={handleBlend}
             disabled={isBlending}
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#c9502f] to-[#e6603a] hover:from-[#b84324] hover:to-[#d04e28] text-white font-jua text-base sm:text-lg shadow-md hover:shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+            className="w-full min-h-[52px] py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#c9502f] to-[#e6603a] hover:from-[#b84324] hover:to-[#d04e28] text-white font-jua text-base sm:text-lg shadow-md hover:shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2"
           >
-            <Sparkles className="w-5 h-5 animate-spin" />
-            {currentCho} + {currentJung} 두 글자 소리 뽀뽀 합체! (EXP +10)
+            <Sparkles className="w-5 h-5 shrink-0" />
+            <span>{currentCho} + {currentJung} 소리 합체! (EXP +3)</span>
           </button>
+        </div>
         </div>
       </div>
     </div>

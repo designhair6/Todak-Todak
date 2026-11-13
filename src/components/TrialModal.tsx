@@ -13,9 +13,10 @@ import {
   Ticket,
   HelpCircle,
   MessageCircle,
+  Loader2,
 } from 'lucide-react';
 import { playSfx } from '../utils/sound';
-import { redeemCoupon } from '../utils/couponHelper';
+import { normalizeVoucherCode, redeemVoucherCode } from '../utils/couponHelper';
 
 interface TrialModalProps {
   isOpen: boolean;
@@ -48,6 +49,7 @@ export const TrialModal: React.FC<TrialModalProps> = ({
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [testNotice, setTestNotice] = useState<string | null>(null);
   const [showLockWarning, setShowLockWarning] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Stored voucher info
   const registeredVoucher = typeof window !== 'undefined'
@@ -75,19 +77,19 @@ export const TrialModal: React.FC<TrialModalProps> = ({
     onClose();
   };
 
-  // Open SmartStore sales page in new tab
-  const handleOpenSmartStore = () => {
+  // SmartStore external link click feedback
+  const handleSmartStoreClick = () => {
     playSfx('tap');
-    window.open('https://smartstore.naver.com', '_blank', 'noopener,noreferrer');
   };
 
-  // Handle Voucher Code Submission
-  const handleRegisterCode = (e?: React.FormEvent) => {
+  // Handle Voucher Code Submission (Server DB Transaction, No Login Required)
+  const handleRegisterCode = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (isSubmitting) return;
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    const clean = voucherInput.trim().toUpperCase();
+    const clean = normalizeVoucherCode(voucherInput);
 
     // 1. Empty check
     if (!clean) {
@@ -96,48 +98,66 @@ export const TrialModal: React.FC<TrialModalProps> = ({
       return;
     }
 
-    // 2. Validate via helper (supports TODAK-FREE-PASS, 16-character codes, and default coupons)
-    const result = redeemCoupon(clean);
+    setIsSubmitting(true);
+    try {
+      const result = await redeemVoucherCode(clean);
 
-    if (result.success) {
-      playSfx('fan');
-      confetti({ particleCount: 80, spread: 85, origin: { y: 0.5 } });
+      if (result.success) {
+        playSfx('fan');
+        confetti({ particleCount: 80, spread: 85, origin: { y: 0.5 } });
 
-      // Save subscription in localStorage and state
-      try {
-        localStorage.setItem('hangul_is_subscribed', 'true');
-        localStorage.setItem('hangul_voucher_code', clean);
-        localStorage.setItem('hangul_voucher_registered_at', new Date().toISOString());
-      } catch (err) {
-        console.warn('LocalStorage error:', err);
+        if (result.type === 'trial_days') {
+          const addedDays = result.value || 30;
+          const nextDays = Math.max(0, daysLeft) + addedDays;
+          if (onSetDaysLeft) onSetDaysLeft(nextDays);
+          onExtendTrial(nextDays);
+          setSuccessMessage(result.message);
+        } else {
+          try {
+            localStorage.setItem('hangul_is_subscribed', 'true');
+            localStorage.setItem('hangul_voucher_code', result.voucher?.code || clean);
+            localStorage.setItem('hangul_voucher_registered_at', new Date().toISOString());
+          } catch (err) {
+            console.warn('LocalStorage error:', err);
+          }
+
+          onSubscribe('yearly');
+          if (onUpdateSubscribed) onUpdateSubscribed(true);
+          if (onSetDaysLeft) onSetDaysLeft(30);
+          setSuccessMessage(
+            result.message ||
+              '토닥 한글 정식 이용권이 등록되었습니다! 모든 기능을 무제한으로 이용해보세요.'
+          );
+        }
+
+        setShowSuccessPopup(true);
+        setVoucherInput('');
+
+        setTimeout(() => {
+          setShowSuccessPopup(false);
+          onClose();
+        }, 2400);
+      } else {
+        playSfx('pop');
+        setErrorMessage(
+          result.message ||
+            '유효하지 않은 이용권 코드입니다. 스마트스토어 주문번호 또는 발급된 문자를 확인해주세요.'
+        );
       }
-
-      onSubscribe('yearly');
-      if (onUpdateSubscribed) onUpdateSubscribed(true);
-      if (onSetDaysLeft) onSetDaysLeft(30);
-
-      const successMsg = '토닥 한글 정식 이용권이 등록되었습니다! 모든 기능을 무제한으로 이용해보세요.';
-      setSuccessMessage(successMsg);
-      setShowSuccessPopup(true);
-      setVoucherInput('');
-
-      // Auto close modal after showing celebratory popup
-      setTimeout(() => {
-        setShowSuccessPopup(false);
-        onClose();
-      }, 2400);
-    } else {
+    } catch (err) {
       playSfx('pop');
-      // If code didn't match, show the requested exact message
+      console.error('Voucher redeem error:', err);
       setErrorMessage(
-        result.message || '유효하지 않은 이용권 코드입니다. 스마트스토어 주문번호 또는 발급된 문자를 확인해주세요.'
+        '서버 DB에서 이용권을 확인하는 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.'
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-sm sm:max-w-md mx-auto overflow-hidden shadow-2xl animate-pop relative flex flex-col max-h-[90vh] my-auto">
+      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-sm sm:max-w-md mx-auto box-border overflow-hidden shadow-2xl animate-pop relative flex flex-col max-h-[90vh] my-auto">
         
         {/* Close Button (absolute top-3 right-3 p-2 for safe touch target) */}
         {!isMandatoryLock ? (
@@ -228,7 +248,7 @@ export const TrialModal: React.FC<TrialModalProps> = ({
           <p className="text-xs text-[#6d635b] font-hand mt-1.5 max-w-xs sm:max-w-sm mx-auto leading-relaxed break-keep text-center">
             {isSubscribed
               ? '1~10단계 300개 전과정 미션, 맞춤 낱말 낙서보드, A4 인쇄 도안을 무제한으로 이용하고 계십니다.'
-              : '네이버 스마트스토어에서 이용권을 구매하신 후 발급받은 16자리 이용권 코드를 입력해주세요.'}
+              : '회원가입 없이 발급받은 1회용 이용권 코드(또는 주문번호)만 입력하면 즉시 정식 이용권이 열립니다.'}
           </p>
         </div>
 
@@ -256,7 +276,7 @@ export const TrialModal: React.FC<TrialModalProps> = ({
               </div>
               <h3 className="font-jua text-lg sm:text-xl text-[#1b1917]">등록 완료! 🎉</h3>
               <p className="text-xs sm:text-sm text-stone-700 font-body leading-relaxed break-keep">
-                토닥 한글 정식 이용권이 등록되었습니다! 모든 기능을 무제한으로 이용해보세요.
+                {successMessage || '토닥 한글 정식 이용권이 등록되었습니다! 모든 기능을 무제한으로 이용해보세요.'}
               </p>
               <button
                 type="button"
@@ -272,8 +292,8 @@ export const TrialModal: React.FC<TrialModalProps> = ({
           </div>
         )}
 
-        {/* Body Content (Responsive & Scrollable, p-4 sm:p-6) */}
-        <div className="p-4 sm:p-6 space-y-3.5 overflow-y-auto flex-1 font-body">
+        {/* Body Content (Responsive & Scrollable, p-4 sm:p-5) */}
+        <div className="p-4 sm:p-5 space-y-3.5 overflow-y-auto overflow-x-hidden flex-1 font-body box-border">
 
           {/* VIEW 1: Already Subscribed (정식 이용권 활성화 상태) */}
           {isSubscribed ? (
@@ -345,14 +365,16 @@ export const TrialModal: React.FC<TrialModalProps> = ({
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleOpenSmartStore}
+                <a
+                  href="https://smartstore.naver.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleSmartStoreClick}
                   className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#03C75A] to-[#02b350] hover:from-[#02b350] hover:to-[#029e46] text-white font-jua text-sm sm:text-base shadow-md hover:shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 group border border-emerald-400"
                 >
                   <span>스마트스토어에서 이용권 구매하기 &gt;</span>
                   <ExternalLink className="w-4 h-4 text-white/90 group-hover:translate-x-0.5 transition-transform shrink-0" />
-                </button>
+                </a>
               </div>
 
               {/* STEP 2: Voucher Code Input Form (모바일 최적화) */}
@@ -363,7 +385,7 @@ export const TrialModal: React.FC<TrialModalProps> = ({
                     <span>STEP 2. 발급받은 이용권 코드 입력</span>
                   </div>
                   <span className="text-[11px] font-hand text-[#8a8178] break-keep">
-                    16자리 코드 등록 시 즉시 모든 기능 잠금 해제
+                    회원가입 불필요 · 1회 사용 후 자동 만료 처리됩니다
                   </span>
                 </div>
 
@@ -372,23 +394,29 @@ export const TrialModal: React.FC<TrialModalProps> = ({
                     <input
                       type="text"
                       value={voucherInput}
+                      disabled={isSubmitting}
                       onChange={(e) => {
                         setVoucherInput(e.target.value);
                         setErrorMessage(null);
                         setSuccessMessage(null);
                       }}
-                      placeholder="이용권 코드 입력 (예: TODAK-2026-XXXX)"
-                      className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-[#e4dccf] bg-[#faf8f5] focus:bg-white font-mono text-xs text-[#1b1917] outline-none focus:border-[#c9502f] focus:ring-2 focus:ring-[#c9502f]/20 transition-all placeholder:text-[#a89f91]"
+                      placeholder="예: TDK-A7K9-M2P4-X8Q3 또는 주문번호"
+                      className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-[#e4dccf] bg-[#faf8f5] focus:bg-white font-mono text-xs text-[#1b1917] outline-none focus:border-[#c9502f] focus:ring-2 focus:ring-[#c9502f]/20 transition-all placeholder:text-[#a89f91] uppercase disabled:opacity-60"
                       autoCapitalize="characters"
                       autoCorrect="off"
                       spellCheck="false"
                     />
                     <button
                       type="submit"
-                      className="shrink-0 px-4 py-2.5 rounded-xl bg-[#c9502f] hover:bg-[#b54122] text-white font-jua text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 whitespace-nowrap"
+                      disabled={isSubmitting}
+                      className="shrink-0 px-4 py-2.5 rounded-xl bg-[#c9502f] hover:bg-[#b54122] disabled:opacity-60 text-white font-jua text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-1 whitespace-nowrap"
                     >
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      <span>코드 등록</span>
+                      {isSubmitting ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      )}
+                      <span>{isSubmitting ? '확인중' : '코드 등록'}</span>
                     </button>
                   </div>
                 </form>

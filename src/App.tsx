@@ -46,6 +46,7 @@ import {
   TabKey,
 } from './types';
 import { cycleSoundVolume, getSoundVolume, playSfx } from './utils/sound';
+import { getOrCreateUserIdentity } from './utils/userIdentity';
 
 export default function App() {
   // Active Navigation Tab
@@ -184,7 +185,7 @@ export default function App() {
       }
     } catch {}
     return {
-      name: '시아',
+      name: '우리 아이',
       childAge: '5세',
       friend: 'bear',
       theme: 'home',
@@ -202,13 +203,15 @@ export default function App() {
       const stored = localStorage.getItem('hangul_pet_growth');
       if (stored) {
         const parsed = JSON.parse(stored);
+        const totalExp = Math.max(0, Number(parsed.totalExp ?? 0) || 0);
+        const levelData = getPetLevelData(totalExp);
         return {
-          level: parsed.level ?? 1,
-          exp: parsed.exp ?? 0,
-          totalExp: parsed.totalExp ?? 0,
+          level: levelData.level,
+          exp: totalExp - levelData.reqExp,
+          totalExp,
           happiness: parsed.happiness ?? 100,
           berriesCount: parsed.berriesCount !== undefined ? parsed.berriesCount : 5,
-          stageName: parsed.stageName ?? '알 / 아기 요람',
+          stageName: levelData.stageName,
         };
       }
     } catch {}
@@ -218,7 +221,7 @@ export default function App() {
       totalExp: 0,
       happiness: 100,
       berriesCount: 5,
-      stageName: '알 / 아기 요람',
+      stageName: '알 / 아기 요람 🥚',
     };
   });
 
@@ -245,6 +248,11 @@ export default function App() {
       return { 's1_d1': '2026-10-24' };
     }
   });
+
+  // Ensure every device has a unique persistent user ID on first load
+  useEffect(() => {
+    getOrCreateUserIdentity(boardState.name);
+  }, []);
 
   // Modals
   const [isTrialModalOpen, setIsTrialModalOpen] = useState(false);
@@ -516,25 +524,25 @@ export default function App() {
     THEMES.find((t) => t.id === boardState.theme) || THEMES[0];
 
   return (
-    <div className="min-h-screen bg-[#ece6dc] flex flex-col items-center justify-start sm:py-3 select-none font-body">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#ece6dc] flex flex-col items-center justify-start sm:py-3 select-none font-body">
       {/* App Shell Container */}
-      <div className={`w-full max-w-xl h-screen sm:h-[95vh] sm:max-h-[920px] bg-[#fbf8f2] sm:rounded-3xl sm:shadow-2xl border-x sm:border flex flex-col relative overflow-hidden ${
-        isAdmin ? 'border-amber-400 ring-2 ring-amber-400/30' : 'border-[#e4dccf]'
+      <div className={`w-full max-w-xl box-border h-[100dvh] sm:h-[94vh] sm:max-h-[920px] bg-[#fbf8f2] sm:rounded-3xl sm:shadow-2xl border-0 sm:border flex flex-col relative overflow-hidden ${
+        isAdmin ? 'border-amber-400 sm:ring-2 sm:ring-amber-400/30' : 'border-[#e4dccf]'
       }`}>
-        {/* Slim & Elegant Admin Bar when Admin is Active */}
+        {/* Slim Admin Bar */}
         {isAdmin && (
-          <div className="bg-[#241c16] text-white px-3 py-1 flex items-center justify-between text-xs font-jua shadow-xs z-50 flex-none border-b border-amber-600/30">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-amber-200 text-xs">👑 대표 관리자 모드</span>
+          <div className="bg-[#241c16] text-white px-3 py-1.5 flex items-center justify-between text-xs font-jua shadow-xs z-50 flex-none border-b border-amber-600/30">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+              <span className="text-amber-200 text-xs truncate">👑 관리자 모드</span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => {
                   playSfx('pop');
                   setIsAdminModalOpen(true);
                 }}
-                className="px-2.5 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] border border-amber-500/30 active:scale-95 transition-all"
+                className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] border border-amber-500/30 active:scale-95 transition-all whitespace-nowrap"
               >
                 ⚙️ 콘솔
               </button>
@@ -544,8 +552,8 @@ export default function App() {
                   setIsAdmin(false);
                   localStorage.setItem('hangul_admin_active', 'false');
                 }}
-                className="px-2.5 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-stone-300 text-[11px] active:scale-95 transition-all"
-                title="일반 사용자 화면으로 즉시 전환"
+                className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-stone-300 text-[11px] active:scale-95 transition-all whitespace-nowrap"
+                title="일반 사용자 화면으로 전환"
               >
                 👤 일반 화면
               </button>
@@ -577,86 +585,45 @@ export default function App() {
         <main className="flex-1 overflow-y-auto overflow-x-hidden relative scrollbar-thin scrollbar-thumb-stone-300">
           {/* Mandatory Paywall Screen when trial expired and not subscribed */}
           {isTrialExpiredLocked ? (
-            <div className="p-6 sm:p-8 flex flex-col items-center justify-center min-h-[520px] text-center space-y-4 animate-fadeIn">
-              <div className="w-20 h-20 rounded-3xl bg-red-100 border-2 border-red-300 text-red-600 flex items-center justify-center shadow-md animate-bounce">
-                <Lock className="w-10 h-10" />
+            <div className="p-5 sm:p-8 flex flex-col items-center justify-center min-h-[480px] text-center space-y-5">
+              <div className="w-20 h-20 rounded-3xl bg-[#fff1ed] border-2 border-[#fcd5cb] text-[#e76f51] flex items-center justify-center shadow-sm">
+                <Lock className="w-9 h-9" />
               </div>
-              <div className="space-y-1">
-                <span className="inline-block px-3 py-1 rounded-full bg-red-50 text-red-600 font-jua text-xs border border-red-200">
-                  🔒 30일 무료 체험 기간 종료
+              <div className="space-y-2 max-w-sm mx-auto">
+                <span className="inline-block px-3 py-1 rounded-full bg-[#fff1ed] text-[#c9502f] font-jua text-xs border border-[#fcd5cb]">
+                  30일 무료 체험 완료
                 </span>
-                <h2 className="text-2xl font-jua text-[#1b1917]">
-                  30일 체험이 종료되어 결제가 필요합니다
+                <h2 className="text-xl sm:text-2xl font-jua text-[#1b1917] break-keep leading-snug">
+                  정식 이용권을 등록하면<br />바로 이어서 놀 수 있어요
                 </h2>
-                <p className="text-xs sm:text-sm text-[#7D736A] font-hand max-w-md mx-auto leading-relaxed">
-                  그동안 우리 아이와 함께 한 한글놀이 기록, 스티커판, 소중한 성장 일기장이 안전하게 보관되어 있습니다.
-                  계속하여 즐겁게 한글을 뗄 수 있도록 구독 또는 결제를 진행해 주세요!
+                <p className="text-xs sm:text-sm text-[#7D736A] font-hand break-keep leading-relaxed">
+                  우리 아이의 한글 기록과 일기장은 모두 안전하게 보관되어 있습니다.
                 </p>
               </div>
 
-              {/* Pricing Plan Preview Box */}
-              <div className="w-full max-w-sm bg-white p-4 rounded-2xl border border-red-200 shadow-sm space-y-2.5 text-left">
-                <div className="flex items-center justify-between pb-2 border-b border-stone-100">
-                  <div>
-                    <span className="font-jua text-sm text-stone-800">월간 정기구독</span>
-                    <p className="text-[11px] text-stone-500 font-hand">모든 단계 + 커뮤니티 무제한</p>
-                  </div>
-                  <span className="font-jua text-base text-[#c9502f]">월 3,900원</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="font-jua text-sm text-stone-800">1년 완주 패스 (할인)</span>
-                    <p className="text-[11px] text-stone-500 font-hand">원목 상장 + 38% 특별할인</p>
-                  </div>
-                  <span className="font-jua text-base text-emerald-600">연 29,000원</span>
-                </div>
-              </div>
-
-              {/* Direct Checkout Button */}
-              <div className="w-full max-w-xs space-y-2 pt-1">
+              <div className="w-full max-w-xs space-y-2.5 pt-1">
                 <button
                   onClick={() => {
                     playSfx('pop');
                     setIsTrialModalOpen(true);
                   }}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#c9502f] to-[#e05b38] hover:from-[#b84324] hover:to-[#c9502f] text-white font-jua text-base shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
+                  className="w-full min-h-[52px] py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#c9502f] to-[#e05b38] hover:from-[#b84324] hover:to-[#c9502f] text-white font-jua text-base shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
                   <CreditCard className="w-5 h-5" />
-                  결제하고 계속 이용하기 💳
+                  이용권 등록하고 이어하기
                 </button>
 
-                {isAdmin ? (
+                {isAdmin && (
                   <button
                     onClick={() => {
                       playSfx('fan');
                       setTrialDaysLeft(30);
                     }}
-                    className="w-full py-2 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 font-jua text-xs flex items-center justify-center gap-1.5 transition-all"
+                    className="w-full min-h-[44px] py-2.5 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 font-jua text-xs flex items-center justify-center gap-1.5 transition-all"
                   >
                     <Crown className="w-3.5 h-3.5 text-amber-700" />
-                    👑 대표 관리자 권한: 30일 무료 연장하기
+                    관리자 권한: 30일 무료 연장
                   </button>
-                ) : (
-                  <div className="flex gap-2 w-full pt-1">
-                    <button
-                      onClick={() => {
-                        playSfx('fan');
-                        setTrialDaysLeft(30);
-                      }}
-                      className="flex-1 py-2 px-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-300 text-stone-700 font-jua text-xs flex items-center justify-center gap-1 transition-all"
-                    >
-                      <span>🎁 30일 체험 복구</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        playSfx('fan');
-                        setIsSubscribed(true);
-                      }}
-                      className="flex-1 py-2 px-2.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-emerald-800 font-jua text-xs flex items-center justify-center gap-1 transition-all"
-                    >
-                      <span>💳 결제완료 테스트</span>
-                    </button>
-                  </div>
                 )}
               </div>
             </div>
@@ -745,7 +712,7 @@ export default function App() {
         </main>
 
         {/* Bottom Tab Navigation Bar */}
-        <nav className={`flex-none bg-white/95 backdrop-blur-md border-t border-[#e4dccf] grid grid-cols-5 py-2 px-1 relative z-40 shadow-lg ${
+        <nav className={`flex-none bg-white/95 backdrop-blur-md border-t border-[#e4dccf] grid grid-cols-5 pt-1.5 pb-[max(8px,env(safe-area-inset-bottom))] px-1.5 relative z-40 shadow-[0_-6px_20px_-8px_rgba(45,40,37,0.1)] ${
           isTrialExpiredLocked ? 'opacity-60 pointer-events-none' : ''
         }`}>
           {isTrialExpiredLocked && (
@@ -755,52 +722,55 @@ export default function App() {
                 setIsTrialModalOpen(true);
               }}
             >
-              <span className="px-3 py-1 rounded-full bg-red-600 text-white font-jua text-xs flex items-center gap-1 shadow-md animate-pulse">
-                <Lock className="w-3.5 h-3.5" /> 30일 무료체험 만료: 결제 필요
+              <span className="px-3 py-1.5 rounded-full bg-red-600 text-white font-jua text-xs flex items-center gap-1 shadow-md">
+                <Lock className="w-3.5 h-3.5" /> 이용권 등록이 필요해요
               </span>
             </div>
           )}
           {/* Tab 1: 30일 체크 */}
           <button
+            type="button"
             onClick={() => {
               playSfx('tap');
               setActiveTab('checklist');
             }}
-            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all ${
+            className={`min-h-[48px] flex flex-col items-center justify-center py-1 rounded-2xl transition-all active:scale-95 ${
               activeTab === 'checklist'
-                ? 'text-[#c9502f] font-bold scale-105'
+                ? 'text-[#c9502f] bg-[#fff4f0] font-bold'
                 : 'text-[#8a8178] hover:text-[#1b1917]'
             }`}
           >
             <ClipboardCheck className={`w-5 h-5 ${activeTab === 'checklist' ? 'stroke-[2.5]' : ''}`} />
-            <span className="text-[10px] sm:text-[11px] font-jua mt-0.5">30일 체크</span>
+            <span className="text-[11px] font-jua mt-0.5 whitespace-nowrap">30일 체크</span>
           </button>
 
-          {/* Tab 2: 한글 진도표 */}
+          {/* Tab 2: 한글 진도 */}
           <button
+            type="button"
             onClick={() => {
               playSfx('tap');
               setActiveTab('progress');
             }}
-            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all ${
+            className={`min-h-[48px] flex flex-col items-center justify-center py-1 rounded-2xl transition-all active:scale-95 ${
               activeTab === 'progress'
-                ? 'text-[#c9502f] font-bold scale-105'
+                ? 'text-[#c9502f] bg-[#fff4f0] font-bold'
                 : 'text-[#8a8178] hover:text-[#1b1917]'
             }`}
           >
             <MapPin className={`w-5 h-5 ${activeTab === 'progress' ? 'stroke-[2.5]' : ''}`} />
-            <span className="text-[10px] sm:text-[11px] font-jua mt-0.5">한글 진도표</span>
+            <span className="text-[11px] font-jua mt-0.5 whitespace-nowrap">한글 진도</span>
           </button>
 
           {/* Tab 3: 낙서보드 (Center highlighted) */}
           <button
+            type="button"
             onClick={() => {
               playSfx('pop');
               setActiveTab('doodle');
             }}
-            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all ${
+            className={`min-h-[48px] flex flex-col items-center justify-center py-1 rounded-2xl transition-all active:scale-95 ${
               activeTab === 'doodle'
-                ? 'text-[#c9502f] font-bold scale-110'
+                ? 'text-[#c9502f] bg-[#fff4f0] font-bold'
                 : 'text-[#8a8178] hover:text-[#1b1917]'
             }`}
           >
@@ -813,39 +783,41 @@ export default function App() {
             >
               <Pencil className="w-3.5 h-3.5 stroke-[2.5]" />
             </div>
-            <span className="text-[10px] sm:text-[11px] font-jua mt-0.5">낙서보드</span>
+            <span className="text-[11px] font-jua mt-0.5 whitespace-nowrap">낙서보드</span>
           </button>
 
           {/* Tab 4: 스티커판 */}
           <button
+            type="button"
             onClick={() => {
               playSfx('tap');
               setActiveTab('sticker');
             }}
-            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all ${
+            className={`min-h-[48px] flex flex-col items-center justify-center py-1 rounded-2xl transition-all active:scale-95 ${
               activeTab === 'sticker'
-                ? 'text-[#c9502f] font-bold scale-105'
+                ? 'text-[#c9502f] bg-[#fff4f0] font-bold'
                 : 'text-[#8a8178] hover:text-[#1b1917]'
             }`}
           >
             <Sparkles className={`w-5 h-5 ${activeTab === 'sticker' ? 'stroke-[2.5]' : ''}`} />
-            <span className="text-[10px] sm:text-[11px] font-jua mt-0.5">스티커 보드</span>
+            <span className="text-[11px] font-jua mt-0.5 whitespace-nowrap">스티커</span>
           </button>
 
-          {/* Tab 5: 으쌰으쌰 커뮤니티 */}
+          {/* Tab 5: 으쌰으쌰 */}
           <button
+            type="button"
             onClick={() => {
               playSfx('tap');
               setActiveTab('community');
             }}
-            className={`flex flex-col items-center justify-center py-1 rounded-xl transition-all ${
+            className={`min-h-[48px] flex flex-col items-center justify-center py-1 rounded-2xl transition-all active:scale-95 ${
               activeTab === 'community'
-                ? 'text-[#c9502f] font-bold scale-105'
+                ? 'text-[#c9502f] bg-[#fff4f0] font-bold'
                 : 'text-[#8a8178] hover:text-[#1b1917]'
             }`}
           >
             <Users className={`w-5 h-5 ${activeTab === 'community' ? 'stroke-[2.5]' : ''}`} />
-            <span className="text-[10px] sm:text-[11px] font-jua mt-0.5">으쌰으쌰</span>
+            <span className="text-[11px] font-jua mt-0.5 whitespace-nowrap">으쌰으쌰</span>
           </button>
         </nav>
 

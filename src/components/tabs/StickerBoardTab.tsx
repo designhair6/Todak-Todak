@@ -146,7 +146,7 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
       setIsPulling(false);
 
       // Reward Pet EXP!
-      onRewardExp(25);
+      onRewardExp(10);
 
       if (isRare) {
         playSfx('rare');
@@ -243,7 +243,7 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
   const isDarkTheme = currentTheme.id === 'space';
 
   return (
-    <div className="p-4 sm:p-6 max-w-xl mx-auto space-y-5 pb-32">
+    <div className="w-full max-w-xl mx-auto px-4 sm:px-5 pt-4 sm:pt-5 pb-6 space-y-5 box-border overflow-x-hidden">
       {/* Reset Success Toast */}
       {resetSuccessNotice && (
         <div className="p-3 rounded-2xl bg-[#f0f9ed] border-2 border-[#a3e635] text-[#1e6a34] font-jua text-xs sm:text-sm flex items-center justify-between shadow-md animate-pop">
@@ -261,26 +261,23 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
       )}
 
       {/* Top Header Card */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <div className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="w-12 h-12 rounded-2xl bg-[#fdf3e4] border border-[#f3dfc6] flex items-center justify-center text-3xl shadow-2xs flex-none">
               {currentFriend.e}
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <h2 className="font-jua text-base sm:text-lg text-[#1b1917]">
-                  {boardState.name || '우리 아이'}의 30일 칭찬판
+                <h2 className="font-jua text-base sm:text-lg text-[#1b1917] break-keep">
+                  {boardState.name || '우리 아이'}의 칭찬판
                 </h2>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#fbe7e1] text-[#c9502f]">
-                  {count}/30 모음
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#f3f0e6] text-[#4a443e]">
-                  {boardState.childAge || '5~7세'}
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#fbe7e1] text-[#c9502f] whitespace-nowrap">
+                  {count}/30 · {boardState.childAge || '5세'}
                 </span>
               </div>
-              <p className="text-xs text-[#8a8178] font-hand mt-0.5">
-                약속 소원: <span className="font-bold text-[#c9502f]">"{boardState.wish || '엄마와의 특별 소원'}"</span>
+              <p className="text-xs text-[#8a8178] font-hand mt-0.5 break-keep">
+                소원: <span className="font-bold text-[#c9502f]">"{boardState.wish || '엄마와의 특별 소원'}"</span>
               </p>
             </div>
           </div>
@@ -290,7 +287,7 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
               playSfx('tap');
               onOpenSettings();
             }}
-            className="flex-none px-3 py-2 rounded-xl bg-[#fdf3e4] hover:bg-[#fbe7d0] border border-[#eedfc9] flex items-center gap-1.5 text-xs font-jua text-[#c9502f] transition-all shadow-2xs active:scale-95"
+            className="min-h-[44px] flex-none px-3.5 py-2 rounded-xl bg-[#fdf3e4] hover:bg-[#fbe7d0] border border-[#eedfc9] flex items-center gap-1.5 text-xs font-jua text-[#c9502f] transition-all shadow-2xs active:scale-95 whitespace-nowrap"
             title="아이 이름, 소원, 캐릭터, 테마 설정"
           >
             <Settings className="w-4 h-4" />
@@ -299,9 +296,9 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
         </div>
 
         {/* Clear Settings Summary Bar */}
-        <div className="pt-2 border-t border-[#f0ebe1] flex items-center justify-between text-[11px] font-hand text-[#8a8178] flex-wrap gap-1">
-          <span>🐾 탐험 친구: <b>{currentFriend.name} ({currentFriend.e})</b></span>
-          <span>💬 엄마의 응원: <b>"{boardState.msg || '끝까지 화이팅!'}"</b></span>
+        <div className="pt-2 border-t border-[#f0ebe1] flex items-center justify-between text-[11px] font-hand text-[#8a8178] flex-wrap gap-1.5">
+          <span>🐾 친구: <b>{currentFriend.name} ({currentFriend.e})</b></span>
+          <span className="break-keep">💬 응원: <b>"{boardState.msg || '끝까지 화이팅!'}"</b></span>
         </div>
       </div>
 
@@ -311,14 +308,14 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
           <span>🎨 보드판 테마 바꾸기:</span>
           <span className="text-[#c9502f]">{currentTheme.name}</span>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex gap-2 overflow-x-auto px-1 py-1.5">
           {THEMES.map((th) => (
             <button
               key={th.id}
               onClick={() => handleSelectTheme(th.id)}
               className={`px-3 py-1.5 rounded-xl text-xs font-jua flex-none transition-all flex items-center gap-1.5 border ${
                 boardState.theme === th.id
-                  ? 'bg-white text-[#c9502f] border-[#c9502f] shadow-xs scale-105'
+                  ? 'bg-white text-[#c9502f] border-[#c9502f] shadow-xs ring-2 ring-[#c9502f]/25'
                   : 'bg-[#faf8f5] text-[#4a443e] border-[#e4dccf] hover:border-[#c9502f]/40'
               }`}
             >
@@ -331,7 +328,7 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
 
       {/* Main Sticker Board Canvas Card */}
       <div
-        className="rounded-3xl p-5 border-2 border-[#e4dccf] shadow-md relative overflow-hidden transition-all duration-300"
+        className="w-full max-w-full box-border rounded-3xl p-4 sm:p-5 border-2 border-[#e4dccf] shadow-md relative overflow-hidden transition-all duration-300"
         style={{ background: currentTheme.bg }}
       >
         {/* Floating Theme Background Decorations */}
@@ -358,8 +355,8 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
           </p>
         </div>
 
-        {/* 30 Circular Sticker Slots (5 rows x 6 columns) */}
-        <div className="relative z-10 grid grid-cols-6 gap-2 sm:gap-2.5 pt-4">
+        {/* 30 Circular Sticker Slots (5 columns on mobile -> comfortable >=48px touch targets) */}
+        <div className="relative z-10 grid grid-cols-5 sm:grid-cols-6 gap-2 sm:gap-2.5 pt-4">
           {Array.from({ length: 30 }, (_, idx) => {
             const sticker = stickers[idx];
             const isNext = idx === count && !isCompleted;
@@ -375,14 +372,14 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
                     handlePullSticker();
                   }
                 }}
-                className={`aspect-square rounded-2xl flex items-center justify-center transition-all relative ${
+                className={`aspect-square min-h-[48px] rounded-2xl flex items-center justify-center transition-all relative ${
                   sticker
-                    ? 'shadow-xs hover:scale-110 cursor-pointer active:scale-95'
+                    ? 'shadow-xs hover:scale-105 cursor-pointer active:scale-95'
                     : isNext
-                    ? 'border-2 border-dashed border-[#f2c14e] bg-white/85 animate-pulse hover:scale-105 shadow-xs'
+                    ? 'border-2 border-dashed border-[#c9502f] bg-white/95 ring-2 ring-[#f2c14e]/50 hover:scale-105 shadow-xs'
                     : isDarkTheme
                     ? 'border-2 border-dashed border-white/40 bg-white/15 hover:border-white/70'
-                    : 'border-2 border-dashed border-black/15 bg-white/40 opacity-70'
+                    : 'border-2 border-dashed border-black/15 bg-white/45 opacity-75'
                 }`}
                 style={{
                   backgroundColor: sticker?.bg || undefined,
@@ -441,26 +438,26 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
 
             if (alreadyPulledToday) {
               return (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   <button
                     type="button"
                     onClick={() => {
                       playSfx('tap');
                       setShowAlreadyPulledModal(true);
                     }}
-                    className="w-full py-4 px-4 rounded-2xl bg-[#f0f9ed] hover:bg-[#e4f5de] border-2 border-[#84cc16] text-[#1e6a34] font-jua text-base sm:text-lg shadow-xs hover:shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full min-h-[54px] py-4 px-4 rounded-2xl bg-[#f0f9ed] hover:bg-[#e4f5de] border-2 border-[#84cc16] text-[#1e6a34] font-jua text-base sm:text-lg shadow-xs hover:shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <CheckCircle2 className="w-5 h-5 text-[#237d3d]" />
-                    <span>오늘의 칭찬 스티커 완료! 🌟 ({count}/30)</span>
+                    <CheckCircle2 className="w-5 h-5 text-[#237d3d] shrink-0" />
+                    <span>오늘의 스티커 완료! 🌟 ({count}/30)</span>
                   </button>
-                  <div className="flex items-center justify-center gap-2 text-xs text-[#8a8178] font-hand">
-                    <span>💡 매일 1장씩 꾸준히 모아요! 내일 또 만나요!</span>
+                  <div className="flex flex-col items-center justify-center gap-1.5 text-xs text-[#8a8178] font-hand text-center">
+                    <span>💡 하루 1장씩 꾸준히 모아요!</span>
                     <button
                       type="button"
                       onClick={() => handlePullSticker(true)}
-                      className="text-[#c9502f] font-jua underline underline-offset-2 hover:text-[#b84324] cursor-pointer"
+                      className="min-h-[40px] px-4 py-1.5 rounded-xl bg-white border border-[#eedfc9] text-[#c9502f] font-jua hover:bg-[#fff5f2] active:scale-95 transition-all cursor-pointer"
                     >
-                      (엄마 보너스 스티커 붙이기)
+                      엄마 보너스 스티커 1장 더 붙이기 ✨
                     </button>
                   </div>
                 </div>
@@ -471,10 +468,10 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
               <button
                 onClick={() => handlePullSticker(false)}
                 disabled={isPulling}
-                className="w-full py-4 px-4 rounded-2xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-lg sm:text-xl shadow-md hover:shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 group disabled:opacity-70 cursor-pointer"
+                className="w-full min-h-[56px] py-4 px-4 rounded-2xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-base sm:text-xl shadow-md hover:shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 group disabled:opacity-70 cursor-pointer"
               >
-                <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-                {isPulling ? '두근두근 스티커 뽑는 중...' : `오늘의 칭찬 스티커 콕! 뽑기 (${count + 1}/30)`}
+                <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform shrink-0" />
+                <span>{isPulling ? '두근두근 뽑는 중...' : `오늘의 칭찬 스티커 뽑기 (${count + 1}/30)`}</span>
               </button>
             );
           })()
@@ -544,8 +541,8 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
 
       {/* Already Pulled Today Friendly Modal */}
       {showAlreadyPulledModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#eedfc9] rounded-3xl p-6 max-w-xs w-full text-center space-y-3.5 shadow-2xl animate-pop relative font-body">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#fbf8f2] border-2 border-[#eedfc9] rounded-3xl p-5 sm:p-6 max-w-xs w-full box-border overflow-hidden text-center space-y-3.5 shadow-2xl animate-pop relative font-body">
             <button
               onClick={() => setShowAlreadyPulledModal(false)}
               className="absolute top-4 right-4 w-7 h-7 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178]"
@@ -589,8 +586,8 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
 
       {/* Guaranteed In-App Restart Modal (Zero dependency on native alert/confirm) */}
       {showRestartModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl p-5 sm:p-6 max-w-sm w-full text-center space-y-3.5 shadow-2xl animate-pop relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl p-5 sm:p-6 max-w-sm w-full box-border overflow-hidden text-center space-y-3.5 shadow-2xl animate-pop relative">
             <button
               onClick={() => setShowRestartModal(false)}
               className="absolute top-4 right-4 w-7 h-7 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178]"
@@ -644,8 +641,8 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
 
       {/* Slot Click Inspector Modal (Replace or Delete specific slot sticker) */}
       {selectedSlotIndex !== null && stickers[selectedSlotIndex] && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl p-5 max-w-sm w-full text-center space-y-3.5 shadow-2xl animate-pop relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl p-5 max-w-sm w-full box-border overflow-hidden max-h-[90vh] flex flex-col text-center space-y-3.5 shadow-2xl animate-pop relative">
             <button
               onClick={() => setSelectedSlotIndex(null)}
               className="absolute top-4 right-4 w-7 h-7 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178]"
@@ -671,12 +668,12 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
               <span className="text-xs font-jua text-[#8a8178] block">
                 다른 스티커로 바꾸기:
               </span>
-              <div className="grid grid-cols-8 gap-1 p-2 bg-white rounded-2xl border border-[#eedfc9]">
-                {[...currentTheme.pack, ...RARE_STICKERS].slice(0, 16).map((emo, i) => (
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 p-2.5 bg-white rounded-2xl border border-[#eedfc9]">
+                {[...currentTheme.pack, ...RARE_STICKERS].slice(0, 12).map((emo, i) => (
                   <button
                     key={i}
                     onClick={() => handleReplaceSlotSticker(selectedSlotIndex, emo)}
-                    className="w-8 h-8 rounded-xl bg-[#faf8f5] hover:bg-[#fdf3e4] hover:scale-110 text-xl flex items-center justify-center transition-all border border-[#eee6db]"
+                    className="min-h-[44px] rounded-xl bg-[#faf8f5] hover:bg-[#fdf3e4] active:scale-95 text-2xl flex items-center justify-center transition-all border border-[#eee6db]"
                   >
                     {emo}
                   </button>
@@ -687,13 +684,13 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
             <div className="grid grid-cols-2 gap-2 pt-2">
               <button
                 onClick={() => handleDeleteSlotSticker(selectedSlotIndex)}
-                className="py-2.5 px-3 rounded-2xl bg-white border border-[#f5b8a6] text-[#c9502f] font-jua text-xs hover:bg-[#fff5f2] transition-colors"
+                className="min-h-[44px] py-2.5 px-3 rounded-2xl bg-white border border-[#f5b8a6] text-[#c9502f] font-jua text-xs hover:bg-[#fff5f2] transition-colors"
               >
-                이 스티커 삭제 (비우기)
+                스티커 비우기
               </button>
               <button
                 onClick={() => setSelectedSlotIndex(null)}
-                className="py-2.5 px-3 rounded-2xl bg-[#1b1917] text-white font-jua text-xs hover:bg-black transition-colors"
+                className="min-h-[44px] py-2.5 px-3 rounded-2xl bg-[#1b1917] text-white font-jua text-xs hover:bg-black transition-colors"
               >
                 닫기
               </button>
@@ -704,8 +701,9 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
 
       {/* Official Wish Coupon & Certificate Modal */}
       {showCertificate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-4 border-[#f2c14e] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-6 text-center space-y-4 animate-pop relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#fbf8f2] border-4 border-[#f2c14e] rounded-3xl w-full max-w-md box-border overflow-hidden max-h-[90vh] flex flex-col shadow-2xl p-5 sm:p-6 text-center animate-pop relative">
+            <div className="overflow-y-auto overflow-x-hidden flex-1 space-y-4 box-border">
             <div className="w-16 h-16 rounded-full bg-[#fdf3e4] border-2 border-[#f2c14e] text-3xl flex items-center justify-center mx-auto shadow-md">
               👑
             </div>
@@ -825,6 +823,7 @@ export const StickerBoardTab: React.FC<StickerBoardTabProps> = ({
               >
                 닫기
               </button>
+            </div>
             </div>
           </div>
         </div>
