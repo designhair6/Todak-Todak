@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, Heart, Sparkles, Check, Crown, AlertCircle, Mic, Volume2 } from 'lucide-react';
+import { X, Sparkles, Check, Crown, AlertCircle, Mic, Volume2, VolumeX } from 'lucide-react';
 import { FRIENDS, THEMES, WISHES } from '../data/hangulData';
-import { AnimalFriend, BoardTheme, StickerBoardState } from '../types';
+import { SoundVolume, StickerBoardState } from '../types';
 import { playSfx, speakKorean, getVoiceTone, setVoiceTone, VOICE_TONES, VoiceTone } from '../utils/sound';
 import { generateUniqueUserId, getOrCreateUserIdentity, saveUserIdentity } from '../utils/userIdentity';
 
@@ -9,6 +9,10 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   boardState: StickerBoardState;
+  soundVolume: SoundVolume;
+  onSelectVolume: (vol: SoundVolume) => void;
+  clickVoiceEnabled: boolean;
+  onToggleClickVoice: (next?: boolean) => void;
   onSave: (name: string, childAge: string, friendId: string, themeId: string, wish: string, msg: string) => void;
   onOpenAdmin?: () => void;
   onOpenPrint?: () => void;
@@ -20,6 +24,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   boardState,
+  soundVolume,
+  onSelectVolume,
+  clickVoiceEnabled,
+  onToggleClickVoice,
   onSave,
   onOpenAdmin,
   onOpenPrint,
@@ -439,14 +447,64 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* Voice Tone Selector (다정한 엄마, 친근한 아빠 등 목소리 톤) */}
-          <div className="space-y-1.5 p-3 rounded-2xl bg-[#fffaf5] border border-[#f3dfc2]">
-            <div className="flex items-center justify-between">
+          {/* Voice & Sound Settings (클릭 목소리 켜기/끄기, 음량, 목소리 톤) */}
+          <div className="space-y-2.5 p-3 rounded-2xl bg-[#fffaf5] border border-[#f3dfc2]">
+            <div className="flex items-center justify-between gap-2">
               <label className="text-xs font-bold text-[#1b1917] font-jua flex items-center gap-1.5">
-                <Volume2 className="w-4 h-4 text-[#c9502f]" />
-                <span>한글 읽어주는 목소리 톤 선택</span>
+                {clickVoiceEnabled && soundVolume !== 'mute' ? (
+                  <Volume2 className="w-4 h-4 text-[#c9502f]" />
+                ) : (
+                  <VolumeX className="w-4 h-4 text-stone-400" />
+                )}
+                <span>자음·모음 클릭 시 목소리 &amp; 소리 설정</span>
               </label>
-              <span className="text-[10px] text-[#c9502f] font-hand font-bold">부드러운 음성</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !(clickVoiceEnabled && soundVolume !== 'mute');
+                  onToggleClickVoice(next);
+                  if (next) {
+                    speakKorean('소리가 켜졌어요!');
+                  }
+                }}
+                className={`px-2.5 py-1 rounded-lg font-jua text-[11px] border transition-all active:scale-95 whitespace-nowrap ${
+                  clickVoiceEnabled && soundVolume !== 'mute'
+                    ? 'bg-[#c9502f] text-white border-[#c9502f]'
+                    : 'bg-white text-stone-500 border-[#e4dccf]'
+                }`}
+              >
+                {clickVoiceEnabled && soundVolume !== 'mute' ? '🔊 클릭 음성 켜짐' : '🔇 클릭 음성 꺼짐'}
+              </button>
+            </div>
+
+            {/* Volume Selector */}
+            <div className="flex items-center justify-between gap-2 bg-white px-2.5 py-2 rounded-xl border border-[#eedfc9]">
+              <span className="text-[11px] font-jua text-[#4a443e]">전체 음량 크기</span>
+              <div className="flex items-center gap-1">
+                {(
+                  [
+                    { id: 'mute', label: '꺼짐' },
+                    { id: 'soft', label: '약' },
+                    { id: 'medium', label: '중' },
+                    { id: 'loud', label: '강' },
+                  ] as { id: SoundVolume; label: string }[]
+                ).map((v) => (
+                  <button
+                    type="button"
+                    key={v.id}
+                    onClick={() => onSelectVolume(v.id)}
+                    className={`px-2.5 py-1 rounded-lg font-jua text-[11px] border transition-all ${
+                      soundVolume === v.id
+                        ? v.id === 'mute'
+                          ? 'bg-rose-500 text-white border-rose-500'
+                          : 'bg-[#1b1917] text-white border-[#1b1917]'
+                        : 'bg-[#faf8f5] text-[#8a8178] border-[#e4dccf]'
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-1.5">
@@ -455,6 +513,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   type="button"
                   key={vt.id}
                   onClick={() => {
+                    if (soundVolume === 'mute') onSelectVolume('medium');
                     playSfx('tap');
                     setVoiceToneState(vt.id);
                     setVoiceTone(vt.id);

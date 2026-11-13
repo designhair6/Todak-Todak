@@ -6,7 +6,7 @@ let currentVolume: SoundVolume = 'medium';
 export function getSoundVolume(): SoundVolume {
   try {
     const val = localStorage.getItem('hangul_sound_volume');
-    if (val && ['soft', 'medium', 'loud'].includes(val)) {
+    if (val && ['mute', 'soft', 'medium', 'loud'].includes(val)) {
       currentVolume = val as SoundVolume;
       return currentVolume;
     }
@@ -30,14 +30,53 @@ export function cycleSoundVolume(): SoundVolume {
   let next: SoundVolume = 'medium';
   if (current === 'soft') next = 'medium';
   else if (current === 'medium') next = 'loud';
-  else next = 'soft'; // loops: 약 -> 중 -> 강 -> 약
+  else if (current === 'loud') next = 'mute';
+  else next = 'soft'; // loops: 약 -> 중 -> 강 -> 꺼짐 -> 약
 
   setSoundVolume(next);
+  if (next === 'mute') {
+    stopAllSpeech();
+  }
   return next;
 }
 
+const CLICK_VOICE_STORAGE_KEY = 'hangul_click_voice_enabled';
+let currentClickVoiceEnabled = true;
+
+export function getClickVoiceEnabled(): boolean {
+  try {
+    const val = localStorage.getItem(CLICK_VOICE_STORAGE_KEY);
+    if (val === 'false') {
+      currentClickVoiceEnabled = false;
+      return false;
+    }
+    if (val === 'true') {
+      currentClickVoiceEnabled = true;
+      return true;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return currentClickVoiceEnabled;
+}
+
+export function setClickVoiceEnabled(enabled: boolean) {
+  currentClickVoiceEnabled = enabled;
+  try {
+    localStorage.setItem(CLICK_VOICE_STORAGE_KEY, String(enabled));
+  } catch (e) {
+    // ignore
+  }
+  if (!enabled) {
+    stopAllSpeech();
+  }
+}
+
 function getVolumeMultiplier(): number {
-  switch (currentVolume) {
+  const vol = getSoundVolume();
+  switch (vol) {
+    case 'mute':
+      return 0; // 꺼짐
     case 'soft':
       return 0.35; // 약
     case 'medium':
@@ -212,6 +251,13 @@ export const JAMO_NAME_MAP: Record<string, string> = {
   'ㅒ': '얘',
   'ㅔ': '에',
   'ㅖ': '예',
+  'ㅘ': '와',
+  'ㅙ': '왜',
+  'ㅚ': '외',
+  'ㅝ': '워',
+  'ㅞ': '웨',
+  'ㅟ': '위',
+  'ㅢ': '의',
 };
 
 export type VoiceTone = 'mom' | 'dad' | 'teacher' | 'friend';
@@ -336,6 +382,10 @@ export function stopAllSpeech() {
 
   if (activeSpeechAudio) {
     try {
+      activeSpeechAudio.onplaying = null;
+      activeSpeechAudio.oncanplaythrough = null;
+      activeSpeechAudio.onended = null;
+      activeSpeechAudio.onerror = null;
       activeSpeechAudio.pause();
       activeSpeechAudio.currentTime = 0;
       activeSpeechAudio.src = '';
@@ -357,50 +407,11 @@ export function stopAllSpeech() {
   }
 }
 
-function playAudioFallback(
-  audioUrl: string,
-  volMult: number,
-  toneInfo: VoiceToneInfo,
-  genId: number
-) {
-  if (genId !== speechGenerationId) return;
-  try {
-    // Guarantee speechSynthesis is fully cancelled before starting HTMLAudio fallback
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-      } catch {}
-    }
-    if (activeSpeechAudio) {
-      try {
-        activeSpeechAudio.pause();
-        activeSpeechAudio.currentTime = 0;
-      } catch {}
-      activeSpeechAudio = null;
-    }
-
-    const audio = new Audio(audioUrl);
-    audio.volume = Math.min(1, volMult);
-    // Keep playbackRate in a gentle female clarity band so voice never sounds deep/distorted
-    const safeRate = toneInfo.id === 'dad' ? 0.98 : Math.min(1.08, Math.max(0.96, toneInfo.playbackRate));
-    audio.playbackRate = safeRate;
-    activeSpeechAudio = audio;
-    audio.onended = () => {
-      if (activeSpeechAudio === audio) {
-        activeSpeechAudio = null;
-      }
-    };
-    audio.play().catch(() => {});
-  } catch (e) {
-    // ignore
-  }
-}
-
 const MALE_VOICE_BLACKLIST =
   /injoon|in-joon|hyunsu|hyun-su|bongjin|bong-jin|gookmin|gook-min|minsu|male|남성|남자|\bman\b|\bboy\b/i;
 
 const FEMALE_KO_VOICE_WHITELIST =
-  /yuna|sunhi|sun-hi|sora|heami|hae-mi|jimin|ji-min|yujin|yu-jin|seohyeon|seo-hyeon|soonbok|seoyeon|jiyeon|narae|google 한국의|female|여성|여자/i;
+  /yuna|유나|sunhi|sun-hi|선희|sora|소라|heami|hae-mi|혜미|jimin|ji-min|지민|yujin|yu-jin|유진|seohyeon|seo-hyeon|서현|soonbok|순복|seoyeon|서연|jiyeon|지연|narae|나래|google 한국의|google 한국어|ko-kr-x-ism|ko-kr-x-koc|ko-kr-x-kod|female|여성|여자/i;
 
 function pickKoreanFemaleVoice(): SpeechSynthesisVoice | null {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
@@ -413,11 +424,40 @@ function pickKoreanFemaleVoice(): SpeechSynthesisVoice | null {
   });
   if (koreanVoices.length === 0) return null;
 
-  // Strictly exclude any male / ambiguous system voices and keep verified ko-KR female voices only
+  // Prefer explicitly known female Korean voices, otherwise fall back to any non-male Korean voice
   const verifiedFemale = koreanVoices.find(
     (v) => !MALE_VOICE_BLACKLIST.test(v.name) && FEMALE_KO_VOICE_WHITELIST.test(v.name)
   );
-  return verifiedFemale || null;
+  if (verifiedFemale) return verifiedFemale;
+
+  const nonMale = koreanVoices.find((v) => !MALE_VOICE_BLACKLIST.test(v.name));
+  return nonMale || null;
+}
+
+function speakViaWebSpeech(
+  spokenText: string,
+  volMult: number,
+  toneInfo: VoiceToneInfo,
+  genId: number
+) {
+  if (genId !== speechGenerationId) return;
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+  try {
+    window.speechSynthesis.cancel();
+    const chosenVoice = pickKoreanFemaleVoice();
+    const utterance = new SpeechSynthesisUtterance(spokenText);
+    if (chosenVoice) {
+      utterance.voice = chosenVoice;
+    }
+    utterance.lang = 'ko-KR';
+    utterance.pitch = toneInfo.id === 'dad' ? 1.06 : Math.max(1.06, toneInfo.pitch);
+    utterance.rate = Math.min(1.0, Math.max(0.86, toneInfo.rate));
+    utterance.volume = Math.min(1.0, volMult * 1.1);
+    window.speechSynthesis.speak(utterance);
+  } catch {
+    // ignore
+  }
 }
 
 export function speakKorean(text: string, withSoftChime = false, customTone?: VoiceTone) {
@@ -440,69 +480,77 @@ export function speakKorean(text: string, withSoftChime = false, customTone?: Vo
   const myGen = speechGenerationId;
 
   const audioUrl = `/api/tts?text=${encodeURIComponent(spokenText)}`;
-  const chosenFemaleVoice = pickKoreanFemaleVoice();
+  let audioStarted = false;
+  let fallbackTriggered = false;
 
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window && chosenFemaleVoice) {
-    // Brief 45ms flush after speechSynthesis.cancel() prevents browsers from dropping or overlapping utterances
-    pendingSpeakTimer = setTimeout(() => {
-      pendingSpeakTimer = null;
-      if (myGen !== speechGenerationId) return;
-
+  const triggerFallbackOnce = () => {
+    if (fallbackTriggered || audioStarted || myGen !== speechGenerationId) return;
+    fallbackTriggered = true;
+    if (ttsFallbackTimer) {
+      clearTimeout(ttsFallbackTimer);
+      ttsFallbackTimer = null;
+    }
+    if (activeSpeechAudio) {
       try {
-        const utterance = new SpeechSynthesisUtterance(spokenText);
-        utterance.voice = chosenFemaleVoice;
-        utterance.lang = 'ko-KR';
-        // Enforce warm mom/female pitch (>= 1.06) so male voice register never leaks through
-        utterance.pitch = toneInfo.id === 'dad' ? 1.08 : Math.max(1.06, toneInfo.pitch);
-        utterance.rate = Math.min(1.0, Math.max(0.86, toneInfo.rate));
-        utterance.volume = Math.min(1.0, volMult * 1.1);
+        activeSpeechAudio.onplaying = null;
+        activeSpeechAudio.oncanplaythrough = null;
+        activeSpeechAudio.onended = null;
+        activeSpeechAudio.onerror = null;
+        activeSpeechAudio.pause();
+        activeSpeechAudio.src = '';
+      } catch {}
+      activeSpeechAudio = null;
+    }
+    speakViaWebSpeech(spokenText, volMult, toneInfo, myGen);
+  };
 
-        let speechStarted = false;
-        let endedOrFailed = false;
+  try {
+    const audio = new Audio(audioUrl);
+    audio.volume = Math.min(1, volMult);
+    const safeRate = toneInfo.id === 'dad' ? 0.96 : Math.min(1.06, Math.max(0.95, toneInfo.playbackRate));
+    audio.playbackRate = safeRate;
+    activeSpeechAudio = audio;
 
-        utterance.onstart = () => {
-          speechStarted = true;
-          if (ttsFallbackTimer) {
-            clearTimeout(ttsFallbackTimer);
-            ttsFallbackTimer = null;
-          }
-        };
-        utterance.onend = () => {
-          endedOrFailed = true;
-          if (ttsFallbackTimer) {
-            clearTimeout(ttsFallbackTimer);
-            ttsFallbackTimer = null;
-          }
-        };
-        utterance.onerror = () => {
-          if (endedOrFailed || myGen !== speechGenerationId) return;
-          endedOrFailed = true;
-          if (ttsFallbackTimer) {
-            clearTimeout(ttsFallbackTimer);
-            ttsFallbackTimer = null;
-          }
-          if (!speechStarted) {
-            playAudioFallback(audioUrl, volMult, toneInfo, myGen);
-          }
-        };
-
-        window.speechSynthesis.speak(utterance);
-
-        // Only trigger fallback if speechSynthesis genuinely failed to start after 900ms
-        ttsFallbackTimer = setTimeout(() => {
-          ttsFallbackTimer = null;
-          if (myGen !== speechGenerationId || endedOrFailed || speechStarted) return;
-          if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
-            playAudioFallback(audioUrl, volMult, toneInfo, myGen);
-          }
-        }, 900);
-      } catch {
-        playAudioFallback(audioUrl, volMult, toneInfo, myGen);
+    const markStarted = () => {
+      if (myGen !== speechGenerationId) return;
+      audioStarted = true;
+      if (ttsFallbackTimer) {
+        clearTimeout(ttsFallbackTimer);
+        ttsFallbackTimer = null;
       }
-    }, 45);
-    return;
-  }
+    };
 
-  // If no verified ko-KR female SpeechSynthesis voice exists, use single clean server female TTS directly
-  playAudioFallback(audioUrl, volMult, toneInfo, myGen);
+    audio.onplaying = markStarted;
+    audio.oncanplaythrough = markStarted;
+    audio.onended = () => {
+      if (activeSpeechAudio === audio) {
+        activeSpeechAudio = null;
+      }
+    };
+    audio.onerror = () => {
+      triggerFallbackOnce();
+    };
+
+    // Guard against stalled network response
+    ttsFallbackTimer = setTimeout(() => {
+      ttsFallbackTimer = null;
+      triggerFallbackOnce();
+    }, 1500);
+
+    // Invoke play() synchronously within the user click gesture
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch(() => {
+        triggerFallbackOnce();
+      });
+    }
+  } catch {
+    triggerFallbackOnce();
+  }
 }
+
+export function speakLetterIfEnabled(text: string) {
+  if (!getClickVoiceEnabled()) return;
+  speakKorean(text);
+}
+

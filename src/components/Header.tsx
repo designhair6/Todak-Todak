@@ -56,6 +56,8 @@ export const Header: React.FC<HeaderProps> = ({
 
   const renderVolumeIcon = () => {
     switch (soundVolume) {
+      case 'mute':
+        return <VolumeX className="w-4 h-4 text-rose-500" />;
       case 'loud':
         return <Volume2 className="w-4 h-4 text-emerald-600" />;
       case 'medium':
@@ -128,11 +130,22 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           type="button"
           onClick={() => {
-            playSfx('tap');
             onCycleVolume();
           }}
-          className="w-10 h-10 rounded-2xl bg-white hover:bg-[#F5EFEB] border border-[#EFE8DE] flex items-center justify-center transition-all active:scale-95 shadow-2xs shrink-0"
-          title={`소리 크기: ${soundVolume === 'soft' ? '약' : soundVolume === 'medium' ? '중' : '강'}`}
+          className={`w-10 h-10 rounded-2xl border flex items-center justify-center transition-all active:scale-95 shadow-2xs shrink-0 ${
+            soundVolume === 'mute'
+              ? 'bg-rose-50 hover:bg-rose-100 border-rose-200'
+              : 'bg-white hover:bg-[#F5EFEB] border-[#EFE8DE]'
+          }`}
+          title={`소리 크기: ${
+            soundVolume === 'mute'
+              ? '꺼짐'
+              : soundVolume === 'soft'
+              ? '약'
+              : soundVolume === 'medium'
+              ? '중'
+              : '강'
+          }`}
         >
           {renderVolumeIcon()}
         </button>

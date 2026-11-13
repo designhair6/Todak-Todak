@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
-import { Volume2, Play, Sparkles, Check, RotateCcw, Award, ChevronRight, X } from 'lucide-react';
+import { Volume2, VolumeX, Sparkles, RotateCcw, ChevronRight, X } from 'lucide-react';
 import { CHO, JUNG, NAMES, syl } from '../../data/hangulData';
-import { MasteryLevel, ProgressState } from '../../types';
-import { playSfx, speakKorean } from '../../utils/sound';
+import { MasteryLevel, ProgressState, SoundVolume } from '../../types';
+import { JAMO_NAME_MAP, playSfx, speakKorean } from '../../utils/sound';
 import { playParentPraiseVoice, getParentVoiceMission } from '../../utils/parentVoiceHelper';
 
 interface ProgressTabProps {
@@ -13,6 +13,10 @@ interface ProgressTabProps {
   onRewardExp: (amount: number) => void;
   childName: string;
   onOpenParentVoice?: () => void;
+  soundVolume: SoundVolume;
+  onSelectVolume: (vol: SoundVolume) => void;
+  clickVoiceEnabled: boolean;
+  onToggleClickVoice: (next?: boolean) => void;
 }
 
 export const ProgressTab: React.FC<ProgressTabProps> = ({
@@ -22,8 +26,14 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
   onRewardExp,
   childName,
   onOpenParentVoice,
+  soundVolume,
+  onSelectVolume,
+  clickVoiceEnabled,
+  onToggleClickVoice,
 }) => {
   const [practiceOpen, setPracticeOpen] = useState(false);
+  const [touchActionMode, setTouchActionMode] = useState<'check' | 'listen'>('check');
+  const [lastSpokenLabel, setLastSpokenLabel] = useState<string | null>(null);
   const [praiseNotice, setPraiseNotice] = useState<string | null>(null);
   const [practiceDeck, setPracticeDeck] = useState<Array<{ id: string; ch: string; sub: string }>>([]);
   const [practiceIndex, setPracticeIndex] = useState(0);
@@ -56,25 +66,49 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
   const maxPoints = 154 * 3;
   const overallScore = Math.min(100, Math.round((pointsEarned / maxPoints) * 100));
 
-  const cycleLevel = (id: string, label: string) => {
+  const isVoiceAudible = clickVoiceEnabled && soundVolume !== 'mute';
+
+  const triggerCharVoice = (text: string, forceSpeak = false) => {
+    if (soundVolume === 'mute') return;
+    if (!forceSpeak && !clickVoiceEnabled) return;
+    const displayVoice = JAMO_NAME_MAP[text] || text;
+    setLastSpokenLabel(displayVoice);
+    speakKorean(text);
+  };
+
+  const handleCharCellClick = (id: string, label: string) => {
+    if (touchActionMode === 'listen') {
+      // Listen-only mode: speak clearly without altering mastery checkmarks
+      triggerCharVoice(label, true);
+      return;
+    }
+
     const current = progress[id] || 0;
     const next = ((current + 1) % 4) as MasteryLevel;
     onUpdateProgress(id, next);
 
     if (next === 3) {
-      playSfx('pop');
+      if (!isVoiceAudible) playSfx('pop');
       onRewardExp(2); // Pet exp reward
       confetti({
         particleCount: 15,
         spread: 45,
         origin: { y: 0.8 },
       });
-    } else if (next > 0) {
+    } else if (next > 0 && !isVoiceAudible) {
       playSfx('tap');
     }
 
-    // Pronounce letter softly
-    speakKorean(label);
+    // Speak Korean letter clearly when click-voice setting is active
+    triggerCharVoice(label);
+  };
+
+  const handleHeaderJamoClick = (text: string) => {
+    if (!isVoiceAudible && touchActionMode !== 'listen') {
+      playSfx('tap');
+      return;
+    }
+    triggerCharVoice(text, touchActionMode === 'listen');
   };
 
   const [practiceCategory, setPracticeCategory] = useState<'all' | 'cons' | 'vowel' | 'syl' | 'word'>('all');
@@ -294,13 +328,139 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
         <ChevronRight className="w-5 h-5 text-[#c9502f] group-hover:translate-x-1 transition-transform" />
       </button>
 
+      {/* Click Voice & Volume Settings Control Bar */}
+      <div className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-3.5 sm:p-4 border border-[#e4dccf] shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div
+              className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                isVoiceAudible
+                  ? 'bg-[#fff5f2] text-[#c9502f] border border-[#fbd8ce]'
+                  : 'bg-stone-100 text-stone-400 border border-stone-200'
+              }`}
+            >
+              {isVoiceAudible ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </div>
+            <div className="min-w-0">
+              <div className="font-jua text-xs sm:text-sm text-[#1b1917] flex items-center gap-1.5 flex-wrap">
+                <span>글자 클릭 시 목소리 듣기</span>
+                {lastSpokenLabel && isVoiceAudible && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    "{lastSpokenLabel}" 재생
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] sm:text-[11px] text-[#8a8178] font-hand">
+                {isVoiceAudible
+                  ? '자음·모음·글자를 누르면 한글 소리를 읽어줘요'
+                  : soundVolume === 'mute'
+                  ? '전체 음량이 꺼짐 상태예요 (아래에서 켜기)'
+                  : '소리 없이 진도만 체크하는 중이에요'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              const nextEnabled = !isVoiceAudible;
+              if (nextEnabled && soundVolume === 'mute') {
+                onSelectVolume('medium');
+              }
+              onToggleClickVoice(nextEnabled);
+              if (nextEnabled) {
+                setLastSpokenLabel('가');
+                speakKorean('가');
+              }
+            }}
+            className={`min-h-[38px] px-3 py-1.5 rounded-xl font-jua text-xs border transition-all active:scale-95 shrink-0 whitespace-nowrap ${
+              isVoiceAudible
+                ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-2xs'
+                : 'bg-[#faf8f5] text-[#6b6257] border-[#e4dccf] hover:border-[#c9502f]/40'
+            }`}
+          >
+            {isVoiceAudible ? '🔊 켜짐' : '🔇 꺼짐'}
+          </button>
+        </div>
+
+        {/* Mode & Volume Row */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#f0ebe1]">
+          <div className="flex items-center gap-1 bg-[#faf8f5] p-1 rounded-xl border border-[#e4dccf]">
+            <button
+              type="button"
+              onClick={() => {
+                playSfx('tap');
+                setTouchActionMode('check');
+              }}
+              className={`min-h-[32px] px-2.5 py-1 rounded-lg font-jua text-[11px] transition-all whitespace-nowrap ${
+                touchActionMode === 'check'
+                  ? 'bg-white text-[#c9502f] shadow-2xs border border-[#fbd8ce]'
+                  : 'text-[#8a8178]'
+              }`}
+            >
+              ✅ 체크+소리
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (soundVolume === 'mute') onSelectVolume('medium');
+                if (!clickVoiceEnabled) onToggleClickVoice(true);
+                setTouchActionMode('listen');
+                playSfx('pop');
+              }}
+              className={`min-h-[32px] px-2.5 py-1 rounded-lg font-jua text-[11px] transition-all whitespace-nowrap ${
+                touchActionMode === 'listen'
+                  ? 'bg-[#c9502f] text-white shadow-2xs'
+                  : 'text-[#8a8178]'
+              }`}
+            >
+              🔊 소리만 듣기
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1">
+            {(
+              [
+                { id: 'mute', label: '꺼짐' },
+                { id: 'soft', label: '약' },
+                { id: 'medium', label: '중' },
+                { id: 'loud', label: '강' },
+              ] as { id: SoundVolume; label: string }[]
+            ).map((v) => (
+              <button
+                type="button"
+                key={v.id}
+                onClick={() => onSelectVolume(v.id)}
+                className={`min-h-[30px] px-2 py-1 rounded-lg font-jua text-[11px] border transition-all whitespace-nowrap ${
+                  soundVolume === v.id
+                    ? v.id === 'mute'
+                      ? 'bg-rose-500 text-white border-rose-500'
+                      : 'bg-[#1b1917] text-white border-[#1b1917]'
+                    : 'bg-[#faf8f5] text-[#8a8178] border-[#e4dccf] hover:border-[#c9502f]/40'
+                }`}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Section 1: 14 Consonants */}
       <div className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#f0ebe1] pb-2">
           <h2 className="font-jua text-base sm:text-lg text-[#1b1917] flex flex-wrap items-center gap-1.5">
             <span>① 자음 ㄱ ~ ㅎ</span>
-            <span className="text-[11px] font-hand text-[#c9502f] font-bold bg-[#fff5f2] px-2 py-0.5 rounded-full border border-[#fbd8ce] whitespace-nowrap">
-              터치해 소리 듣기 🔊
+            <span
+              className={`text-[11px] font-hand font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
+                isVoiceAudible || touchActionMode === 'listen'
+                  ? 'text-[#c9502f] bg-[#fff5f2] border-[#fbd8ce]'
+                  : 'text-stone-500 bg-stone-100 border-stone-200'
+              }`}
+            >
+              {isVoiceAudible || touchActionMode === 'listen'
+                ? '터치해 소리 듣기 🔊'
+                : '무음 체크 모드 🔇'}
             </span>
           </h2>
           <span className="text-xs font-bold text-[#c9502f] font-jua whitespace-nowrap shrink-0">{consDone} / 14</span>
@@ -312,8 +472,9 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
             const name = NAMES[i];
             return (
               <button
+                type="button"
                 key={i}
-                onClick={() => cycleLevel(`c${i}`, name)}
+                onClick={() => handleCharCellClick(`c${i}`, name)}
                 className={`min-h-[58px] py-1.5 rounded-2xl flex flex-col items-center justify-center font-jua text-xl transition-all active:scale-90 border relative ${
                   lvl === 3
                     ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-xs'
@@ -344,8 +505,14 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
           <div className="min-w-0">
             <h2 className="font-jua text-base sm:text-lg text-[#1b1917] flex flex-wrap items-center gap-1.5">
               <span>② 가 ~ 하, 가갸표</span>
-              <span className="text-[11px] font-normal text-[#c9502f] font-jua bg-[#fff5f2] px-2 py-0.5 rounded-full border border-[#fbd8ce] whitespace-nowrap">
-                소리 터치 🔊
+              <span
+                className={`text-[11px] font-normal font-jua px-2 py-0.5 rounded-full border whitespace-nowrap ${
+                  isVoiceAudible || touchActionMode === 'listen'
+                    ? 'text-[#c9502f] bg-[#fff5f2] border-[#fbd8ce]'
+                    : 'text-stone-500 bg-stone-100 border-stone-200'
+                }`}
+              >
+                {isVoiceAudible || touchActionMode === 'listen' ? '소리 터치 🔊' : '무음 모드 🔇'}
               </span>
             </h2>
             <p className="text-xs text-[#8a8178] font-hand mt-0.5 break-keep">
@@ -381,10 +548,8 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                       className="p-1 min-w-[42px] w-[42px]"
                     >
                       <button
-                        onClick={() => {
-                          playSfx('tap');
-                          speakKorean(j);
-                        }}
+                        type="button"
+                        onClick={() => handleHeaderJamoClick(j)}
                         className={`w-full py-1 rounded-md text-xs transition-transform active:scale-90 border ${
                           ji === 0
                             ? 'bg-[#fdf3e4] text-[#c9502f] border-[#fbd8ce] font-bold'
@@ -404,10 +569,8 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                     {/* Sticky Left Consonant Header Cell */}
                     <td className="sticky left-0 z-20 bg-[#fdfaf5] border border-[#e4dccf] p-1 shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)] min-w-[52px] w-[52px]">
                       <button
-                        onClick={() => {
-                          playSfx('tap');
-                          speakKorean(NAMES[ci]);
-                        }}
+                        type="button"
+                        onClick={() => handleHeaderJamoClick(NAMES[ci])}
                         className="w-full py-1 px-1 rounded-lg bg-white border border-[#eedfc9] hover:border-[#c9502f] text-center transition-all active:scale-95 group"
                         title={`${NAMES[ci]} (${c}) 소리 듣기`}
                       >
@@ -430,7 +593,8 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                       return (
                         <td key={ji} className="p-0.5 min-w-[46px] w-[46px]">
                           <button
-                            onClick={() => cycleLevel(id, ch)}
+                            type="button"
+                            onClick={() => handleCharCellClick(id, ch)}
                             className={`w-full h-11 rounded-xl text-base flex items-center justify-center transition-all active:scale-90 border relative ${
                               lvl === 3
                                 ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-2xs font-bold'

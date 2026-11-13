@@ -2,7 +2,7 @@ export type TabKey = 'checklist' | 'progress' | 'doodle' | 'sticker' | 'communit
 
 export type StageId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
-export type SoundVolume = 'soft' | 'medium' | 'loud'; // 약, 중, 강
+export type SoundVolume = 'mute' | 'soft' | 'medium' | 'loud'; // 꺼짐, 약, 중, 강
 
 export interface StageInfo {
   id: StageId;

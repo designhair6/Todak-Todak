@@ -45,7 +45,14 @@ import {
   StickerBoardState,
   TabKey,
 } from './types';
-import { cycleSoundVolume, getSoundVolume, playSfx } from './utils/sound';
+import {
+  cycleSoundVolume,
+  getClickVoiceEnabled,
+  getSoundVolume,
+  playSfx,
+  setClickVoiceEnabled,
+  setSoundVolume,
+} from './utils/sound';
 import { getOrCreateUserIdentity } from './utils/userIdentity';
 
 export default function App() {
@@ -72,6 +79,8 @@ export default function App() {
 
   // Sound volume: mute / soft / medium / loud
   const [soundVolume, setSoundVolumeState] = useState<SoundVolume>(() => getSoundVolume());
+  // Touch-to-speak setting for Hangul letters (consonants/vowels/syllables)
+  const [clickVoiceEnabled, setClickVoiceEnabledState] = useState<boolean>(() => getClickVoiceEnabled());
 
   // Trial state
   const [trialDaysLeft, setTrialDaysLeft] = useState<number>(() => {
@@ -329,11 +338,37 @@ export default function App() {
     });
   };
 
-  // Sound Volume Handler (약, 중, 강)
+  // Sound Volume Handler (꺼짐, 약, 중, 강)
   const handleCycleVolume = () => {
     const next = cycleSoundVolume();
     setSoundVolumeState(next);
-    playSfx('pop');
+    if (next !== 'mute') {
+      playSfx('pop');
+    }
+  };
+
+  const handleSelectVolume = (vol: SoundVolume) => {
+    setSoundVolume(vol);
+    setSoundVolumeState(vol);
+    if (vol !== 'mute') {
+      playSfx('pop');
+    }
+  };
+
+  const handleToggleClickVoice = (next?: boolean) => {
+    const resolved = typeof next === 'boolean' ? next : !clickVoiceEnabled;
+    setClickVoiceEnabled(resolved);
+    setClickVoiceEnabledState(resolved);
+    // If user enables click voice while muted, restore comfortable medium volume automatically
+    if (resolved && soundVolume === 'mute') {
+      setSoundVolume('medium');
+      setSoundVolumeState('medium');
+    }
+    if (resolved) {
+      playSfx('pop');
+    } else {
+      playSfx('tap');
+    }
   };
 
   // Checklist day toggle for current stage
@@ -661,6 +696,10 @@ export default function App() {
                   onRewardExp={handleRewardExp}
                   childName={boardState.name}
                   onOpenParentVoice={() => setIsParentVoiceModalOpen(true)}
+                  soundVolume={soundVolume}
+                  onSelectVolume={handleSelectVolume}
+                  clickVoiceEnabled={clickVoiceEnabled}
+                  onToggleClickVoice={handleToggleClickVoice}
                 />
               )}
 
@@ -894,6 +933,10 @@ export default function App() {
           isOpen={isSettingsModalOpen}
           onClose={() => setIsSettingsModalOpen(false)}
           boardState={boardState}
+          soundVolume={soundVolume}
+          onSelectVolume={handleSelectVolume}
+          clickVoiceEnabled={clickVoiceEnabled}
+          onToggleClickVoice={handleToggleClickVoice}
           onOpenAdmin={() => setIsAdminModalOpen(true)}
           onOpenPrint={() => setIsPrintModalOpen(true)}
           onOpenSoundBlend={() => setIsSoundBlendOpen(true)}
