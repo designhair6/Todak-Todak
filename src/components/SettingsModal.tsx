@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { X, Sparkles, Check, Crown, AlertCircle, Mic, Volume2, VolumeX } from 'lucide-react';
 import { FRIENDS, THEMES, WISHES } from '../data/hangulData';
 import { SoundVolume, StickerBoardState } from '../types';
-import { playSfx, speakKorean, getVoiceTone, setVoiceTone, VOICE_TONES, VoiceTone } from '../utils/sound';
+import { playSfx, speakKorean, previewVoiceTone, VOICE_TONES, VoiceTone } from '../utils/sound';
+import { getSpeakerMeta, useCustomVoicePackState } from '../utils/customVoicePack';
 import { generateUniqueUserId, getOrCreateUserIdentity, saveUserIdentity } from '../utils/userIdentity';
 
 interface SettingsModalProps {
@@ -13,11 +14,14 @@ interface SettingsModalProps {
   onSelectVolume: (vol: SoundVolume) => void;
   clickVoiceEnabled: boolean;
   onToggleClickVoice: (next?: boolean) => void;
+  voiceTone: VoiceTone;
+  onSelectVoiceTone: (tone: VoiceTone) => void;
   onSave: (name: string, childAge: string, friendId: string, themeId: string, wish: string, msg: string) => void;
   onOpenAdmin?: () => void;
   onOpenPrint?: () => void;
   onOpenSoundBlend?: () => void;
   onOpenParentVoice?: () => void;
+  onOpenCustomVoiceStudio?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -28,15 +32,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSelectVolume,
   clickVoiceEnabled,
   onToggleClickVoice,
+  voiceTone,
+  onSelectVoiceTone,
   onSave,
   onOpenAdmin,
   onOpenPrint,
   onOpenSoundBlend,
   onOpenParentVoice,
+  onOpenCustomVoiceStudio,
 }) => {
+  const customVoice = useCustomVoicePackState();
+  const activeCustomMeta = getSpeakerMeta(customVoice.activeSpeaker);
   const [name, setName] = useState(boardState.name || '우리 아이');
   const [childAge, setChildAge] = useState(boardState.childAge || '5세');
-  const [voiceTone, setVoiceToneState] = useState<VoiceTone>(getVoiceTone);
   const [selectedFriend, setSelectedFriend] = useState(boardState.friend || 'bear');
   const [selectedTheme, setSelectedTheme] = useState(boardState.theme || 'home');
   const [selectedWish, setSelectedWish] = useState(boardState.wish || WISHES[0]);
@@ -230,16 +238,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-md box-border overflow-hidden shadow-2xl p-4 sm:p-5 text-left space-y-4 animate-pop max-h-[90vh] flex flex-col relative">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
+      onClick={() => {
+        playSfx('tap');
+        onClose();
+      }}
+    >
+      <div
+        className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-md box-border overflow-hidden shadow-2xl p-4 sm:p-5 text-left space-y-4 animate-pop max-h-[90vh] flex flex-col relative"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
-          onClick={() => {
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
             playSfx('tap');
             onClose();
           }}
-          className="absolute top-3.5 right-3.5 w-9 h-9 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917]"
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            playSfx('tap');
+            onClose();
+          }}
+          className="absolute top-3 right-3 z-30 w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] shadow-2xs active:scale-95 transition-all cursor-pointer"
+          aria-label="설정 모달 닫기"
+          title="닫기"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
 
         <div className="border-b border-[#eedfc9] pb-2 pr-10">
@@ -462,9 +489,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 type="button"
                 onClick={() => {
                   const next = !(clickVoiceEnabled && soundVolume !== 'mute');
+                  if (next && soundVolume === 'mute') onSelectVolume('medium');
                   onToggleClickVoice(next);
                   if (next) {
-                    speakKorean('소리가 켜졌어요!');
+                    speakKorean('소리가 켜졌어요!', false, voiceTone);
                   }
                 }}
                 className={`px-2.5 py-1 rounded-lg font-jua text-[11px] border transition-all active:scale-95 whitespace-nowrap ${
@@ -514,10 +542,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   key={vt.id}
                   onClick={() => {
                     if (soundVolume === 'mute') onSelectVolume('medium');
-                    playSfx('tap');
-                    setVoiceToneState(vt.id);
-                    setVoiceTone(vt.id);
-                    speakKorean(`${name || '시아'}야 안녕! 오늘도 한글놀이 같이 하자!`, false, vt.id);
+                    onSelectVoiceTone(vt.id);
+                    previewVoiceTone(vt.id, name);
                   }}
                   className={`p-2 rounded-xl border text-left transition-all flex items-start gap-1.5 active:scale-95 ${
                     voiceTone === vt.id
@@ -538,8 +564,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               ))}
             </div>
             <p className="text-[10px] text-[#8a8178] font-hand text-right pt-0.5">
-              💡 버튼을 누르면 해당 목소리로 즉시 미리듣기가 재생됩니다.
+              💡 버튼을 누르면 해당 목소리 톤으로 즉시 미리듣기가 재생됩니다.
             </p>
+
+            {/* Family Custom Voice Studio Trigger */}
+            {onOpenCustomVoiceStudio && (
+              <div className="pt-2 border-t border-[#f1e1cb]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playSfx('pop');
+                    onOpenCustomVoiceStudio();
+                  }}
+                  className="w-full min-h-[46px] p-2.5 rounded-2xl bg-gradient-to-r from-[#FFF0E6] to-[#FFE7D9] hover:from-[#FFE8DA] hover:to-[#FFDDCA] border border-[#F3C5AE] flex items-center justify-between gap-2 text-left active:scale-[0.99] transition-all"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-[#E76F51] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                      <Mic className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-jua text-xs text-[#1b1917] block truncate">
+                        🎙️ 우리 아이 · 아빠 목소리 직접 녹음하기
+                      </span>
+                      <span className="text-[10px] font-hand text-[#7A6E63] block truncate">
+                        {customVoice.totalCount > 0
+                          ? `${activeCustomMeta.emoji} ${activeCustomMeta.shortName} ${customVoice.getCountForSpeaker(
+                              customVoice.activeSpeaker
+                            )}개 저장됨 (${customVoice.enabled ? '우선 사용 중' : '꺼짐'})`
+                          : 'AI 목소리 대신 진짜 가족 목소리로 글자를 읽어줘요'}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-xl bg-white text-[#D95338] border border-[#F7CFC0] font-jua text-[11px] shrink-0 whitespace-nowrap">
+                    녹음실 열기
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 2. Companion Animal Friend (Horizontal Snap Carousel >=76px) */}
@@ -764,17 +825,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
       {/* In-App Modal Dialog for Duplicate Check & Alerts (Bypasses iframe alert blocking) */}
       {idCheckPopup && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-3 border-[#eedfc9] rounded-3xl p-5 max-w-xs w-full shadow-2xl text-center space-y-3.5 animate-pop relative">
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
+          onClick={() => {
+            playSfx('tap');
+            setIdCheckPopup(null);
+          }}
+        >
+          <div
+            className="bg-[#fbf8f2] border-3 border-[#eedfc9] rounded-3xl p-5 max-w-xs w-full shadow-2xl text-center space-y-3.5 animate-pop relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 playSfx('tap');
                 setIdCheckPopup(null);
               }}
-              className="absolute top-3.5 right-3.5 w-7 h-7 rounded-full bg-white border border-[#eedfc9] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] cursor-pointer"
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                playSfx('tap');
+                setIdCheckPopup(null);
+              }}
+              className="absolute top-3 right-3 z-30 w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-white border border-[#eedfc9] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] shadow-2xs active:scale-95 transition-all cursor-pointer"
+              aria-label="닫기"
+              title="닫기"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-5 h-5" />
             </button>
 
             <div

@@ -1,4 +1,9 @@
 import { SoundVolume } from '../types';
+import { findCustomVoiceUrl, initCustomVoicePack } from './customVoicePack';
+
+if (typeof window !== 'undefined') {
+  void initCustomVoicePack();
+}
 
 let audioCtx: AudioContext | null = null;
 let currentVolume: SoundVolume = 'medium';
@@ -277,37 +282,37 @@ export const VOICE_TONES: VoiceToneInfo[] = [
     id: 'mom',
     name: '다정한 엄마',
     emoji: '👩',
-    desc: '포근하고 부드러운 엄마 목소리 (기본)',
-    pitch: 1.12,
-    rate: 0.9,
-    playbackRate: 1.0,
+    desc: '높고 맑은 톤 · 경쾌한 엄마 목소리 (기본)',
+    pitch: 1.35,
+    rate: 1.08,
+    playbackRate: 1.14,
   },
   {
     id: 'dad',
     name: '친근한 아빠',
     emoji: '👨',
-    desc: '자상하고 든든한 아빠 목소리',
-    pitch: 0.85,
-    rate: 0.92,
-    playbackRate: 0.92,
+    desc: '부드럽고 밝은 톤 · 자상한 30대 아빠 목소리',
+    pitch: 0.9,
+    rate: 1.05,
+    playbackRate: 0.94,
   },
   {
     id: 'teacher',
     name: '선생님',
     emoji: '👩‍🏫',
-    desc: '또렷하고 차분한 선생님 목소리',
-    pitch: 1.18,
-    rate: 0.94,
-    playbackRate: 1.04,
+    desc: '차분하고 안정적인 표준 선생님 목소리',
+    pitch: 1.0,
+    rate: 1.0,
+    playbackRate: 1.0,
   },
   {
     id: 'friend',
     name: '귀여운 친구',
     emoji: '🧒',
-    desc: '밝고 신나는 친구 목소리',
-    pitch: 1.28,
-    rate: 0.98,
-    playbackRate: 1.08,
+    desc: '5살 아이처럼 맑고 높은 · 깜찍한 친구 목소리',
+    pitch: 1.8,
+    rate: 1.1,
+    playbackRate: 1.34,
   },
 ];
 
@@ -315,6 +320,7 @@ let currentVoiceTone: VoiceTone = 'mom';
 let cachedVoices: SpeechSynthesisVoice[] = [];
 let ttsFallbackTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingSpeakTimer: ReturnType<typeof setTimeout> | null = null;
+let activeUtterance: SpeechSynthesisUtterance | null = null;
 let speechGenerationId = 0;
 
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -374,6 +380,7 @@ export function stopAllSpeech() {
     ttsFallbackTimer = null;
   }
 
+  activeUtterance = null;
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     try {
       window.speechSynthesis.cancel();
@@ -407,60 +414,187 @@ export function stopAllSpeech() {
   }
 }
 
-const MALE_VOICE_BLACKLIST =
-  /injoon|in-joon|hyunsu|hyun-su|bongjin|bong-jin|gookmin|gook-min|minsu|male|남성|남자|\bman\b|\bboy\b/i;
+const MALE_KO_VOICE_REGEX =
+  /injoon|in-joon|hyunsu|hyun-su|bongjin|bong-jin|gookmin|gook-min|minsu|eddy|reed|rocko|grandpa|ko-kr-x-khm|ko-kr-x-koe|ko-kr-x-kod|male|남성|남자|아빠|\bman\b|\bboy\b/i;
 
-const FEMALE_KO_VOICE_WHITELIST =
-  /yuna|유나|sunhi|sun-hi|선희|sora|소라|heami|hae-mi|혜미|jimin|ji-min|지민|yujin|yu-jin|유진|seohyeon|seo-hyeon|서현|soonbok|순복|seoyeon|서연|jiyeon|지연|narae|나래|google 한국의|google 한국어|ko-kr-x-ism|ko-kr-x-koc|ko-kr-x-kod|female|여성|여자/i;
+const FEMALE_KO_VOICE_REGEX =
+  /yuna|유나|sunhi|sun-hi|선희|sora|소라|heami|hae-mi|혜미|jimin|ji-min|지민|yujin|yu-jin|유진|seohyeon|seo-hyeon|서현|soonbok|순복|seoyeon|서연|jiyeon|지연|narae|나래|google 한국의|google 한국어|ko-kr-x-ism|ko-kr-x-koc|female|여성|여자/i;
 
-function pickKoreanFemaleVoice(): SpeechSynthesisVoice | null {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+function getKoreanVoices(): SpeechSynthesisVoice[] {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
   const live = window.speechSynthesis.getVoices();
   const voices = live.length > 0 ? live : cachedVoices;
-  const koreanVoices = voices.filter((v) => {
+  if (live.length > 0) {
+    cachedVoices = live;
+  }
+  const filtered = voices.filter((v) => {
     const lang = (v.lang || '').toLowerCase();
     const name = v.name || '';
     return lang.startsWith('ko') || lang.includes('kr') || name.includes('Korean') || name.includes('한국');
   });
-  if (koreanVoices.length === 0) return null;
-
-  // Prefer explicitly known female Korean voices, otherwise fall back to any non-male Korean voice
-  const verifiedFemale = koreanVoices.find(
-    (v) => !MALE_VOICE_BLACKLIST.test(v.name) && FEMALE_KO_VOICE_WHITELIST.test(v.name)
-  );
-  if (verifiedFemale) return verifiedFemale;
-
-  const nonMale = koreanVoices.find((v) => !MALE_VOICE_BLACKLIST.test(v.name));
-  return nonMale || null;
+  // Prefer local OS voices first because they reliably honor pitch/rate (unlike remote Google TTS in Chromium)
+  return [...filtered].sort((a, b) => Number(b.localService) - Number(a.localService));
 }
 
-function speakViaWebSpeech(
-  spokenText: string,
+export function getVoiceToneInfo(toneId?: VoiceTone): VoiceToneInfo {
+  const id = toneId || getVoiceTone();
+  return VOICE_TONES.find((t) => t.id === id) || VOICE_TONES[0];
+}
+
+export function getCharacterSpeechParams(toneId: VoiceTone): {
+  pitch: number;
+  rate: number;
+  playbackRate: number;
+} {
+  switch (toneId) {
+    case 'mom':
+      // 엄마: 높고 따뜻한 톤 + 경쾌하고 빠른 속도
+      return { pitch: 1.35, rate: 1.08, playbackRate: 1.14 };
+    case 'dad':
+      // 아빠: 밝고 다정한 30대 젊은 아빠 톤 (강제 고정)
+      return { pitch: 0.9, rate: 1.05, playbackRate: 0.94 };
+    case 'teacher':
+      // 선생님: 안정적이고 또박또박한 표준 톤 및 속도
+      return { pitch: 1.0, rate: 1.0, playbackRate: 1.0 };
+    case 'friend':
+      // 친구: 5살 아이처럼 맑고 매우 높은 톤 + 발랄한 속도 (강제 고정)
+      return { pitch: 1.8, rate: 1.1, playbackRate: 1.34 };
+    default: {
+      const info = getVoiceToneInfo(toneId);
+      return { pitch: info.pitch, rate: info.rate, playbackRate: info.playbackRate };
+    }
+  }
+}
+
+export function pickKoreanVoiceForTone(toneId: VoiceTone): SpeechSynthesisVoice | null {
+  const koreanVoices = getKoreanVoices();
+  if (koreanVoices.length === 0) return null;
+
+  const femaleVoices = koreanVoices.filter(
+    (v) => !MALE_KO_VOICE_REGEX.test(v.name) && FEMALE_KO_VOICE_REGEX.test(v.name)
+  );
+  const nonMaleVoices = koreanVoices.filter((v) => !MALE_KO_VOICE_REGEX.test(v.name));
+  const maleVoices = koreanVoices.filter((v) => MALE_KO_VOICE_REGEX.test(v.name));
+
+  switch (toneId) {
+    case 'dad': {
+      // Friendly Young Dad: prefer Korean male voice (local OS voice first), otherwise local Korean voice or default ko-KR
+      if (maleVoices.length > 0) {
+        return maleVoices.find((v) => v.localService) || maleVoices[0];
+      }
+      const localKorean = koreanVoices.find((v) => v.localService);
+      if (localKorean) return localKorean;
+      return koreanVoices.find((v) => v.default) || koreanVoices[0] || null;
+    }
+    case 'teacher': {
+      // Calm Teacher: strictly non-male Korean voice (fallback to default ko-KR only if needed)
+      const calm =
+        femaleVoices.find((v) => /sunhi|sun-hi|선희|seoyeon|서연|heami|혜미|google/i.test(v.name)) ||
+        femaleVoices[0] ||
+        nonMaleVoices[0];
+      return calm || koreanVoices[0] || null;
+    }
+    case 'friend': {
+      // Pure 5-year-old Friend: prioritize child/bright local Korean voices so pitch=1.8 cleanly renders a child register
+      const localNonMale = nonMaleVoices.filter((v) => v.localService);
+      const brightLocal =
+        localNonMale.find((v) => /child|kid|어린이|아이|yuna|유나|jimin|지민|yujin|유진|sora|소라/i.test(v.name)) ||
+        localNonMale[0];
+      if (brightLocal) return brightLocal;
+      const brightAny =
+        femaleVoices.find((v) => /child|kid|어린이|아이|yuna|유나|jimin|지민|yujin|유진|sora|소라/i.test(v.name)) ||
+        femaleVoices[0] ||
+        nonMaleVoices[0];
+      return brightAny || koreanVoices[0] || null;
+    }
+    case 'mom':
+    default: {
+      // Gentle Mom: Korean female voice
+      return femaleVoices[0] || nonMaleVoices[0] || koreanVoices[0] || null;
+    }
+  }
+}
+
+function playServerTtsFallback(
+  audioUrl: string,
   volMult: number,
   toneInfo: VoiceToneInfo,
   genId: number
 ) {
   if (genId !== speechGenerationId) return;
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
   try {
-    window.speechSynthesis.cancel();
-    const chosenVoice = pickKoreanFemaleVoice();
-    const utterance = new SpeechSynthesisUtterance(spokenText);
-    if (chosenVoice) {
-      utterance.voice = chosenVoice;
-    }
-    utterance.lang = 'ko-KR';
-    utterance.pitch = toneInfo.id === 'dad' ? 1.06 : Math.max(1.06, toneInfo.pitch);
-    utterance.rate = Math.min(1.0, Math.max(0.86, toneInfo.rate));
-    utterance.volume = Math.min(1.0, volMult * 1.1);
-    window.speechSynthesis.speak(utterance);
+    const audio = new Audio(audioUrl);
+    audio.volume = Math.min(1, volMult);
+    // Disable preservesPitch so playbackRate genuinely shifts pitch per character (low Dad vs high Friend)
+    const audioWithPitch = audio as HTMLAudioElement & {
+      preservesPitch?: boolean;
+      mozPreservesPitch?: boolean;
+      webkitPreservesPitch?: boolean;
+    };
+    audioWithPitch.preservesPitch = false;
+    audioWithPitch.mozPreservesPitch = false;
+    audioWithPitch.webkitPreservesPitch = false;
+    audio.playbackRate = toneInfo.playbackRate;
+
+    activeSpeechAudio = audio;
+    audio.onended = () => {
+      if (activeSpeechAudio === audio) {
+        activeSpeechAudio = null;
+      }
+    };
+    audio.play().catch(() => {});
   } catch {
     // ignore
   }
 }
 
-export function speakKorean(text: string, withSoftChime = false, customTone?: VoiceTone) {
+export interface SpeakKoreanOptions {
+  bypassCustomVoice?: boolean;
+}
+
+/**
+ * Strips emojis, icon pictographs, variation selectors, decorative symbols,
+ * and UI meta brackets so TTS reads ONLY clean, natural spoken text without
+ * announcing icon names (e.g. "반짝임", "하트") or punctuation glitches.
+ */
+export function sanitizeSpeechText(raw: string): string {
+  const trimmed = (raw || '').trim();
+  if (!trimmed) return '';
+  if (JAMO_NAME_MAP[trimmed]) return JAMO_NAME_MAP[trimmed];
+
+  let cleaned = trimmed
+    // Strip bracketed UI metadata tags like [공지], 【안내】, (Lv.5)
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(/【[^】]*】/g, ' ')
+    .replace(/\(Lv\.[^)]*\)/gi, ' ')
+    // Strip emojis, pictographs, flags, skin tones, variation selectors & ZWJ
+    .replace(/[\u{1F000}-\u{1FAFF}]/gu, ' ')
+    .replace(/[\u2600-\u27BF]/g, ' ')
+    .replace(/[\uFE0E\uFE0F\u200D\u20E3]/g, '')
+    // Strip decorative symbols, arrows, math/UI characters TTS tends to vocalize
+    .replace(/[★☆✓✔✕✖✗✘•·▪▫▶▷►◀◁▲▼◆◇○●◎□■♠♡♢♣♧♪♫♬※→←↑↓↔⇒+="<>`|_@#$%^&*\\]/g, ' ')
+    // Replace tilde & ellipsis with natural soft pause instead of "물결" / "점점점"
+    .replace(/~+/g, ' ')
+    .replace(/\.{2,}/g, ', ')
+    // Strip stray quotation marks
+    .replace(/["'“”‘’]/g, '')
+    // Collapse excess punctuation and whitespace
+    .replace(/!{2,}/g, '!')
+    .replace(/\?{2,}/g, '?')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleaned) return '';
+  return JAMO_NAME_MAP[cleaned] || cleaned;
+}
+
+export function speakKorean(
+  text: string,
+  withSoftChime = false,
+  customTone?: VoiceTone,
+  options?: SpeakKoreanOptions
+) {
   const volMult = getVolumeMultiplier();
   if (volMult <= 0) return;
 
@@ -470,87 +604,163 @@ export function speakKorean(text: string, withSoftChime = false, customTone?: Vo
 
   const rawText = text.trim();
   if (!rawText) return;
-  const spokenText = JAMO_NAME_MAP[rawText] || rawText;
+  const spokenText = sanitizeSpeechText(rawText);
+  if (!spokenText) return;
 
   const toneId = customTone || getVoiceTone();
-  const toneInfo = VOICE_TONES.find((t) => t.id === toneId) || VOICE_TONES[0];
+  const toneInfo = getVoiceToneInfo(toneId);
 
-  // Unconditionally stop/cancel every currently active or queued voice before starting a new one
+  // Immediately cancel any currently active or queued voice before starting the selected profile
   stopAllSpeech();
   const myGen = speechGenerationId;
 
+  // Priority 1: Real recorded family voice (아이 / 아빠 / 엄마) from IndexedDB cache when enabled
+  const customMatch = !options?.bypassCustomVoice
+    ? findCustomVoiceUrl(spokenText, rawText, toneId)
+    : null;
+
+  if (customMatch) {
+    try {
+      const audio = new Audio(customMatch.url);
+      audio.volume = Math.min(1, Math.max(0.2, volMult * 1.15));
+      activeSpeechAudio = audio;
+      audio.onended = () => {
+        if (activeSpeechAudio === audio) {
+          activeSpeechAudio = null;
+        }
+      };
+      audio.onerror = () => {
+        if (activeSpeechAudio === audio) {
+          activeSpeechAudio = null;
+        }
+        if (myGen === speechGenerationId) {
+          speakKorean(text, false, customTone, { bypassCustomVoice: true });
+        }
+      };
+      audio.play().catch(() => {
+        if (myGen === speechGenerationId) {
+          speakKorean(text, false, customTone, { bypassCustomVoice: true });
+        }
+      });
+      return;
+    } catch {
+      // Fall through to TTS cleanly if browser fails to play custom blob
+    }
+  }
+
   const audioUrl = `/api/tts?text=${encodeURIComponent(spokenText)}`;
-  let audioStarted = false;
-  let fallbackTriggered = false;
+  const selectedVoice = pickKoreanVoiceForTone(toneId);
 
-  const triggerFallbackOnce = () => {
-    if (fallbackTriggered || audioStarted || myGen !== speechGenerationId) return;
-    fallbackTriggered = true;
-    if (ttsFallbackTimer) {
-      clearTimeout(ttsFallbackTimer);
-      ttsFallbackTimer = null;
-    }
-    if (activeSpeechAudio) {
-      try {
-        activeSpeechAudio.onplaying = null;
-        activeSpeechAudio.oncanplaythrough = null;
-        activeSpeechAudio.onended = null;
-        activeSpeechAudio.onerror = null;
-        activeSpeechAudio.pause();
-        activeSpeechAudio.src = '';
-      } catch {}
-      activeSpeechAudio = null;
-    }
-    speakViaWebSpeech(spokenText, volMult, toneInfo, myGen);
-  };
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    let speechStarted = false;
+    let fallbackTriggered = false;
 
-  try {
-    const audio = new Audio(audioUrl);
-    audio.volume = Math.min(1, volMult);
-    const safeRate = toneInfo.id === 'dad' ? 0.96 : Math.min(1.06, Math.max(0.95, toneInfo.playbackRate));
-    audio.playbackRate = safeRate;
-    activeSpeechAudio = audio;
-
-    const markStarted = () => {
-      if (myGen !== speechGenerationId) return;
-      audioStarted = true;
+    const triggerFallback = () => {
+      if (fallbackTriggered || speechStarted || myGen !== speechGenerationId) return;
+      fallbackTriggered = true;
       if (ttsFallbackTimer) {
         clearTimeout(ttsFallbackTimer);
         ttsFallbackTimer = null;
       }
+      activeUtterance = null;
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+      playServerTtsFallback(audioUrl, volMult, toneInfo, myGen);
     };
 
-    audio.onplaying = markStarted;
-    audio.oncanplaythrough = markStarted;
-    audio.onended = () => {
-      if (activeSpeechAudio === audio) {
-        activeSpeechAudio = null;
+    // Slight 15ms delay after speechSynthesis.cancel() prevents browser policy/cancel race from blocking speak()
+    pendingSpeakTimer = setTimeout(() => {
+      pendingSpeakTimer = null;
+      if (myGen !== speechGenerationId) return;
+
+      try {
+        // Re-filter live voice list in case voices loaded asynchronously
+        const liveVoice = pickKoreanVoiceForTone(toneId) || selectedVoice;
+        const isPitchIgnoredRemoteVoice =
+          liveVoice !== null &&
+          !liveVoice.localService &&
+          ((toneId === 'dad' && !MALE_KO_VOICE_REGEX.test(liveVoice.name)) || toneId === 'friend');
+
+        // Remote Google voices ignore SpeechSynthesisUtterance.pitch in Chromium;
+        // if no local OS voice (or male voice for Dad) is available, route to pitch-shifted audio fallback
+        // so Dad keeps a warm male register and Friend keeps a high 5-year-old child register.
+        if (isPitchIgnoredRemoteVoice) {
+          triggerFallback();
+          return;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(spokenText);
+        if (liveVoice) {
+          utterance.voice = liveVoice;
+          utterance.lang = liveVoice.lang || 'ko-KR';
+        } else {
+          utterance.lang = 'ko-KR';
+        }
+
+        const speechParams = getCharacterSpeechParams(toneId);
+        if (toneId === 'dad') {
+          utterance.pitch = 0.9;
+          utterance.rate = 1.05;
+        } else if (toneId === 'friend') {
+          utterance.pitch = 1.8;
+          utterance.rate = 1.1;
+        } else {
+          utterance.pitch = speechParams.pitch;
+          utterance.rate = speechParams.rate;
+        }
+        utterance.volume = Math.min(1.0, volMult * 1.1);
+        activeUtterance = utterance;
+
+        utterance.onstart = () => {
+          if (myGen !== speechGenerationId) return;
+          speechStarted = true;
+          if (ttsFallbackTimer) {
+            clearTimeout(ttsFallbackTimer);
+            ttsFallbackTimer = null;
+          }
+        };
+        utterance.onend = () => {
+          if (activeUtterance === utterance) {
+            activeUtterance = null;
+          }
+        };
+        utterance.onerror = () => {
+          triggerFallback();
+        };
+
+        ttsFallbackTimer = setTimeout(() => {
+          ttsFallbackTimer = null;
+          triggerFallback();
+        }, 1100);
+
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        triggerFallback();
       }
-    };
-    audio.onerror = () => {
-      triggerFallbackOnce();
-    };
-
-    // Guard against stalled network response
-    ttsFallbackTimer = setTimeout(() => {
-      ttsFallbackTimer = null;
-      triggerFallbackOnce();
-    }, 1500);
-
-    // Invoke play() synchronously within the user click gesture
-    const playPromise = audio.play();
-    if (playPromise && typeof playPromise.catch === 'function') {
-      playPromise.catch(() => {
-        triggerFallbackOnce();
-      });
-    }
-  } catch {
-    triggerFallbackOnce();
+    }, 15);
+    return;
   }
+
+  playServerTtsFallback(audioUrl, volMult, toneInfo, myGen);
 }
 
-export function speakLetterIfEnabled(text: string) {
+export function previewVoiceTone(toneId: VoiceTone, childName?: string) {
+  setVoiceTone(toneId);
+  if (getSoundVolume() === 'mute') {
+    setSoundVolume('medium');
+  }
+  const cleanName = (childName || '').trim() || '시아';
+  speakKorean(`${cleanName}야 안녕! 오늘도 한글놀이 같이 하자!`, false, toneId, {
+    bypassCustomVoice: true,
+  });
+}
+
+export function speakLetterIfEnabled(text: string, customTone?: VoiceTone) {
   if (!getClickVoiceEnabled()) return;
-  speakKorean(text);
+  speakKorean(text, false, customTone);
 }
 

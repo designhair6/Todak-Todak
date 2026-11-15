@@ -178,9 +178,9 @@ export const ChecklistTab: React.FC<ChecklistTabProps> = ({
   const writtenCount = Object.keys(diaries).length;
 
   return (
-    <div className="w-full max-w-xl mx-auto px-4 sm:px-5 pt-4 sm:pt-5 pb-6 space-y-5 box-border overflow-x-hidden">
+    <div className="w-full max-w-md mx-auto px-4 pt-4 pb-8 space-y-5 box-border overflow-x-hidden">
       {/* Game Stage Map: 1~10 Stages */}
-      <div className="w-full max-w-full box-border overflow-hidden bg-white p-3.5 sm:p-4 rounded-3xl border border-[#e4dccf] shadow-xs space-y-2.5">
+      <div className="w-full max-w-full box-border overflow-hidden bg-white p-4 rounded-3xl border border-[#F2E5D8] shadow-[0_6px_20px_rgba(218,178,142,0.10)] space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#f0ebd9]">
           <div className="flex items-center gap-1.5 font-jua text-sm text-[#1b1917]">
             <span>🗺️</span>

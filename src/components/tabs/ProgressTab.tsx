@@ -1,10 +1,19 @@
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
-import { Volume2, VolumeX, Sparkles, RotateCcw, ChevronRight, X } from 'lucide-react';
+import { Volume2, VolumeX, Sparkles, RotateCcw, ChevronRight, X, Mic } from 'lucide-react';
 import { CHO, JUNG, NAMES, syl } from '../../data/hangulData';
 import { MasteryLevel, ProgressState, SoundVolume } from '../../types';
-import { JAMO_NAME_MAP, playSfx, speakKorean } from '../../utils/sound';
+import {
+  JAMO_NAME_MAP,
+  VOICE_TONES,
+  VoiceTone,
+  getVoiceToneInfo,
+  pickKoreanVoiceForTone,
+  playSfx,
+  speakKorean,
+} from '../../utils/sound';
 import { playParentPraiseVoice, getParentVoiceMission } from '../../utils/parentVoiceHelper';
+import { getSpeakerMeta, useCustomVoicePackState } from '../../utils/customVoicePack';
 
 interface ProgressTabProps {
   progress: ProgressState;
@@ -17,6 +26,10 @@ interface ProgressTabProps {
   onSelectVolume: (vol: SoundVolume) => void;
   clickVoiceEnabled: boolean;
   onToggleClickVoice: (next?: boolean) => void;
+  voiceTone: VoiceTone;
+  onSelectVoiceTone?: (tone: VoiceTone) => void;
+  onOpenVoiceSettings?: () => void;
+  onOpenCustomVoiceStudio?: () => void;
 }
 
 export const ProgressTab: React.FC<ProgressTabProps> = ({
@@ -30,7 +43,14 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
   onSelectVolume,
   clickVoiceEnabled,
   onToggleClickVoice,
+  voiceTone,
+  onSelectVoiceTone,
+  onOpenVoiceSettings,
+  onOpenCustomVoiceStudio,
 }) => {
+  const customVoice = useCustomVoicePackState();
+  const activeCustomSpeakerMeta = getSpeakerMeta(customVoice.activeSpeaker);
+  const customVoiceActiveCount = customVoice.getCountForSpeaker(customVoice.activeSpeaker);
   const [practiceOpen, setPracticeOpen] = useState(false);
   const [touchActionMode, setTouchActionMode] = useState<'check' | 'listen'>('check');
   const [lastSpokenLabel, setLastSpokenLabel] = useState<string | null>(null);
@@ -67,13 +87,20 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
   const overallScore = Math.min(100, Math.round((pointsEarned / maxPoints) * 100));
 
   const isVoiceAudible = clickVoiceEnabled && soundVolume !== 'mute';
+  const activeVoiceInfo = getVoiceToneInfo(voiceTone);
+
+  const playRoutedVoice = (text: string, customTone: VoiceTone = voiceTone) => {
+    // Resolve filtered Korean voice for the active profile and route TTS playback
+    pickKoreanVoiceForTone(customTone);
+    speakKorean(text, false, customTone);
+  };
 
   const triggerCharVoice = (text: string, forceSpeak = false) => {
     if (soundVolume === 'mute') return;
     if (!forceSpeak && !clickVoiceEnabled) return;
     const displayVoice = JAMO_NAME_MAP[text] || text;
     setLastSpokenLabel(displayVoice);
-    speakKorean(text);
+    playRoutedVoice(text, voiceTone);
   };
 
   const handleCharCellClick = (id: string, label: string) => {
@@ -219,7 +246,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto px-4 sm:px-5 pt-4 sm:pt-5 pb-6 space-y-5 box-border overflow-x-hidden">
+    <div className="w-full max-w-md mx-auto px-4 pt-4 pb-8 space-y-5 box-border overflow-x-hidden">
       {/* Header with sufficient clearance */}
       <div className="text-center space-y-2 pt-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fdf3e4] border border-[#f3dfc6] text-xs font-bold text-[#c9502f] font-jua">
@@ -344,6 +371,17 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
             <div className="min-w-0">
               <div className="font-jua text-xs sm:text-sm text-[#1b1917] flex items-center gap-1.5 flex-wrap">
                 <span>글자 클릭 시 목소리 듣기</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playSfx('tap');
+                    onOpenVoiceSettings?.();
+                  }}
+                  className="text-[10px] px-2 py-0.5 rounded-full bg-[#fdf3e4] text-[#c9502f] border border-[#f5d7b5] hover:bg-[#fce9d0] transition-colors whitespace-nowrap"
+                  title="아이 프로필 & 약속 설정에서 목소리 변경"
+                >
+                  {activeVoiceInfo.emoji} {activeVoiceInfo.name}
+                </button>
                 {lastSpokenLabel && isVoiceAudible && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                     "{lastSpokenLabel}" 재생
@@ -352,7 +390,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
               </div>
               <p className="text-[10px] sm:text-[11px] text-[#8a8178] font-hand">
                 {isVoiceAudible
-                  ? '자음·모음·글자를 누르면 한글 소리를 읽어줘요'
+                  ? `${activeVoiceInfo.emoji} ${activeVoiceInfo.name} 목소리로 자음·모음·글자를 읽어줘요`
                   : soundVolume === 'mute'
                   ? '전체 음량이 꺼짐 상태예요 (아래에서 켜기)'
                   : '소리 없이 진도만 체크하는 중이에요'}
@@ -370,7 +408,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
               onToggleClickVoice(nextEnabled);
               if (nextEnabled) {
                 setLastSpokenLabel('가');
-                speakKorean('가');
+                playRoutedVoice('가', voiceTone);
               }
             }}
             className={`min-h-[38px] px-3 py-1.5 rounded-xl font-jua text-xs border transition-all active:scale-95 shrink-0 whitespace-nowrap ${
@@ -444,6 +482,89 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
             ))}
           </div>
         </div>
+
+        {/* Live Synced Voice Profile Selector */}
+        {onSelectVoiceTone && (
+          <div className="grid grid-cols-4 gap-1.5 pt-2 border-t border-[#f0ebe1]">
+            {VOICE_TONES.map((vt) => {
+              const isSelected = voiceTone === vt.id;
+              return (
+                <button
+                  type="button"
+                  key={vt.id}
+                  onClick={() => {
+                    if (soundVolume === 'mute') onSelectVolume('medium');
+                    if (!clickVoiceEnabled) onToggleClickVoice(true);
+                    onSelectVoiceTone(vt.id);
+                    setLastSpokenLabel('가');
+                    playRoutedVoice('가', vt.id);
+                  }}
+                  className={`min-h-[34px] px-1.5 py-1 rounded-xl font-jua text-[11px] border transition-all active:scale-95 flex items-center justify-center gap-1 truncate ${
+                    isSelected
+                      ? 'bg-[#fff5f2] text-[#c9502f] border-[#c9502f] ring-1 ring-[#c9502f]/20 shadow-2xs'
+                      : 'bg-[#faf8f5] text-[#6b6257] border-[#e4dccf] hover:border-[#c9502f]/40'
+                  }`}
+                  title={`${vt.name} 목소리로 변경 및 미리듣기`}
+                >
+                  <span className="text-xs shrink-0">{vt.emoji}</span>
+                  <span className="truncate">{vt.name.replace('다정한 ', '').replace('친근한 ', '').replace('귀여운 ', '')}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Family Custom Recorded Voice Pack Banner */}
+        {onOpenCustomVoiceStudio && (
+          <div className="pt-2 border-t border-[#f0ebe1] flex flex-wrap items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                playSfx('tap');
+                onOpenCustomVoiceStudio();
+              }}
+              className="flex-1 min-w-[200px] min-h-[42px] px-3 py-2 rounded-2xl bg-gradient-to-r from-[#FFF6EC] to-[#FFEDE3] hover:from-[#FFEFE0] hover:to-[#FFE2D4] border border-[#F5CEB8] text-left flex items-center justify-between gap-2 active:scale-[0.99] transition-all"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-7 h-7 rounded-xl bg-[#E76F51] text-white flex items-center justify-center shrink-0">
+                  <Mic className="w-3.5 h-3.5" />
+                </span>
+                <div className="min-w-0">
+                  <div className="font-jua text-xs text-[#1b1917] truncate">
+                    우리 아이·아빠 직접 목소리 녹음실
+                  </div>
+                  <div className="text-[10px] font-hand text-[#7A6E63] truncate">
+                    {customVoice.totalCount > 0
+                      ? `${activeCustomSpeakerMeta.emoji} ${activeCustomSpeakerMeta.shortName} ${customVoiceActiveCount}개 녹음됨 · ${
+                          customVoice.enabled ? '우선 재생 ON' : '일시 정지'
+                        }`
+                      : 'AI 대신 진짜 목소리로 ㄱ~ㅎ 직접 녹음해보세요!'}
+                  </div>
+                </div>
+              </div>
+              <span className="text-[11px] font-jua text-[#D95338] bg-white px-2.5 py-1 rounded-xl border border-[#F7CFC0] shrink-0 whitespace-nowrap">
+                {customVoice.totalCount > 0 ? '녹음/관리' : '녹음하기'}
+              </span>
+            </button>
+
+            {customVoice.totalCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  playSfx('tap');
+                  customVoice.setEnabled(!customVoice.enabled);
+                }}
+                className={`min-h-[42px] px-3 py-2 rounded-2xl font-jua text-[11px] border transition-all active:scale-95 shrink-0 whitespace-nowrap ${
+                  customVoice.enabled
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                    : 'bg-[#faf8f5] text-[#6b6257] border-[#e4dccf]'
+                }`}
+              >
+                {customVoice.enabled ? '녹음음성 ON' : '녹음음성 OFF'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Section 1: 14 Consonants */}
@@ -693,14 +814,23 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                 </span>
               </div>
               <button
-                onClick={() => {
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
                   playSfx('tap');
                   setPracticeOpen(false);
                 }}
-                className="w-10 h-10 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] hover:bg-[#f6f1e7] transition-all shrink-0"
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  playSfx('tap');
+                  setPracticeOpen(false);
+                }}
+                className="w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] hover:bg-[#f6f1e7] transition-all shrink-0 cursor-pointer active:scale-95"
+                aria-label="닫기"
                 title="닫기"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -768,7 +898,7 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({
                     {practiceDeck[practiceIndex]?.ch}
                   </span>
                   <button
-                    onClick={() => speakKorean(practiceDeck[practiceIndex]?.ch)}
+                    onClick={() => playRoutedVoice(practiceDeck[practiceIndex]?.ch || '가', voiceTone)}
                     className="mt-3 min-h-[40px] flex items-center gap-1.5 text-xs text-[#c9502f] bg-[#fdf3e4] hover:bg-[#fce9d0] px-4 py-1.5 rounded-full font-jua transition-all active:scale-95"
                   >
                     <Volume2 className="w-4 h-4" /> 소리 듣기

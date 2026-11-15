@@ -71,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
   const isLocked = trialDaysLeft <= 0 && !isSubscribed;
 
   return (
-    <header className="w-full max-w-full box-border overflow-hidden bg-white/95 backdrop-blur-md border-b border-[#EFE8DE] px-4 sm:px-5 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 transition-all">
+    <header className="w-full max-w-full box-border overflow-hidden bg-[#FFFCF8]/95 backdrop-blur-md border-b border-[#F3E6D9] px-4 sm:px-5 py-2 flex items-center justify-between gap-2 sticky top-0 z-40 transition-all">
       {/* Brand Identity */}
       <button
         type="button"

@@ -29,7 +29,7 @@ import {
   Check,
 } from 'lucide-react';
 import { MOM_GUIDE_ARTICLES } from '../../data/hangulData';
-import { CommunityComment, CommunityPost } from '../../types';
+import { CommunityComment, CommunityPost, CommunityPostPetBadge } from '../../types';
 import { playSfx } from '../../utils/sound';
 import { verifyAdminPin, setStoredAdminActive, resetAdminPinToDefault, DEFAULT_INITIAL_PIN } from '../../utils/adminAuth';
 
@@ -45,13 +45,27 @@ interface CommunityTabProps {
   onRewardExp: (amount: number) => void;
   onRewardHearts?: (amount: number) => void;
   childName: string;
+  defaultChildAge?: string;
   initialNewPostImage?: string;
   initialNewPostTitle?: string;
   onClearInitialPostImage?: () => void;
   onOpenAdmin?: () => void;
   isAdmin?: boolean;
   onSetIsAdmin?: (status: boolean) => void;
+  myPetBadge?: CommunityPostPetBadge;
+  onGiftBerryToPost?: (postId: string) => void;
+  initialPetShareDraft?: { title: string; content: string } | null;
+  onClearInitialPetShareDraft?: () => void;
 }
+
+const AGE_OPTIONS = ['5세', '6세', '7세'] as const;
+type ChildAgeOption = (typeof AGE_OPTIONS)[number];
+
+const normalizeChildAgeOption = (raw?: string): ChildAgeOption => {
+  if (raw && raw.includes('6')) return '6세';
+  if (raw && raw.includes('7')) return '7세';
+  return '5세';
+};
 
 export const CommunityTab: React.FC<CommunityTabProps> = ({
   posts,
@@ -65,12 +79,17 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
   onRewardExp,
   onRewardHearts,
   childName,
+  defaultChildAge,
   initialNewPostImage,
   initialNewPostTitle,
   onClearInitialPostImage,
   onOpenAdmin,
   isAdmin: isAdminProp,
   onSetIsAdmin,
+  myPetBadge,
+  onGiftBerryToPost,
+  initialPetShareDraft,
+  onClearInitialPetShareDraft,
 }) => {
   const [activeCategory, setActiveCategory] = useState<'all' | 'success' | 'doodle' | 'talk' | 'tip' | 'event'>('all');
   const [ageFilter, setAgeFilter] = useState<'all' | '5살' | '6살' | '7살'>('all');
@@ -120,26 +139,29 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
 
   // New post draft
   const [authorName, setAuthorName] = useState(() => (isAdmin ? '토닥한글 관리자' : `${childName || '아이'}맘`));
-  const [childAge, setChildAge] = useState(isAdmin ? '공식 관리자' : '5~7세');
+  const [childAge, setChildAge] = useState<ChildAgeOption>(() => normalizeChildAgeOption(defaultChildAge));
   const [postCategory, setPostCategory] = useState<'success' | 'talk' | 'doodle' | 'tip' | 'event'>('success');
   const [postTitle, setPostTitle] = useState(initialNewPostTitle || '');
   const [postContent, setPostContent] = useState('');
   const [postImage, setPostImage] = useState<string | undefined>(initialNewPostImage);
   const [postPassword, setPostPassword] = useState('');
   const [postTags, setPostTags] = useState('엄마표한글, 우리아이, 응원해요');
+  const [attachPetBadge, setAttachPetBadge] = useState(true);
   const [writeFormError, setWriteFormError] = useState<string | null>(null);
   const [editFormError, setEditFormError] = useState<string | null>(null);
 
-  // Sync authorName when isAdmin changes
+  // Sync authorName & default childAge when isAdmin or profile changes
   React.useEffect(() => {
     if (isAdmin) {
       setAuthorName('토닥한글 관리자');
-      setChildAge('공식 관리자');
     } else {
       setAuthorName(`${childName || '아이'}맘`);
-      setChildAge('5~7세');
     }
   }, [isAdmin, childName]);
+
+  React.useEffect(() => {
+    setChildAge(normalizeChildAgeOption(defaultChildAge));
+  }, [defaultChildAge]);
 
   React.useEffect(() => {
     if (initialNewPostImage) {
@@ -150,6 +172,18 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
       if (onClearInitialPostImage) onClearInitialPostImage();
     }
   }, [initialNewPostImage]);
+
+  React.useEffect(() => {
+    if (initialPetShareDraft) {
+      setPostTitle(initialPetShareDraft.title);
+      setPostContent(initialPetShareDraft.content);
+      setPostCategory('success');
+      setAttachPetBadge(true);
+      setWriteFormError(null);
+      setWriteModalOpen(true);
+      onClearInitialPetShareDraft?.();
+    }
+  }, [initialPetShareDraft]);
 
   const filteredPosts = posts.filter((p) => {
     const matchesCat = activeCategory === 'all' || p.category === activeCategory;
@@ -208,7 +242,7 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
 
     onAddPost({
       author: finalAuthor,
-      childAge: isPostAdmin ? '공식 관리자' : (childAge || '5살'),
+      childAge: childAge || '5세',
       category: postCategory,
       title: postTitle.trim(),
       content: postContent.trim(),
@@ -217,6 +251,8 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
       isAdmin: isPostAdmin,
       tags: tagsArray.length > 0 ? tagsArray : [isPostAdmin ? '공지사항' : '엄마표한글'],
       pinned: isPostAdmin && (postCategory === 'event' || postCategory === 'tip'),
+      petBadge: attachPetBadge && myPetBadge ? myPetBadge : undefined,
+      giftedBerries: 0,
     });
 
     setPostTitle('');
@@ -340,10 +376,10 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto px-4 sm:px-5 pt-4 sm:pt-5 pb-6 space-y-5 box-border overflow-x-hidden">
+    <div className="w-full max-w-md mx-auto px-4 pt-4 pb-8 space-y-5 box-border overflow-x-hidden">
       {/* Toast Notification Banner */}
       {toastNotice && (
-        <div className="p-3 rounded-2xl bg-[#1b1917] text-white text-xs font-jua flex items-center justify-between shadow-lg animate-pop">
+        <div className="p-3 rounded-2xl bg-[#2D2825] text-white text-xs font-jua flex items-center justify-between shadow-lg animate-pop">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-300 flex-none" />
             <span>{toastNotice}</span>
@@ -357,125 +393,77 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
         </div>
       )}
 
-      {/* Eye-catching Admin Mode Bar in Community */}
-      {isAdmin && (
-        <div className="w-full max-w-full box-border overflow-hidden bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white rounded-3xl p-4 shadow-md flex flex-wrap items-center justify-between gap-3 border-2 border-amber-300">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl flex-none">
-              👑
+      {/* Unified Bright Pastel Community Header Card (Single Hero + Single Write CTA + Compact Event/Admin Row) */}
+      <div className="w-full max-w-full box-border overflow-hidden bg-gradient-to-br from-[#FFFDF9] via-[#FFF6EE] to-[#FFEFE8] rounded-3xl p-4 sm:p-5 border-2 border-[#F3DFCE] shadow-[0_10px_28px_rgba(231,111,81,0.10)] space-y-3.5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/90 border border-[#F5D7C6] text-[11px] font-jua text-[#D95338] mb-1">
+              <span>☕</span>
+              <span>우리 아이 한글 이야기</span>
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-jua text-sm sm:text-base">관리자 모드 실행 중</span>
-                <span className="bg-white text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded shadow-2xs">ADMIN</span>
-              </div>
-              <p className="text-[11px] text-amber-100 font-sans mt-0.5 break-keep">
-                비밀번호 없이 글·댓글 관리 가능
-              </p>
-            </div>
+            <h1 className="text-lg sm:text-xl font-jua text-[#2D2825] leading-snug break-keep">
+              엄마표 한글 광장
+            </h1>
+            <p className="text-xs text-[#7A6F66] font-body mt-0.5 break-keep">
+              작품 인증샷과 육아 팁을 함께 나눠요
+            </p>
           </div>
-          <div className="flex items-center gap-1.5 flex-none">
-            {onOpenAdmin && (
-              <button
-                onClick={() => {
-                  playSfx('pop');
-                  onOpenAdmin();
-                }}
-                className="min-h-[38px] px-3 py-1.5 rounded-xl bg-white text-amber-900 font-jua text-xs shadow-xs hover:bg-amber-50 transition-all active:scale-95 whitespace-nowrap"
-              >
-                콘솔
-              </button>
-            )}
-            <button
-              onClick={() => {
-                playSfx('tap');
-                if (onSetIsAdmin) onSetIsAdmin(false);
-                setStoredAdminActive(false);
-              }}
-              className="min-h-[38px] px-3 py-1.5 rounded-xl bg-black/40 text-amber-200 border border-amber-300/40 font-jua text-xs hover:bg-black/60 transition-all active:scale-95 whitespace-nowrap"
-              title="일반 사용자 화면으로 보기"
-            >
-              일반 모드
-            </button>
-          </div>
-        </div>
-      )}
 
-      {/* Monthly Lucky Draw Gift Event Banner */}
-      <div className="w-full max-w-full box-border bg-gradient-to-r from-[#ffe5d9] via-[#fff1e0] to-[#ffdcd2] rounded-3xl p-4 sm:p-5 border-2 border-[#f5b8a6] shadow-sm relative overflow-hidden space-y-2.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 text-xs font-bold text-[#c9502f] font-jua shadow-2xs whitespace-nowrap">
-            <Gift className="w-3.5 h-3.5" /> 매월 선물 추첨 이벤트
-          </div>
+          <button
+            onClick={() => {
+              playSfx('pop');
+              setWriteFormError(null);
+              setWriteModalOpen(true);
+            }}
+            className="min-h-[44px] shrink-0 inline-flex items-center gap-1.5 py-2.5 px-4 rounded-2xl bg-gradient-to-r from-[#E76F51] to-[#F4845F] hover:from-[#D95D40] hover:to-[#E76F51] text-white font-jua text-xs sm:text-sm shadow-[0_6px_16px_rgba(231,111,81,0.28)] active:scale-95 transition-all whitespace-nowrap cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" /> 새 글 쓰기
+          </button>
+        </div>
+
+        {/* Compact Single Utility Row: Gift Event + Admin Access */}
+        <div className="pt-2.5 border-t border-[#F4E3D4] flex flex-wrap items-center justify-between gap-2">
+          <button
+            onClick={() => {
+              playSfx('fan');
+              setEventModalOpen(true);
+            }}
+            className="min-h-[36px] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/95 hover:bg-white border border-[#F5CEBA] text-xs font-jua text-[#D95338] shadow-2xs active:scale-95 transition-all cursor-pointer"
+          >
+            <Gift className="w-3.5 h-3.5 text-[#E76F51]" />
+            <span>매월 선물 추첨 이벤트 보기</span>
+            <span className="text-[11px]">✨</span>
+          </button>
+
           {onOpenAdmin && (
             <button
               onClick={() => {
                 playSfx('pop');
                 onOpenAdmin();
               }}
-              className={`min-h-[32px] text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 transition-all whitespace-nowrap shrink-0 ${
+              className={`min-h-[34px] text-[11px] font-jua px-3 py-1 rounded-full flex items-center gap-1 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                 isAdmin
-                  ? 'bg-[#1b1917] text-amber-300 border border-amber-400/50 hover:bg-black'
-                  : 'bg-white/80 text-[#7D736A] hover:bg-white border border-[#f5b8a6]'
+                  ? 'bg-[#FFF0C2] text-[#8A5A19] border border-[#F3D179] shadow-2xs'
+                  : 'bg-white/85 text-[#7A6F66] hover:bg-white border border-[#EFE2D5]'
               }`}
-              title="대표님 관리자 콘솔 열기"
+              title="관리자 콘솔 열기"
             >
               👑 {isAdmin ? '관리자 On' : '관리자'}
             </button>
           )}
         </div>
-
-        <h2 className="text-base sm:text-lg font-jua text-[#1b1917] leading-snug break-keep">
-          🎁 완주 인증맘 선물 추첨 이벤트
-        </h2>
-        <p className="text-xs text-[#4a443e] font-body leading-relaxed break-keep">
-          인증샷이나 일기를 올리면 <b>원목 한글 교구 &amp; 그림책</b> 선물을 드려요!
-        </p>
-
-        <button
-          onClick={() => {
-            playSfx('fan');
-            setEventModalOpen(true);
-          }}
-          className="min-h-[42px] inline-flex items-center gap-1.5 py-2 px-4 rounded-xl bg-[#c9502f] text-white font-jua text-xs sm:text-sm shadow-xs hover:bg-[#b84324] active:scale-95 transition-all"
-        >
-          이벤트 확인하기 ✨
-        </button>
-      </div>
-
-      {/* Community Top Hero */}
-      <div className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-lg sm:text-xl font-jua text-[#1b1917] leading-snug break-keep">
-            엄마표 한글 으쌰으쌰 광장 ☕
-          </h1>
-          <p className="text-xs text-[#8a8178] font-body mt-0.5 break-keep">
-            우리 아이 이야기와 작품을 함께 나눠요
-          </p>
-        </div>
-
-        <button
-          onClick={() => {
-            playSfx('pop');
-            setWriteFormError(null);
-            setWriteModalOpen(true);
-          }}
-          className="min-h-[44px] shrink-0 inline-flex items-center gap-1.5 py-2.5 px-4 rounded-2xl bg-[#c9502f] text-white font-jua text-xs sm:text-sm shadow-md hover:bg-[#b84324] active:scale-95 transition-all whitespace-nowrap"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" /> 새 글 쓰기
-        </button>
       </div>
 
       {/* Mom's Coaching Guide Accordion (No specific age limit) */}
-      <div className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-4 border border-[#e4dccf] shadow-xs space-y-2">
-        <div className="flex items-center justify-between font-jua text-sm text-[#1b1917] pb-1 border-b border-[#f0ebe1]">
+      <div className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-4 border border-[#F2E5D8] shadow-[0_6px_20px_rgba(218,178,142,0.10)] space-y-2">
+        <div className="flex items-center justify-between font-jua text-sm text-[#2D2825] pb-1 border-b border-[#F7EFE6]">
           <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-[#c9502f]" />
+            <BookOpen className="w-4 h-4 text-[#E76F51]" />
             <span>엄마들을 위한 한글 코칭 가이드</span>
           </div>
           <button
             onClick={() => setExpandedGuideIndex(expandedGuideIndex === null ? 0 : null)}
-            className="text-xs text-[#8a8178] hover:text-[#c9502f] font-jua"
+            className="text-xs text-[#8a8178] hover:text-[#E76F51] font-jua"
           >
             {expandedGuideIndex === null ? '열기' : '접기'}
           </button>
@@ -484,10 +472,10 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
         {expandedGuideIndex !== null && (
           <div className="space-y-1.5 pt-1">
             {MOM_GUIDE_ARTICLES.map((article, idx) => (
-              <div key={idx} className="border border-[#f0ebe1] rounded-2xl p-3 bg-[#fdfcf9] space-y-1 text-xs">
-                <h4 className="font-jua text-xs sm:text-sm text-[#1b1917] break-keep">{article.title}</h4>
-                <p className="font-semibold text-[#c9502f] font-body break-keep">{article.summary}</p>
-                <ul className="space-y-1 text-[#4a443e] list-disc pl-4 font-body leading-relaxed break-keep">
+              <div key={idx} className="border border-[#F5E8DC] rounded-2xl p-3 bg-[#FFFBF6] space-y-1 text-xs">
+                <h4 className="font-jua text-xs sm:text-sm text-[#2D2825] break-keep">{article.title}</h4>
+                <p className="font-semibold text-[#D95338] font-body break-keep">{article.summary}</p>
+                <ul className="space-y-1 text-[#5C534B] list-disc pl-4 font-body leading-relaxed break-keep">
                   {article.tips.map((tip, tIdx) => (
                     <li key={tIdx}>{tip}</li>
                   ))}
@@ -499,10 +487,10 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
       </div>
 
       {/* Age Room Filter & Category Filter - Unified Mobile-Optimized Card */}
-      <div className="w-full max-w-full box-border overflow-hidden bg-white rounded-2xl p-3 border border-[#e4dccf] shadow-xs space-y-2">
+      <div className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-3.5 border border-[#F2E5D8] shadow-[0_6px_20px_rgba(218,178,142,0.10)] space-y-2.5">
         {/* Row 1: Age Filter Carousel */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-          <span className="text-xs font-jua text-[#8a8178] shrink-0 flex items-center gap-1 pl-0.5">
+          <span className="text-xs font-jua text-[#7A6F66] shrink-0 flex items-center gap-1 pl-0.5">
             <span>👶</span> 연령방:
           </span>
           {[
@@ -519,8 +507,8 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
               }}
               className={`px-3 py-1 rounded-xl font-jua text-xs shrink-0 whitespace-nowrap transition-all ${
                 ageFilter === af.key
-                  ? 'bg-[#1b1917] text-white shadow-2xs'
-                  : 'bg-[#faf8f5] text-[#8a8178] border border-[#e4dccf] hover:text-[#1b1917]'
+                  ? 'bg-gradient-to-r from-[#FF9F43] to-[#F77F00] text-white shadow-xs'
+                  : 'bg-[#FFF9F2] text-[#7A6F66] border border-[#F2E2D2] hover:border-[#F4A261]'
               }`}
             >
               {af.label}
@@ -529,7 +517,7 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
         </div>
 
         {/* Row 2: Category Filter Carousel */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1.5 border-t border-[#f0ebe1]">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2 border-t border-[#F7EFE6]">
           {[
             { key: 'all', label: '💖 전체글' },
             { key: 'success', label: '🏆 오늘 성공' },
@@ -545,8 +533,8 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
               }}
               className={`px-3 py-1.5 rounded-xl font-jua text-xs shrink-0 whitespace-nowrap transition-all ${
                 activeCategory === cat.key
-                  ? 'bg-[#c9502f] text-white shadow-xs'
-                  : 'bg-[#faf8f5] text-[#8a8178] border border-[#e4dccf] hover:text-[#1b1917]'
+                  ? 'bg-gradient-to-r from-[#E76F51] to-[#F4845F] text-white shadow-xs'
+                  : 'bg-[#FFF9F2] text-[#7A6F66] border border-[#F2E2D2] hover:border-[#F4A261]'
               }`}
             >
               {cat.label}
@@ -558,10 +546,10 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
       {/* Posts Feed */}
       <div className="space-y-4">
         {filteredPosts.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-3xl border border-[#e4dccf] p-6 space-y-2">
+          <div className="text-center py-12 bg-white rounded-3xl border border-[#F2E5D8] shadow-[0_6px_20px_rgba(218,178,142,0.10)] p-6 space-y-2">
             <span className="text-3xl">☕</span>
-            <p className="font-jua text-base text-[#1b1917]">아직 작성된 글이 없어요.</p>
-            <p className="text-xs text-[#8a8178] font-body">
+            <p className="font-jua text-base text-[#2D2825]">아직 작성된 글이 없어요.</p>
+            <p className="text-xs text-[#7A6F66] font-body">
               첫 번째로 우리 아이 이야기나 사진을 남겨보세요!
             </p>
           </div>
@@ -569,7 +557,7 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
           filteredPosts.map((post) => (
             <div
               key={post.id}
-              className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3 hover:border-[#ebd9c7] transition-all"
+              className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#F2E5D8] shadow-[0_6px_22px_rgba(218,178,142,0.10)] space-y-3 hover:border-[#F5CDB6] transition-all"
             >
               {/* Post Header: Clean 1-row metadata & single category badge */}
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -661,6 +649,32 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
                 </div>
               </div>
 
+              {/* Tamagotchi Friend Level Showcase Badge */}
+              {post.petBadge && (
+                <div
+                  className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-2xl border text-xs font-jua ${
+                    post.petBadge.level >= 5
+                      ? 'bg-gradient-to-r from-[#FFF9E6] to-[#FFF0D4] border-[#F4D078] text-[#8A5410]'
+                      : 'bg-[#FAF6F0] border-[#EDE0D0] text-[#5C534B]'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-base leading-none shrink-0">{post.petBadge.emoji}</span>
+                    <span className="truncate">
+                      {post.petBadge.name} · Lv.{post.petBadge.level}
+                    </span>
+                    <span className="text-[10px] font-hand opacity-80 truncate hidden sm:inline">
+                      ({post.petBadge.stageName})
+                    </span>
+                  </div>
+                  {post.petBadge.level >= 5 && (
+                    <span className="text-[10px] text-[#B45309] shrink-0 whitespace-nowrap">
+                      👑 우수 친구
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* Title & Body: Consistent fonts & break-keep */}
               <div className="space-y-1">
                 <h3 className="font-jua text-base sm:text-lg text-[#1b1917] leading-snug break-keep">
@@ -696,33 +710,66 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
                 </div>
               )}
 
-              {/* Actions: Cheering Like & Comments Toggle */}
-              <div className="flex items-center justify-between pt-2 border-t border-[#f0ebe1]">
-                <button
-                  onClick={() => {
-                    playSfx('pop');
-                    onToggleLike(post.id);
-                  }}
-                  className={`flex items-center gap-1.5 text-xs font-jua px-3 py-1.5 rounded-xl border transition-all active:scale-95 ${
-                    post.cheeredByMe
-                      ? 'bg-[#fbe7e1] border-[#f5b8a6] text-[#c9502f]'
-                      : 'bg-white border-[#e4dccf] text-[#8a8178] hover:text-[#c9502f]'
-                  }`}
-                >
-                  <Heart
-                    className={`w-3.5 h-3.5 ${
-                      post.cheeredByMe ? 'fill-[#c9502f] text-[#c9502f]' : ''
+              {/* Actions: Cheering Like, Praise Berry Gift & Comments Toggle */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#f0ebe1]">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playSfx('pop');
+                      onToggleLike(post.id);
+                    }}
+                    className={`min-h-[36px] flex items-center gap-1 text-xs font-jua px-3 py-1.5 rounded-xl border transition-all active:scale-95 ${
+                      post.cheeredByMe
+                        ? 'bg-[#fbe7e1] border-[#f5b8a6] text-[#c9502f]'
+                        : 'bg-white border-[#e4dccf] text-[#8a8178] hover:text-[#c9502f]'
                     }`}
-                  />
-                  <span>응원해요 {post.likes}</span>
-                </button>
+                  >
+                    <Heart
+                      className={`w-3.5 h-3.5 ${
+                        post.cheeredByMe ? 'fill-[#c9502f] text-[#c9502f]' : ''
+                      }`}
+                    />
+                    <span>응원 {post.likes}</span>
+                  </button>
+
+                  {onGiftBerryToPost && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (post.giftedByMe) {
+                          playSfx('tap');
+                          showToast('이미 이 친구에게 칭찬 열매를 선물했어요! 🍇');
+                          return;
+                        }
+                        playSfx('fan');
+                        confetti({ particleCount: 24, spread: 50, origin: { y: 0.7 } });
+                        onGiftBerryToPost(post.id);
+                        showToast(
+                          `🍇 ${post.author}님의 ${post.petBadge?.name || '다마고치 친구'}에게 칭찬 열매를 선물했어요! (+2 EXP)`
+                        );
+                      }}
+                      className={`min-h-[36px] flex items-center gap-1 text-xs font-jua px-3 py-1.5 rounded-xl border transition-all active:scale-95 ${
+                        post.giftedByMe
+                          ? 'bg-purple-100 border-purple-300 text-purple-800'
+                          : 'bg-[#FAF5FF] border-[#E4D0FA] text-[#7E22CE] hover:bg-purple-100'
+                      }`}
+                      title="칭찬 열매 선물하기"
+                    >
+                      <span>🍇</span>
+                      <span>{post.giftedByMe ? '선물 완료' : '열매 선물'}</span>
+                      <span className="font-bold">{post.giftedBerries ?? 0}</span>
+                    </button>
+                  )}
+                </div>
 
                 <button
+                  type="button"
                   onClick={() => {
                     playSfx('tap');
                     setCommentOpenPostId(commentOpenPostId === post.id ? null : post.id);
                   }}
-                  className="flex items-center gap-1 text-xs text-[#8a8178] hover:text-[#1b1917] font-jua py-1.5 px-2 active:scale-95 transition-all"
+                  className="min-h-[36px] flex items-center gap-1 text-xs text-[#8a8178] hover:text-[#1b1917] font-jua py-1.5 px-2 active:scale-95 transition-all"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                   댓글 {post.comments.length}개
@@ -796,23 +843,8 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
         )}
       </div>
 
-      {/* Floating Action Button (FAB) for mobile quick posting */}
-      <div className="fixed bottom-20 right-4 sm:hidden z-30">
-        <button
-          onClick={() => {
-            playSfx('pop');
-            setWriteFormError(null);
-            setWriteModalOpen(true);
-          }}
-          className="min-h-[48px] flex items-center gap-1.5 py-3 px-4 rounded-full bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-xs shadow-lg active:scale-95 transition-all cursor-pointer"
-          title="새 글 쓰기"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" /> 새 글 쓰기
-        </button>
-      </div>
-
       {/* Admin Mode Footer Bar */}
-      <div className="text-center pt-2">
+      <div className="text-center pt-1 pb-2">
         <button
           onClick={() => {
             playSfx('tap');
@@ -823,26 +855,49 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
               setAdminModalOpen(true);
             }
           }}
-          className="inline-flex items-center gap-1.5 text-xs text-[#8a8178] hover:text-[#1b1917] py-1.5 px-3 rounded-xl bg-white border border-[#e4dccf]"
+          className="inline-flex items-center gap-1.5 text-xs text-[#7A6F66] hover:text-[#2D2825] py-2 px-3.5 rounded-2xl bg-white border border-[#F2E5D8] shadow-2xs"
         >
-          <Shield className="w-3.5 h-3.5 text-[#c9502f]" />
+          <Shield className="w-3.5 h-3.5 text-[#E76F51]" />
           {isAdmin ? '👑 관리자 모드 끄기' : '앱 제작자 / 관리자 로그인'}
         </button>
       </div>
 
       {/* Admin Auth Modal */}
       {adminModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-sm box-border overflow-hidden shadow-2xl p-5 sm:p-6 text-center space-y-4 animate-pop relative">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
+          onClick={() => {
+            setAdminModalOpen(false);
+            setAdminAuthError(false);
+            setAdminResetNotice(null);
+          }}
+        >
+          <div
+            className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-sm box-border overflow-hidden shadow-2xl p-5 sm:p-6 text-center space-y-4 animate-pop relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
-              onClick={() => {
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                playSfx('tap');
                 setAdminModalOpen(false);
                 setAdminAuthError(false);
                 setAdminResetNotice(null);
               }}
-              className="absolute top-4 right-4 text-[#8a8178] hover:text-[#1b1917]"
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                playSfx('tap');
+                setAdminModalOpen(false);
+                setAdminAuthError(false);
+                setAdminResetNotice(null);
+              }}
+              className="absolute top-3 right-3 z-30 w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-white/95 hover:bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] shadow-2xs active:scale-95 transition-all cursor-pointer"
+              aria-label="닫기"
+              title="닫기"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
             <Shield className="w-10 h-10 text-[#c9502f] mx-auto" />
             <div>
@@ -933,16 +988,32 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
 
       {/* Write New Post Modal with Photo Upload & Password */}
       {writeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-lg box-border overflow-hidden shadow-2xl p-4 sm:p-6 text-left space-y-4 animate-pop max-h-[92vh] flex flex-col relative">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
+          onClick={() => setWriteModalOpen(false)}
+        >
+          <div
+            className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-lg box-border overflow-hidden shadow-2xl p-4 sm:p-6 text-left space-y-4 animate-pop max-h-[92vh] flex flex-col relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
-              onClick={() => {
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
                 playSfx('tap');
                 setWriteModalOpen(false);
               }}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917]"
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                playSfx('tap');
+                setWriteModalOpen(false);
+              }}
+              className="absolute top-3 right-3 z-30 w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-white/95 hover:bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] shadow-2xs active:scale-95 transition-all cursor-pointer"
+              aria-label="닫기"
+              title="닫기"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
 
             <div className="border-b border-[#f0ebe1] pb-2">
@@ -951,7 +1022,7 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
             </div>
 
             <form onSubmit={handleSubmitPost} className="space-y-3 overflow-y-auto overflow-x-hidden flex-1 pb-4 box-border">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-3">
                 <div>
                   <label className="text-xs font-bold text-[#4a443e] block mb-1">작성자 닉네임</label>
                   <input
@@ -960,19 +1031,37 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
                     onChange={(e) => setAuthorName(e.target.value)}
                     required
                     maxLength={10}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-[#e4dccf] bg-white text-[#1b1917]"
+                    className="w-full min-h-[42px] px-3 py-2 text-xs sm:text-sm rounded-xl border border-[#e4dccf] bg-white text-[#1b1917] outline-none focus:border-[#c9502f]"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-[#4a443e] block mb-1">아이 나이</label>
-                  <input
-                    type="text"
-                    value={childAge}
-                    onChange={(e) => setChildAge(e.target.value)}
-                    required
-                    maxLength={10}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-[#e4dccf] bg-white text-[#1b1917]"
-                  />
+                  <label className="text-xs font-bold text-[#4a443e] block mb-1.5">
+                    아이 나이 <span className="text-[11px] font-hand font-normal text-[#8a8178]">(터치해서 선택)</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="아이 나이 선택">
+                    {AGE_OPTIONS.map((ageOption) => {
+                      const isSelected = childAge === ageOption;
+                      return (
+                        <button
+                          type="button"
+                          key={ageOption}
+                          role="radio"
+                          aria-checked={isSelected}
+                          onClick={() => {
+                            playSfx('tap');
+                            setChildAge(ageOption);
+                          }}
+                          className={`min-h-[44px] py-2.5 px-3 rounded-xl font-jua text-sm border transition-all active:scale-95 flex items-center justify-center whitespace-nowrap ${
+                            isSelected
+                              ? 'bg-orange-500 text-white border-orange-500 shadow-sm ring-2 ring-orange-500/20'
+                              : 'bg-white text-[#4a443e] border-[#e4dccf] hover:border-orange-300 hover:bg-[#fffaf5]'
+                          }`}
+                        >
+                          {ageOption}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -1057,53 +1146,80 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-bold text-[#4a443e] block mb-1">
-                    수정/삭제 비밀번호 (4자리) <span className="text-red-500 font-bold">*필수 입력</span>
+              {myPetBadge && (
+                <label className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-[#FFF6EC] border border-[#F3D8BE] cursor-pointer select-none">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xl leading-none shrink-0">{myPetBadge.emoji}</span>
+                    <div className="min-w-0">
+                      <span className="font-jua text-xs text-[#1b1917] block truncate">
+                        내 다마고치 친구 뱃지 함께 올리기
+                      </span>
+                      <span className="text-[11px] font-hand text-[#857A6E] block truncate">
+                        {myPetBadge.name} · Lv.{myPetBadge.level} ({myPetBadge.stageName})
+                      </span>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={attachPetBadge}
+                    onChange={(e) => setAttachPetBadge(e.target.checked)}
+                    className="w-4 h-4 rounded border-orange-300 text-[#c9502f] focus:ring-[#c9502f] shrink-0"
+                  />
+                </label>
+              )}
+
+              <div className="flex flex-col space-y-3.5 w-full min-w-0 pt-1">
+                <div className="w-full min-w-0 space-y-1.5">
+                  <label className="flex items-center justify-between gap-2 text-xs font-bold text-[#4a443e] w-full min-w-0">
+                    <span className="truncate">수정/삭제 비밀번호 (4자리)</span>
+                    <span className="text-red-500 font-bold shrink-0 whitespace-nowrap">*필수 입력</span>
                   </label>
                   <input
                     type="password"
+                    inputMode="numeric"
                     value={postPassword}
                     onChange={(e) => setPostPassword(e.target.value.replace(/[^0-9]/g, ''))}
                     maxLength={4}
                     required
                     placeholder="숫자 4자리 직접 입력"
-                    className="w-full px-3 py-2 text-xs rounded-xl border-2 border-[#e4dccf] bg-white text-[#1b1917] font-mono tracking-widest text-center outline-none focus:border-[#c9502f]"
+                    className="w-full min-w-0 min-h-[44px] px-4 py-2.5 text-sm rounded-2xl border-2 border-[#e4dccf] bg-white text-[#1b1917] font-mono tracking-widest placeholder:font-body placeholder:tracking-normal placeholder:text-xs placeholder:text-[#9c9387] truncate outline-none focus:border-[#c9502f] transition-colors"
                   />
-                  <p className="text-[10px] text-[#8a8178] font-body mt-0.5">
-                    비밀번호를 입력해야 글이 등록됩니다.
+                  <p className="text-[11px] text-[#8a8178] font-body truncate">
+                    글을 수정하거나 지울 때 필요한 비밀번호예요.
                   </p>
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-[#4a443e] block mb-1">태그</label>
+
+                <div className="w-full min-w-0 space-y-1.5">
+                  <label className="block text-xs font-bold text-[#4a443e] truncate">
+                    태그 <span className="font-normal text-[#8a8178]">(쉼표로 구분 · 선택)</span>
+                  </label>
                   <input
                     type="text"
                     value={postTags}
                     onChange={(e) => setPostTags(e.target.value)}
-                    placeholder="5살한글, 사자소리"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-[#e4dccf] bg-white text-[#1b1917]"
+                    placeholder="엄마표한글, 우리아이, 응원"
+                    className="w-full min-w-0 min-h-[44px] px-4 py-2.5 text-sm rounded-2xl border border-[#e4dccf] bg-white text-[#1b1917] placeholder:text-xs placeholder:text-[#9c9387] truncate outline-none focus:border-[#c9502f] transition-colors"
                   />
                 </div>
               </div>
 
               {writeFormError && (
-                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 font-jua text-xs text-center">
+                <div className="mt-4 p-2.5 rounded-2xl bg-red-50 border border-red-200 text-red-600 font-jua text-xs text-center break-keep">
                   ⚠️ {writeFormError}
                 </div>
               )}
 
-              <div className="pt-2 flex gap-2">
+              <div className="mt-6 pt-2 flex items-center gap-2.5">
                 <button
                   type="button"
                   onClick={() => setWriteModalOpen(false)}
-                  className="w-1/3 min-h-[44px] py-2.5 rounded-xl bg-white border border-[#e4dccf] text-[#8a8178] font-jua text-sm"
+                  className="w-1/3 min-h-[48px] py-2.5 px-4 rounded-2xl bg-white border border-[#e4dccf] text-[#8a8178] font-jua text-sm active:scale-95 transition-all"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 min-h-[44px] py-2.5 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm shadow-md active:scale-95 transition-all"
+                  className="flex-1 min-h-[48px] py-2.5 px-4 rounded-2xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm shadow-md active:scale-95 transition-all"
                 >
                   게시글 올리기 🎉
                 </button>
@@ -1115,13 +1231,32 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
 
       {/* Edit Post Modal */}
       {editingPost && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-md box-border overflow-hidden flex flex-col max-h-[92vh] shadow-2xl p-4 sm:p-6 text-left space-y-3.5 animate-pop relative">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
+          onClick={() => setEditingPost(null)}
+        >
+          <div
+            className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-md box-border overflow-hidden flex flex-col max-h-[92vh] shadow-2xl p-4 sm:p-6 text-left space-y-3.5 animate-pop relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
-              onClick={() => setEditingPost(null)}
-              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178]"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                playSfx('tap');
+                setEditingPost(null);
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                playSfx('tap');
+                setEditingPost(null);
+              }}
+              className="absolute top-3 right-3 z-30 w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-white/95 hover:bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] shadow-2xs active:scale-95 transition-all cursor-pointer"
+              aria-label="닫기"
+              title="닫기"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
             <h3 className="font-jua text-lg text-[#1b1917]">글 수정하기</h3>
 
@@ -1261,13 +1396,32 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
 
       {/* In-App Comment Deletion Confirmation / PIN Modal */}
       {commentDeleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-xs box-border overflow-hidden shadow-2xl p-5 sm:p-6 text-center space-y-4 animate-pop relative">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
+          onClick={() => setCommentDeleteTarget(null)}
+        >
+          <div
+            className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-xs box-border overflow-hidden shadow-2xl p-5 sm:p-6 text-center space-y-4 animate-pop relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
-              onClick={() => setCommentDeleteTarget(null)}
-              className="absolute top-4 right-4 text-[#8a8178]"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                playSfx('tap');
+                setCommentDeleteTarget(null);
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                playSfx('tap');
+                setCommentDeleteTarget(null);
+              }}
+              className="absolute top-3 right-3 z-30 w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-white/95 hover:bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] shadow-2xs active:scale-95 transition-all cursor-pointer"
+              aria-label="닫기"
+              title="닫기"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
             <div className="text-3xl">🗑️</div>
             <h3 className="font-jua text-base text-[#1b1917] break-keep">
@@ -1319,15 +1473,37 @@ export const CommunityTab: React.FC<CommunityTabProps> = ({
 
       {/* Monthly Lucky Draw Simulator Modal */}
       {eventModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-[#fbf8f2] border-4 border-[#f2c14e] rounded-3xl w-full max-w-md box-border overflow-hidden shadow-2xl p-5 sm:p-6 text-center space-y-4 animate-pop relative">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
+          onClick={() => {
+            playSfx('tap');
+            setEventModalOpen(false);
+          }}
+        >
+          <div
+            className="bg-[#fbf8f2] border-4 border-[#f2c14e] rounded-3xl w-full max-w-md box-border overflow-hidden shadow-2xl p-5 sm:p-6 text-center space-y-4 animate-pop relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
-              onClick={() => setEventModalOpen(false)}
-              className="absolute top-4 right-4 text-[#8a8178]"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                playSfx('tap');
+                setEventModalOpen(false);
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                playSfx('tap');
+                setEventModalOpen(false);
+              }}
+              className="absolute top-3 right-3 z-30 w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-white/95 hover:bg-white border border-[#f2d084] flex items-center justify-center text-[#7A6F66] hover:text-[#2D2825] shadow-xs active:scale-95 transition-all cursor-pointer"
+              aria-label="이벤트 모달 닫기"
+              title="닫기"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
-            <div className="text-4xl animate-bounce">🎁</div>
+            <div className="text-4xl animate-bounce pointer-events-none">🎁</div>
             <div>
               <span className="text-xs font-bold text-[#c9502f] font-jua">매월 정기 커뮤니티 이벤트</span>
               <h3 className="text-xl font-jua text-[#1b1917]">

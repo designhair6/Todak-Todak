@@ -13,6 +13,8 @@ import {
   Edit2,
   Check,
   X,
+  MoreHorizontal,
+  FolderInput,
 } from 'lucide-react';
 import { CRAYON_PALETTE, DOODLE_STAMPS, TRACING_ITEMS } from '../../data/hangulData';
 import { SavedDoodle, TracingCategory, TracingItem } from '../../types';
@@ -101,16 +103,21 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
       return [];
     }
   });
-  const [showGallery, setShowGallery] = useState(false);
+  const [showGallery, setShowGallery] = useState(true);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [editingDoodle, setEditingDoodle] = useState<{ id: string; title: string } | null>(null);
   const [deleteDoodleTarget, setDeleteDoodleTarget] = useState<SavedDoodle | null>(null);
+  const [galleryMenuId, setGalleryMenuId] = useState<string | null>(null);
+  const [brokenDoodleIds, setBrokenDoodleIds] = useState<Record<string, boolean>>({});
 
   const handleDeleteDoodle = (id: string) => {
     const updated = savedDoodles.filter((d) => d.id !== id);
     setSavedDoodles(updated);
-    localStorage.setItem('hangul_saved_doodles', JSON.stringify(updated));
+    try {
+      localStorage.setItem('hangul_saved_doodles', JSON.stringify(updated));
+    } catch {}
     setDeleteDoodleTarget(null);
+    setGalleryMenuId(null);
     playSfx('erase');
   };
 
@@ -120,26 +127,142 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
       d.id === editingDoodle.id ? { ...d, title: editingDoodle.title.trim() || '한글 그림' } : d
     );
     setSavedDoodles(updated);
-    localStorage.setItem('hangul_saved_doodles', JSON.stringify(updated));
+    try {
+      localStorage.setItem('hangul_saved_doodles', JSON.stringify(updated));
+    } catch {}
     setEditingDoodle(null);
+    setGalleryMenuId(null);
     playSfx('pop');
   };
 
   const handleLoadOntoCanvas = (doodle: SavedDoodle) => {
+    if (!doodle || !doodle.dataUrl) {
+      playSfx('erase');
+      setSaveNotice('불러올 그림 데이터가 비어 있어요.');
+      setTimeout(() => setSaveNotice(null), 3000);
+      return;
+    }
+
+    if (!drawCanvasRef.current) {
+      setSaveNotice('도화지를 준비 중이에요. 잠시 후 다시 눌러주세요!');
+      setTimeout(() => setSaveNotice(null), 2500);
+      return;
+    }
+
+    if (drawCanvasRef.current.width === 0 || drawCanvasRef.current.height === 0) {
+      setupCanvases();
+    }
+
     const drawCanvas = drawCanvasRef.current;
-    if (!drawCanvas) return;
-    const ctx = drawCanvas.getContext('2d');
-    if (!ctx) return;
-    const img = new Image();
-    img.onload = () => {
-      ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-      ctx.drawImage(img, 0, 0, drawCanvas.width, drawCanvas.height);
+    if (!drawCanvas || drawCanvas.width === 0 || drawCanvas.height === 0) return;
+
+    const finalizeCanvasLoad = () => {
+      saveHistoryState();
       playSfx('fan');
-      confetti({ particleCount: 30, spread: 60 });
+      confetti({ particleCount: 25, spread: 60 });
       setSaveNotice(`'${doodle.title}' 그림을 도화지로 불러왔어요! 🎨`);
       setTimeout(() => setSaveNotice(null), 3000);
+      containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
-    img.src = doodle.dataUrl;
+
+    const rawData = doodle.dataUrl.trim();
+
+    // Support optional JSON stroke data if stored in stroke format
+    if (rawData.startsWith('[') || rawData.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(rawData);
+        const strokes = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.strokes) ? parsed.strokes : [];
+        const ctx = drawCanvas.getContext('2d');
+        if (!ctx) return;
+        const dpr = window.devicePixelRatio || 1;
+
+        ctx.save();
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+
+        strokes.forEach((stroke: { color?: string; width?: number; points?: Array<{ x: number; y: number } | [number, number]> }) => {
+          const pts = stroke?.points;
+          if (!Array.isArray(pts) || pts.length === 0) return;
+          ctx.beginPath();
+          ctx.strokeStyle = stroke.color || selectedColor;
+          ctx.lineWidth = stroke.width || brushSize;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          pts.forEach((pt, idx) => {
+            const px = Array.isArray(pt) ? pt[0] : pt.x;
+            const py = Array.isArray(pt) ? pt[1] : pt.y;
+            if (typeof px !== 'number' || typeof py !== 'number') return;
+            if (idx === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          });
+          ctx.stroke();
+        });
+        ctx.restore();
+        finalizeCanvasLoad();
+        return;
+      } catch {
+        // Fall through to error handling below if malformed JSON
+        playSfx('erase');
+        setSaveNotice('저장된 그림 형식을 읽지 못했어요.');
+        setTimeout(() => setSaveNotice(null), 3000);
+        return;
+      }
+    }
+
+    // Standard Base64 / Data URL image rendering with DPR-safe transform & aspect fit
+    const img = new Image();
+    img.onload = () => {
+      const liveCanvas = drawCanvasRef.current;
+      if (!liveCanvas || liveCanvas.width === 0 || liveCanvas.height === 0) return;
+      const liveCtx = liveCanvas.getContext('2d');
+      if (!liveCtx) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      liveCtx.save();
+      liveCtx.setTransform(1, 0, 0, 1, 0, 0);
+      liveCtx.globalCompositeOperation = 'source-over';
+      liveCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
+
+      const imgAspect =
+        img.naturalWidth > 0 && img.naturalHeight > 0
+          ? img.naturalWidth / img.naturalHeight
+          : liveCanvas.width / liveCanvas.height;
+      const canvasAspect = liveCanvas.width / liveCanvas.height;
+
+      let drawW = liveCanvas.width;
+      let drawH = liveCanvas.height;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      if (Math.abs(imgAspect - canvasAspect) > 0.02) {
+        if (imgAspect > canvasAspect) {
+          drawW = liveCanvas.width;
+          drawH = liveCanvas.width / imgAspect;
+          offsetY = (liveCanvas.height - drawH) / 2;
+        } else {
+          drawH = liveCanvas.height;
+          drawW = liveCanvas.height * imgAspect;
+          offsetX = (liveCanvas.width - drawW) / 2;
+        }
+        liveCtx.fillStyle = '#ffffff';
+        liveCtx.fillRect(0, 0, liveCanvas.width, liveCanvas.height);
+      }
+
+      liveCtx.drawImage(img, offsetX, offsetY, drawW, drawH);
+      liveCtx.restore();
+
+      liveCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      liveCtx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
+
+      finalizeCanvasLoad();
+    };
+    img.onerror = () => {
+      playSfx('erase');
+      setSaveNotice('그림 이미지를 불러오지 못했어요. 다시 시도해주세요.');
+      setTimeout(() => setSaveNotice(null), 3000);
+    };
+    img.src = rawData;
   };
 
   // Canvas history for undo (draw canvas only)
@@ -840,7 +963,7 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
     ctx.save();
 
     const outerPad = Math.max(10, Math.round(Math.min(width, height) * 0.032));
-    const maxSquare = Math.min(width - outerPad * 2, height - outerPad * 2, 420);
+    const maxSquare = Math.min(width - outerPad * 2, height - outerPad * 2, 480);
     const skeleton =
       item.label.length === 1
         ? getLetterSkeleton(item.label, width / 2, height / 2, maxSquare * 0.68)
@@ -1251,7 +1374,7 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto px-4 sm:px-5 pt-3 pb-6 space-y-3.5 box-border overflow-x-hidden">
+    <div className="w-full max-w-md mx-auto px-3 sm:px-4 pt-4 pb-8 space-y-4 box-border overflow-x-hidden">
       {/* Save Notification Toast */}
       {saveNotice && (
         <div className="p-3 rounded-2xl bg-[#f0f9ed] border-2 border-[#a3e635] text-[#1e6a34] font-jua text-xs sm:text-sm flex items-center justify-between shadow-md animate-pop">
@@ -1595,7 +1718,7 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
                 type="button"
                 onClick={() => {
                   playSfx('tap');
-                  speakKorean(`${currentTracing.soundText}! ${currentTracing.strokesHint}`);
+                  speakKorean(currentTracing.soundText);
                 }}
                 className="flex items-center gap-1 text-[11px] text-[#c9502f] bg-white hover:bg-orange-50 px-2.5 py-1 rounded-lg border border-[#eedfc9] font-jua shadow-2xs active:scale-95 shrink-0"
               >
@@ -1607,57 +1730,227 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
         </div>
       )}
 
-      {/* External Canvas Toolbar with Clear Touch Separation */}
-      <div className="w-full box-border flex flex-wrap items-center justify-between gap-2.5 bg-[#fdfaf5] p-3.5 sm:p-4 mb-2 rounded-2xl border border-[#eedfc9] shadow-2xs">
-        <span className="px-3 py-1.5 rounded-xl bg-white border border-[#eedfc9] text-xs font-jua text-[#1b1917] flex items-center gap-1.5 shadow-2xs whitespace-nowrap">
-          {mode === 'tracing' ? `✏️ 따라 쓰기 · ${currentTracing.label}` : '🎨 자유 낙서장'}
-        </span>
+      {/* Sticky One-Stop Floating Toolbar: Actions + Tools + Brush Sizes + Full 14-Color/Stamp Palette */}
+      <div className="sticky top-1 z-30 w-full max-w-full box-border overflow-hidden bg-[#fdfaf5]/95 backdrop-blur-md p-2.5 sm:p-3 rounded-2xl border-2 border-[#e4dccf] shadow-md space-y-2">
+        {/* Row 1: Active Letter Badge & Undo / Clear / Save / Share */}
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
+          <span className="px-2.5 py-1 rounded-xl bg-white border border-[#eedfc9] text-xs font-jua text-[#1b1917] flex items-center gap-1 shadow-2xs whitespace-nowrap">
+            {mode === 'tracing' ? `✏️ 따라 쓰기 · ${currentTracing.label}` : '🎨 자유 낙서장'}
+          </span>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={undoLastStroke}
-            className="min-h-[42px] px-3 py-1.5 rounded-xl bg-white hover:bg-[#f6f1e7] border border-[#e4dccf] text-[#4a443e] font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95 whitespace-nowrap"
-            title="한 획 뒤로"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-[#8a8178]" />
-            <span>취소</span>
-          </button>
-          <button
-            type="button"
-            onClick={clearDrawLayer}
-            className="min-h-[42px] px-3 py-1.5 rounded-xl bg-white hover:bg-red-50 border border-[#e4dccf] hover:border-red-200 text-red-600 font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95 whitespace-nowrap"
-            title="내가 그린 선만 지우기"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-red-500" />
-            <span>지우기</span>
-          </button>
-          <button
-            type="button"
-            onClick={saveToGallery}
-            className="min-h-[42px] px-3.5 py-1.5 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95 whitespace-nowrap"
-            title="갤러리에 저장"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>저장</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleShare}
-            className="min-h-[42px] px-3.5 py-1.5 rounded-xl bg-[#ea580c] hover:bg-[#d94e08] text-white font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95 whitespace-nowrap"
-            title="커뮤니티 자랑"
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            <span>자랑</span>
-          </button>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={undoLastStroke}
+              className="min-h-[36px] px-2.5 py-1 rounded-xl bg-white hover:bg-[#f6f1e7] border border-[#e4dccf] text-[#4a443e] font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95 whitespace-nowrap"
+              title="한 획 뒤로"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-[#8a8178]" />
+              <span>취소</span>
+            </button>
+            <button
+              type="button"
+              onClick={clearDrawLayer}
+              className="min-h-[36px] px-2.5 py-1 rounded-xl bg-white hover:bg-red-50 border border-[#e4dccf] hover:border-red-200 text-red-600 font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95 whitespace-nowrap"
+              title="내가 그린 선만 지우기"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+              <span>지우기</span>
+            </button>
+            <button
+              type="button"
+              onClick={saveToGallery}
+              className="min-h-[36px] px-2.5 py-1 rounded-xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95 whitespace-nowrap"
+              title="갤러리에 저장"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>저장</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="min-h-[36px] px-2.5 py-1 rounded-xl bg-[#ea580c] hover:bg-[#d94e08] text-white font-jua text-xs flex items-center gap-1 shadow-2xs active:scale-95 whitespace-nowrap"
+              title="커뮤니티 자랑"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>자랑</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Drawing Tools (펜 / 무지개 / 지우개 / 스탬프) + Brush Sizes */}
+        <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-[#eedfc9]">
+          <div className="flex items-center gap-1 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                playSfx('tap');
+                setTool('crayon');
+              }}
+              className={`min-h-[36px] px-2.5 py-1 rounded-xl font-jua text-xs border transition-colors active:scale-95 whitespace-nowrap flex items-center gap-1 ${
+                tool === 'crayon'
+                  ? 'bg-[#1b1917] text-white border-[#1b1917] shadow-2xs'
+                  : 'bg-white text-[#4a443e] border-[#e4dccf] hover:bg-[#f6f1e7]'
+              }`}
+              title="크레파스 펜"
+            >
+              <span>🖍️</span>
+              <span>펜</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                playSfx('pop');
+                setTool('rainbow');
+              }}
+              className={`min-h-[36px] px-2.5 py-1 rounded-xl font-jua text-xs border transition-colors active:scale-95 whitespace-nowrap flex items-center gap-1 ${
+                tool === 'rainbow'
+                  ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white border-purple-500 shadow-2xs'
+                  : 'bg-white text-[#4a443e] border-[#e4dccf] hover:bg-[#f6f1e7]'
+              }`}
+              title="무지개펜"
+            >
+              <span>🌈</span>
+              <span>무지개</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                playSfx('tap');
+                setTool('eraser');
+              }}
+              className={`min-h-[36px] px-2.5 py-1 rounded-xl font-jua text-xs border transition-colors active:scale-95 whitespace-nowrap flex items-center gap-1 ${
+                tool === 'eraser'
+                  ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-2xs'
+                  : 'bg-white text-[#4a443e] border-[#e4dccf] hover:bg-[#f6f1e7]'
+              }`}
+              title="내가 그린 선만 지워요"
+            >
+              <Eraser className="w-3.5 h-3.5 shrink-0" />
+              <span>지우개</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                playSfx('pop');
+                setTool('stamp');
+              }}
+              className={`min-h-[36px] px-2.5 py-1 rounded-xl font-jua text-xs border transition-colors active:scale-95 whitespace-nowrap flex items-center gap-1 ${
+                tool === 'stamp'
+                  ? 'bg-[#f2c14e] text-[#1b1917] border-[#e2ae32] shadow-2xs'
+                  : 'bg-white text-[#4a443e] border-[#e4dccf] hover:bg-[#f6f1e7]'
+              }`}
+              title="예쁜 도장 스탬프"
+            >
+              <span>⭐</span>
+              <span>스탬프</span>
+            </button>
+          </div>
+
+          {/* Brush Thickness Selector */}
+          <div className="flex items-center gap-1 pl-1.5 border-l border-[#e4dccf]">
+            <span className="text-[10px] font-jua text-[#8a8178] hidden sm:inline mr-0.5">굵기</span>
+            {[10, 18, 26].map((sz) => (
+              <button
+                key={sz}
+                type="button"
+                onClick={() => {
+                  playSfx('tap');
+                  setBrushSize(sz);
+                }}
+                title={`선 굵기 ${sz}`}
+                className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors active:scale-90 shrink-0 ${
+                  brushSize === sz
+                    ? 'border-[#c9502f] bg-[#fff5f2] shadow-2xs'
+                    : 'border-[#e4dccf] bg-white hover:bg-[#f6f1e7]'
+                }`}
+              >
+                <span
+                  className="rounded-full bg-[#1b1917]"
+                  style={{ width: Math.max(5, sz / 2.2), height: Math.max(5, sz / 2.2) }}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Row 3: Full Unified Color Palette (All 14 Colors) or Stamps Picker */}
+        <div className="pt-2 border-t border-[#eedfc9]">
+          {tool === 'stamp' ? (
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 px-0.5">
+              {DOODLE_STAMPS.map((stamp) => {
+                const isSelected = selectedStamp === stamp;
+                return (
+                  <button
+                    key={stamp}
+                    type="button"
+                    onClick={() => {
+                      playSfx('pop');
+                      setSelectedStamp(stamp);
+                    }}
+                    className={`w-9 h-9 sm:w-10 sm:h-10 text-xl rounded-xl border-2 transition-transform shrink-0 flex items-center justify-center active:scale-90 ${
+                      isSelected
+                        ? 'bg-[#fdf3e4] border-[#c9502f] shadow-xs scale-105'
+                        : 'bg-white border-[#e4dccf] hover:bg-[#f6f1e7]'
+                    }`}
+                    title={`${stamp} 스탬프`}
+                  >
+                    {stamp}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <div className="grid grid-cols-7 sm:flex sm:flex-wrap sm:items-center sm:justify-center gap-1.5 sm:gap-2 justify-items-center py-0.5">
+                {CRAYON_PALETTE.map((c) => {
+                  const isSelected = tool === 'crayon' && selectedColor === c.color;
+                  return (
+                    <button
+                      key={c.name}
+                      type="button"
+                      onClick={() => {
+                        playSfx('tap');
+                        setTool('crayon');
+                        setSelectedColor(c.color);
+                      }}
+                      aria-label={c.name}
+                      title={`${c.name} 크레파스`}
+                      className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full shrink-0 transition-transform active:scale-90 flex items-center justify-center ${
+                        isSelected
+                          ? 'ring-2 ring-[#c9502f] ring-offset-2 ring-offset-[#fdfaf5] scale-110 shadow-md'
+                          : 'border border-black/15 opacity-95 hover:opacity-100'
+                      }`}
+                      style={{ backgroundColor: c.color }}
+                    >
+                      {isSelected && (
+                        <Check className="w-3.5 h-3.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)] stroke-[3]" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {tool === 'rainbow' && (
+                <p className="text-[11px] font-jua text-center text-purple-700 bg-purple-50/80 border border-purple-200 rounded-xl py-1 px-2">
+                  🌈 무지개펜 사용 중! 캔버스에 그리면 색깔이 알록달록 변해요 (색상 칩을 누르면 단색 펜으로 전환)
+                </p>
+              )}
+              {tool === 'eraser' && (
+                <p className="text-[11px] font-jua text-center text-[#c9502f] bg-[#fff5f2] border border-[#fbd8ce] rounded-xl py-1 px-2">
+                  🧼 지우개 사용 중! 내가 그린 선만 지워지고 글자 점선은 남아요
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Layered Canvas Container with Generous Padding & Spacious Kid-Friendly Height */}
-      <div className="w-full box-border bg-[#fdfaf5] p-3 sm:p-4 mt-1 rounded-3xl border-2 border-[#e4dccf] shadow-sm">
+      {/* Immersive Large Layered Canvas Container (Expanded Width & Height for Mobile Kids) */}
+      <div className="w-full max-w-full box-border bg-[#fdfaf5] p-2 sm:p-3 rounded-3xl border-2 border-[#e4dccf] shadow-sm">
         <div
           ref={containerRef}
-          className="relative bg-white rounded-2xl border border-[#f0e6d8] overflow-hidden w-full h-[370px] sm:h-[440px] md:h-[480px]"
+          className="relative bg-white rounded-2xl border border-[#f0e6d8] overflow-hidden w-full h-[430px] sm:h-[490px] md:h-[520px]"
         >
           {/* Layer 1: Background Guideline Canvas */}
           <canvas ref={bgCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
@@ -1677,177 +1970,6 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
         </div>
       </div>
 
-      {/* Tool Palette: Stable Height, Generous Padding (p-4), Zero Overflow/Shift */}
-      <div className="w-full box-border bg-white p-4 sm:p-5 rounded-3xl border border-[#e4dccf] shadow-xs space-y-3.5">
-        {/* Tool Mode Selector Grid (2x2 mobile, 4-col desktop, fixed border-2 to avoid shift) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              playSfx('tap');
-              setTool('crayon');
-            }}
-            className={`min-h-[46px] w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-2xl border-2 font-jua text-xs sm:text-sm transition-colors active:scale-95 whitespace-nowrap ${
-              tool === 'crayon'
-                ? 'bg-[#1b1917] text-white border-[#1b1917] shadow-xs'
-                : 'bg-[#f6f1e7] text-[#4a443e] border-transparent hover:bg-[#eee7dc]'
-            }`}
-          >
-            <span className="text-base leading-none">🖍️</span>
-            <span>크레파스</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              playSfx('pop');
-              setTool('rainbow');
-            }}
-            className={`min-h-[46px] w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-2xl border-2 font-jua text-xs sm:text-sm transition-colors active:scale-95 whitespace-nowrap ${
-              tool === 'rainbow'
-                ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white border-purple-500 shadow-xs'
-                : 'bg-[#f6f1e7] text-[#4a443e] border-transparent hover:bg-[#eee7dc]'
-            }`}
-          >
-            <span className="text-base leading-none">🌈</span>
-            <span>무지개펜</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              playSfx('tap');
-              setTool('eraser');
-            }}
-            className={`min-h-[46px] w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-2xl border-2 font-jua text-xs sm:text-sm transition-colors active:scale-95 whitespace-nowrap ${
-              tool === 'eraser'
-                ? 'bg-[#c9502f] text-white border-[#c9502f] shadow-xs'
-                : 'bg-[#f6f1e7] text-[#4a443e] border-transparent hover:bg-[#eee7dc]'
-            }`}
-            title="내가 그린 선만 깔끔하게 지워요"
-          >
-            <Eraser className="w-4 h-4 shrink-0" />
-            <span>지우개</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              playSfx('pop');
-              setTool('stamp');
-            }}
-            className={`min-h-[46px] w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-2xl border-2 font-jua text-xs sm:text-sm transition-colors active:scale-95 whitespace-nowrap ${
-              tool === 'stamp'
-                ? 'bg-[#f2c14e] text-[#1b1917] border-[#e2ae32] shadow-xs'
-                : 'bg-[#f6f1e7] text-[#4a443e] border-transparent hover:bg-[#eee7dc]'
-            }`}
-          >
-            <span className="text-base leading-none">⭐</span>
-            <span>스탬프</span>
-          </button>
-        </div>
-
-        {/* Dedicated Brush Thickness Row */}
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 rounded-2xl bg-[#faf8f5] border border-[#f0ebe1]">
-          <span className="text-xs font-jua text-[#6d635b] whitespace-nowrap">선 굵기</span>
-          <div className="flex items-center gap-2.5">
-            {[10, 18, 26].map((sz) => (
-              <button
-                key={sz}
-                type="button"
-                onClick={() => {
-                  playSfx('tap');
-                  setBrushSize(sz);
-                }}
-                className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-colors active:scale-95 shrink-0 ${
-                  brushSize === sz
-                    ? 'border-[#c9502f] bg-[#fff5f2] shadow-xs'
-                    : 'border-[#e4dccf] bg-white hover:bg-[#f3ece0]'
-                }`}
-                title={`선 굵기 ${sz}`}
-              >
-                <span
-                  className="rounded-full bg-[#1b1917]"
-                  style={{ width: sz / 2.2, height: sz / 2.2 }}
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Sub-Palette Box: Consistent min-h & generous p-4 so switching colors/tools NEVER shifts layout */}
-        <div className="w-full box-border p-4 rounded-2xl bg-[#faf8f5] border border-[#f0ebe1] min-h-[124px] flex flex-col justify-center">
-          {tool === 'crayon' && (
-            <div className="flex flex-wrap items-center justify-center gap-3 p-1">
-              {CRAYON_PALETTE.map((c) => {
-                const isSelected = selectedColor === c.color;
-                return (
-                  <button
-                    key={c.name}
-                    type="button"
-                    onClick={() => {
-                      playSfx('tap');
-                      setSelectedColor(c.color);
-                    }}
-                    aria-label={c.name}
-                    className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full shrink-0 transition-shadow active:scale-95 relative flex items-center justify-center ${
-                      isSelected
-                        ? 'ring-2 ring-[#c9502f] ring-offset-2 ring-offset-[#faf8f5] shadow-md'
-                        : 'border border-black/15 hover:opacity-90'
-                    }`}
-                    style={{ backgroundColor: c.color }}
-                    title={c.name}
-                  >
-                    {isSelected && (
-                      <Check className="w-4 h-4 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)] stroke-[3]" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {tool === 'stamp' && (
-            <div className="flex flex-wrap items-center justify-center gap-2.5 p-1">
-              {DOODLE_STAMPS.map((stamp) => {
-                const isSelected = selectedStamp === stamp;
-                return (
-                  <button
-                    key={stamp}
-                    type="button"
-                    onClick={() => {
-                      playSfx('pop');
-                      setSelectedStamp(stamp);
-                    }}
-                    className={`w-11 h-11 text-2xl rounded-xl border-2 transition-colors shrink-0 flex items-center justify-center active:scale-95 ${
-                      isSelected
-                        ? 'bg-[#fdf3e4] border-[#c9502f] shadow-xs'
-                        : 'bg-white border-[#e4dccf] hover:bg-[#f6f1e7]'
-                    }`}
-                  >
-                    {stamp}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {tool === 'rainbow' && (
-            <div className="flex flex-col items-center justify-center text-center gap-1.5 py-2 px-2">
-              <div className="w-28 h-3 rounded-full bg-gradient-to-r from-rose-400 via-amber-400 via-emerald-400 to-indigo-400 shadow-2xs" />
-              <p className="font-jua text-xs sm:text-sm text-[#4a443e] break-keep">
-                무지개펜으로 그으면 색깔이 알록달록 변해요!
-              </p>
-            </div>
-          )}
-
-          {tool === 'eraser' && (
-            <div className="flex flex-col items-center justify-center text-center gap-1 py-2 px-2">
-              <span className="text-2xl leading-none">🧼</span>
-              <p className="font-jua text-xs sm:text-sm text-[#4a443e] break-keep">
-                내가 그린 선만 지워지고 글자 점선은 남아요!
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Prominent Action Buttons: Save to Gallery & Share to Community */}
       <div className="grid grid-cols-2 gap-3 pt-1">
@@ -1870,79 +1992,143 @@ export const DoodleBoardTab: React.FC<DoodleBoardTabProps> = ({
         </button>
       </div>
 
-      {/* Child's Saved Gallery Drawer */}
+      {/* Simplified Image-Centric Child Gallery Drawer */}
       {savedDoodles.length > 0 && (
         <div className="w-full max-w-full box-border overflow-hidden bg-white rounded-3xl p-4 sm:p-5 border border-[#e4dccf] shadow-xs space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-[#c9502f]" />
-              <h3 className="font-jua text-sm text-[#1b1917]">
-                {childName || '아이'}의 한글 그림 갤러리 ({savedDoodles.length}장)
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <ImageIcon className="w-4 h-4 text-[#c9502f] shrink-0" />
+              <h3 className="font-jua text-sm sm:text-base text-[#1b1917] truncate">
+                {childName || '아이'}의 한글 그림 갤러리
+                <span className="text-[#8a8178] font-normal ml-1.5 tabular-nums">({savedDoodles.length}장)</span>
               </h3>
             </div>
             <button
-              onClick={() => setShowGallery(!showGallery)}
-              className="text-xs text-[#c9502f] font-jua hover:underline"
+              type="button"
+              onClick={() => {
+                playSfx('tap');
+                setShowGallery(!showGallery);
+              }}
+              className="min-h-[36px] px-2.5 py-1 rounded-xl text-xs text-[#c9502f] font-jua hover:bg-[#fdf3e4] transition-colors whitespace-nowrap shrink-0"
             >
-              {showGallery ? '접기 ▲' : '모두 보기 ▼'}
+              {showGallery ? '접기 ▲' : '보기 ▼'}
             </button>
           </div>
 
           {showGallery && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
-              {savedDoodles.map((doodle) => (
-                <div
-                  key={doodle.id}
-                  className="bg-[#faf8f5] p-2.5 rounded-2xl border border-[#e4dccf] space-y-2 text-center relative group"
-                >
-                  <img
-                    src={doodle.dataUrl}
-                    alt={doodle.title}
-                    className="w-full aspect-4/3 object-contain rounded-xl bg-white border border-[#eee6db]"
-                  />
-                  <div className="flex items-center justify-between gap-1 px-1">
-                    <p className="text-xs font-jua text-[#1b1917] truncate flex-1 text-left" title={doodle.title}>
-                      {doodle.title}
-                    </p>
-                    <button
-                      onClick={() => {
-                        playSfx('tap');
-                        setEditingDoodle({ id: doodle.id, title: doodle.title });
-                      }}
-                      className="p-1 rounded-lg hover:bg-white text-[#8a8178] hover:text-[#c9502f] transition-colors"
-                      title="제목 수정"
-                    >
-                      <Edit2 className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        playSfx('tap');
-                        setDeleteDoodleTarget(doodle);
-                      }}
-                      className="p-1 rounded-lg hover:bg-white text-[#8a8178] hover:text-red-500 transition-colors"
-                      title="그림 삭제"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
+              {savedDoodles.map((doodle) => {
+                const isMenuOpen = galleryMenuId === doodle.id;
+                const isBroken = brokenDoodleIds[doodle.id];
 
-                  <div className="grid grid-cols-2 gap-1 pt-0.5">
+                return (
+                  <div
+                    key={doodle.id}
+                    className="bg-[#fcfaf6] rounded-2xl border border-[#e4dccf] overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col box-border"
+                  >
+                    {/* Image-First Tap Target: Tap artwork directly to load onto canvas */}
                     <button
+                      type="button"
                       onClick={() => handleLoadOntoCanvas(doodle)}
-                      className="py-1 px-1.5 rounded-xl bg-white border border-[#e4dccf] text-[10px] font-jua text-[#4a443e] hover:bg-[#f6f1e7] transition-all"
-                      title="도화지로 불러와서 덧그리기"
+                      className="w-full aspect-4/3 bg-white relative overflow-hidden group focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c9502f]"
+                      title="그림을 터치하면 위 도화지로 바로 불러와요"
                     >
-                      🎨 불러오기
+                      {!isBroken ? (
+                        <img
+                          src={doodle.dataUrl}
+                          alt={doodle.title}
+                          referrerPolicy="no-referrer"
+                          onError={() =>
+                            setBrokenDoodleIds((prev) => ({ ...prev, [doodle.id]: true }))
+                          }
+                          className="w-full h-full object-contain p-1 transition-transform duration-200 group-hover:scale-[1.03] group-active:scale-95"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-gradient-to-br from-[#fdf8f0] to-[#f6ede0] text-[#8a8178] p-2">
+                          <ImageIcon className="w-6 h-6 text-[#c9502f]/60" />
+                          <span className="text-[11px] font-jua truncate max-w-full">{doodle.title}</span>
+                        </div>
+                      )}
                     </button>
-                    <button
-                      onClick={() => onShareToCommunity(doodle.dataUrl, doodle.title)}
-                      className="py-1 px-1.5 rounded-xl bg-[#fdf3e4] border border-[#f5d7b5] text-[10px] font-jua text-[#c9502f] hover:bg-[#fae2c1] transition-all flex items-center justify-center gap-0.5"
-                    >
-                      <Share2 className="w-2.5 h-2.5" /> 자랑하기
-                    </button>
+
+                    {/* Clean Single-Line Title + Quiet Overflow Trigger */}
+                    <div className="px-2.5 pt-2 pb-1.5 flex items-center justify-between gap-1 border-t border-[#f2ebe0]">
+                      <button
+                        type="button"
+                        onClick={() => handleLoadOntoCanvas(doodle)}
+                        className="text-xs font-jua text-[#1b1917] hover:text-[#c9502f] truncate text-left flex-1 transition-colors"
+                        title={doodle.title}
+                      >
+                        {doodle.title}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playSfx('tap');
+                          setGalleryMenuId(isMenuOpen ? null : doodle.id);
+                        }}
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] hover:bg-[#f0e9dc] transition-colors shrink-0"
+                        aria-label="그림 관리 메뉴"
+                        title="이름 수정 또는 삭제"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Unified Compact Bottom Action Bar (or Edit/Delete Swap) */}
+                    {isMenuOpen ? (
+                      <div className="px-1.5 pb-2 pt-1 flex items-center gap-1 border-t border-[#f2ebe0] bg-[#f8f3ea]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            playSfx('tap');
+                            setEditingDoodle({ id: doodle.id, title: doodle.title });
+                          }}
+                          className="flex-1 min-h-[38px] px-1.5 rounded-full bg-white border border-[#e4dccf] text-[10px] sm:text-[11px] font-jua text-[#4a443e] hover:text-[#c9502f] flex items-center justify-center gap-1 active:scale-95 transition-all whitespace-nowrap"
+                        >
+                          <Edit2 className="w-3 h-3 shrink-0" />
+                          <span>수정</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            playSfx('tap');
+                            setDeleteDoodleTarget(doodle);
+                          }}
+                          className="flex-1 min-h-[38px] px-1.5 rounded-full bg-white border border-red-200 text-[10px] sm:text-[11px] font-jua text-red-500 hover:bg-red-50 flex items-center justify-center gap-1 active:scale-95 transition-all whitespace-nowrap"
+                        >
+                          <Trash2 className="w-3 h-3 shrink-0" />
+                          <span>삭제</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="px-1.5 pb-2 pt-0.5 flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleLoadOntoCanvas(doodle)}
+                          className="flex-1 min-h-[38px] px-1.5 rounded-full bg-white border border-[#e4dccf] text-[10px] sm:text-[11px] font-jua text-[#4a443e] hover:border-[#c9502f]/40 hover:text-[#c9502f] flex items-center justify-center gap-0.5 sm:gap-1 active:scale-95 transition-all whitespace-nowrap shadow-2xs"
+                          title="도화지로 불러와서 덧그리기"
+                        >
+                          <FolderInput className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#c9502f] shrink-0" />
+                          <span>불러오기</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            playSfx('pop');
+                            onShareToCommunity(doodle.dataUrl, doodle.title);
+                          }}
+                          className="flex-1 min-h-[38px] px-1.5 rounded-full bg-[#fdf3e4] border border-[#f5d7b5] text-[10px] sm:text-[11px] font-jua text-[#c9502f] hover:bg-[#fae2c1] flex items-center justify-center gap-0.5 sm:gap-1 active:scale-95 transition-all whitespace-nowrap"
+                          title="우리 아이 작품 커뮤니티에 자랑하기"
+                        >
+                          <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                          <span>자랑하기</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

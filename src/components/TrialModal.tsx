@@ -163,12 +163,20 @@ export const TrialModal: React.FC<TrialModalProps> = ({
         {!isMandatoryLock ? (
           <button
             type="button"
-            onClick={handleAttemptClose}
-            className="absolute top-3 right-3 z-20 p-2 rounded-full bg-white/90 hover:bg-white border border-[#e4dccf] text-[#8a8178] hover:text-[#1b1917] transition-all shadow-xs active:scale-95"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleAttemptClose();
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleAttemptClose();
+            }}
+            className="absolute top-3 right-3 z-30 w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-white/95 hover:bg-white border border-[#e4dccf] text-[#8a8178] hover:text-[#1b1917] flex items-center justify-center transition-all shadow-xs active:scale-95 cursor-pointer"
             aria-label="닫기"
             title="닫기"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         ) : isAdmin ? (
           <button

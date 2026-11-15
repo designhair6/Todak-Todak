@@ -21,6 +21,7 @@ import { SoundBlendingModal } from './components/SoundBlendingModal';
 import { FootprintCalendarModal } from './components/FootprintCalendarModal';
 import { AdminModal } from './components/AdminModal';
 import { ParentVoiceMissionModal } from './components/ParentVoiceMissionModal';
+import { CustomVoiceStudioModal } from './components/CustomVoiceStudioModal';
 import { ChecklistTab } from './components/tabs/ChecklistTab';
 import { ProgressTab } from './components/tabs/ProgressTab';
 import { DoodleBoardTab } from './components/tabs/DoodleBoardTab';
@@ -36,6 +37,7 @@ import {
 } from './data/hangulData';
 import {
   CommunityPost,
+  CommunityPostPetBadge,
   DailyMomDiary,
   MasteryLevel,
   PetGrowthState,
@@ -49,9 +51,12 @@ import {
   cycleSoundVolume,
   getClickVoiceEnabled,
   getSoundVolume,
+  getVoiceTone,
   playSfx,
   setClickVoiceEnabled,
   setSoundVolume,
+  setVoiceTone,
+  VoiceTone,
 } from './utils/sound';
 import { getOrCreateUserIdentity } from './utils/userIdentity';
 
@@ -81,6 +86,8 @@ export default function App() {
   const [soundVolume, setSoundVolumeState] = useState<SoundVolume>(() => getSoundVolume());
   // Touch-to-speak setting for Hangul letters (consonants/vowels/syllables)
   const [clickVoiceEnabled, setClickVoiceEnabledState] = useState<boolean>(() => getClickVoiceEnabled());
+  // Character TTS Voice Profile (mom / dad / teacher / friend)
+  const [voiceTone, setVoiceToneState] = useState<VoiceTone>(() => getVoiceTone());
 
   // Trial state
   const [trialDaysLeft, setTrialDaysLeft] = useState<number>(() => {
@@ -214,12 +221,22 @@ export default function App() {
         const parsed = JSON.parse(stored);
         const totalExp = Math.max(0, Number(parsed.totalExp ?? 0) || 0);
         const levelData = getPetLevelData(totalExp);
+        let berriesCount =
+          parsed.berriesCount !== undefined ? Number(parsed.berriesCount) : 50;
+        if (
+          totalExp === 0 &&
+          berriesCount === 5 &&
+          localStorage.getItem('hangul_berries_v50_migrated') !== 'true'
+        ) {
+          berriesCount = 50;
+          localStorage.setItem('hangul_berries_v50_migrated', 'true');
+        }
         return {
           level: levelData.level,
           exp: totalExp - levelData.reqExp,
           totalExp,
           happiness: parsed.happiness ?? 100,
-          berriesCount: parsed.berriesCount !== undefined ? parsed.berriesCount : 5,
+          berriesCount,
           stageName: levelData.stageName,
         };
       }
@@ -229,7 +246,7 @@ export default function App() {
       exp: 0,
       totalExp: 0,
       happiness: 100,
-      berriesCount: 5,
+      berriesCount: 50,
       stageName: '알 / 아기 요람 🥚',
     };
   });
@@ -247,6 +264,8 @@ export default function App() {
   // Shared doodle image to community post
   const [shareDoodleImage, setShareDoodleImage] = useState<string | undefined>();
   const [shareDoodleTitle, setShareDoodleTitle] = useState<string | undefined>();
+  // Shared Tamagotchi level celebration draft to community post
+  const [petShareDraft, setPetShareDraft] = useState<{ title: string; content: string } | null>(null);
 
   // Completed Dates tracking (date when a mission day was checked: 's1_d1' -> 'YYYY-MM-DD')
   const [completedDates, setCompletedDates] = useState<Record<string, string>>(() => {
@@ -272,6 +291,7 @@ export default function App() {
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isParentVoiceModalOpen, setIsParentVoiceModalOpen] = useState(false);
+  const [isCustomVoiceStudioOpen, setIsCustomVoiceStudioOpen] = useState(false);
 
   // Admin status (persisted)
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
@@ -369,6 +389,11 @@ export default function App() {
     } else {
       playSfx('tap');
     }
+  };
+
+  const handleSelectVoiceTone = (tone: VoiceTone) => {
+    setVoiceTone(tone);
+    setVoiceToneState(tone);
   };
 
   // Checklist day toggle for current stage
@@ -558,18 +583,53 @@ export default function App() {
   const currentTheme =
     THEMES.find((t) => t.id === boardState.theme) || THEMES[0];
 
+  const myPetBadge: CommunityPostPetBadge = {
+    friendId: currentFriend.id,
+    emoji: petState.level === 1 ? '🥚' : petState.level === 2 ? '🐣' : currentFriend.e,
+    name: currentFriend.name,
+    level: petState.level,
+    stageName: petState.stageName,
+  };
+
+  const handleGiftBerryToPost = (postId: string) => {
+    let rewarded = false;
+    setCommunityPosts((prev) =>
+      prev.map((p) => {
+        if (p.id !== postId || p.giftedByMe) return p;
+        rewarded = true;
+        return {
+          ...p,
+          giftedByMe: true,
+          giftedBerries: (p.giftedBerries ?? 0) + 1,
+        };
+      })
+    );
+    if (rewarded) {
+      handleRewardExp(2);
+    }
+  };
+
+  const handleSharePetLevelToCommunity = () => {
+    setIsPetModalOpen(false);
+    setPetShareDraft({
+      title: `🎉 우리 ${currentFriend.name}가 레벨 ${petState.level} 되었어요!`,
+      content: `오늘도 한글놀이를 즐겁게 해서 ${currentFriend.name} 친구가 "${petState.stageName}"(Lv.${petState.level}) 단계로 성장했어요!\n우리 친구에게 칭찬 열매 응원 많이 보내주세요 🍇💖`,
+    });
+    setActiveTab('community');
+  };
+
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#ece6dc] flex flex-col items-center justify-start sm:py-3 select-none font-body">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-gradient-to-br from-[#FFF9F2] via-[#FFF4E9] to-[#EFF6FF] flex flex-col items-center justify-start sm:py-4 select-none font-body">
       {/* App Shell Container */}
-      <div className={`w-full max-w-xl box-border h-[100dvh] sm:h-[94vh] sm:max-h-[920px] bg-[#fbf8f2] sm:rounded-3xl sm:shadow-2xl border-0 sm:border flex flex-col relative overflow-hidden ${
-        isAdmin ? 'border-amber-400 sm:ring-2 sm:ring-amber-400/30' : 'border-[#e4dccf]'
+      <div className={`w-full max-w-lg box-border h-[100dvh] sm:h-[93vh] sm:max-h-[920px] bg-[#FFFCF7] sm:rounded-3xl sm:shadow-[0_20px_50px_-16px_rgba(231,111,81,0.18)] border-0 sm:border-2 flex flex-col relative overflow-hidden ${
+        isAdmin ? 'border-amber-300 sm:ring-2 sm:ring-amber-300/35' : 'border-[#F4E7DA]'
       }`}>
-        {/* Slim Admin Bar */}
+        {/* Slim Bright Admin Bar */}
         {isAdmin && (
-          <div className="bg-[#241c16] text-white px-3 py-1.5 flex items-center justify-between text-xs font-jua shadow-xs z-50 flex-none border-b border-amber-600/30">
+          <div className="bg-[#FFF7E6] text-[#8A5A19] px-3.5 py-1.5 flex items-center justify-between text-xs font-jua z-50 flex-none border-b border-[#F5DFA9]">
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-              <span className="text-amber-200 text-xs truncate">👑 관리자 모드</span>
+              <span className="text-xs shrink-0">👑</span>
+              <span className="text-[#8A5A19] text-xs truncate">관리자 모드</span>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <button
@@ -577,7 +637,7 @@ export default function App() {
                   playSfx('pop');
                   setIsAdminModalOpen(true);
                 }}
-                className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] border border-amber-500/30 active:scale-95 transition-all whitespace-nowrap"
+                className="px-2.5 py-1 rounded-xl bg-white hover:bg-amber-50 text-[#8A5A19] text-[11px] border border-[#EED394] active:scale-95 transition-all whitespace-nowrap shadow-2xs"
               >
                 ⚙️ 콘솔
               </button>
@@ -587,7 +647,7 @@ export default function App() {
                   setIsAdmin(false);
                   localStorage.setItem('hangul_admin_active', 'false');
                 }}
-                className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-stone-300 text-[11px] active:scale-95 transition-all whitespace-nowrap"
+                className="px-2.5 py-1 rounded-xl bg-amber-100/70 hover:bg-amber-200/70 text-[#7A5117] text-[11px] active:scale-95 transition-all whitespace-nowrap"
                 title="일반 사용자 화면으로 전환"
               >
                 👤 일반 화면
@@ -700,6 +760,10 @@ export default function App() {
                   onSelectVolume={handleSelectVolume}
                   clickVoiceEnabled={clickVoiceEnabled}
                   onToggleClickVoice={handleToggleClickVoice}
+                  voiceTone={voiceTone}
+                  onSelectVoiceTone={handleSelectVoiceTone}
+                  onOpenVoiceSettings={() => setIsSettingsModalOpen(true)}
+                  onOpenCustomVoiceStudio={() => setIsCustomVoiceStudioOpen(true)}
                 />
               )}
 
@@ -735,6 +799,7 @@ export default function App() {
                   onRewardExp={handleRewardExp}
                   onRewardHearts={handleRewardHearts}
                   childName={boardState.name}
+                  defaultChildAge={boardState.childAge}
                   onOpenAdmin={() => setIsAdminModalOpen(true)}
                   isAdmin={isAdmin}
                   onSetIsAdmin={setIsAdmin}
@@ -744,6 +809,10 @@ export default function App() {
                     setShareDoodleImage(undefined);
                     setShareDoodleTitle(undefined);
                   }}
+                  myPetBadge={myPetBadge}
+                  onGiftBerryToPost={handleGiftBerryToPost}
+                  initialPetShareDraft={petShareDraft}
+                  onClearInitialPetShareDraft={() => setPetShareDraft(null)}
                 />
               )}
             </>
@@ -751,11 +820,11 @@ export default function App() {
         </main>
 
         {/* Bottom Tab Navigation Bar */}
-        <nav className={`flex-none bg-white/95 backdrop-blur-md border-t border-[#e4dccf] grid grid-cols-5 pt-1.5 pb-[max(8px,env(safe-area-inset-bottom))] px-1.5 relative z-40 shadow-[0_-6px_20px_-8px_rgba(45,40,37,0.1)] ${
+        <nav className={`flex-none bg-white/95 backdrop-blur-md border-t border-[#F3E6D9] grid grid-cols-5 pt-1.5 pb-[max(8px,env(safe-area-inset-bottom))] px-2 relative z-40 shadow-[0_-8px_24px_-10px_rgba(231,111,81,0.12)] ${
           isTrialExpiredLocked ? 'opacity-60 pointer-events-none' : ''
         }`}>
           {isTrialExpiredLocked && (
-            <div className="absolute inset-0 z-50 bg-stone-900/40 backdrop-blur-[1px] flex items-center justify-center pointer-events-auto cursor-pointer"
+            <div className="absolute inset-0 z-50 bg-stone-900/30 backdrop-blur-[1px] flex items-center justify-center pointer-events-auto cursor-pointer"
               onClick={() => {
                 playSfx('tap');
                 setIsTrialModalOpen(true);
@@ -775,8 +844,8 @@ export default function App() {
             }}
             className={`min-h-[48px] flex flex-col items-center justify-center py-1 rounded-2xl transition-all active:scale-95 ${
               activeTab === 'checklist'
-                ? 'text-[#c9502f] bg-[#fff4f0] font-bold'
-                : 'text-[#8a8178] hover:text-[#1b1917]'
+                ? 'text-[#D95338] bg-[#FFF1EC] font-bold shadow-2xs'
+                : 'text-[#8A8076] hover:text-[#2D2825]'
             }`}
           >
             <ClipboardCheck className={`w-5 h-5 ${activeTab === 'checklist' ? 'stroke-[2.5]' : ''}`} />
@@ -792,8 +861,8 @@ export default function App() {
             }}
             className={`min-h-[48px] flex flex-col items-center justify-center py-1 rounded-2xl transition-all active:scale-95 ${
               activeTab === 'progress'
-                ? 'text-[#c9502f] bg-[#fff4f0] font-bold'
-                : 'text-[#8a8178] hover:text-[#1b1917]'
+                ? 'text-[#D95338] bg-[#FFF1EC] font-bold shadow-2xs'
+                : 'text-[#8A8076] hover:text-[#2D2825]'
             }`}
           >
             <MapPin className={`w-5 h-5 ${activeTab === 'progress' ? 'stroke-[2.5]' : ''}`} />
@@ -809,15 +878,15 @@ export default function App() {
             }}
             className={`min-h-[48px] flex flex-col items-center justify-center py-1 rounded-2xl transition-all active:scale-95 ${
               activeTab === 'doodle'
-                ? 'text-[#c9502f] bg-[#fff4f0] font-bold'
-                : 'text-[#8a8178] hover:text-[#1b1917]'
+                ? 'text-[#D95338] bg-[#FFF1EC] font-bold shadow-2xs'
+                : 'text-[#8A8076] hover:text-[#2D2825]'
             }`}
           >
             <div
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
                 activeTab === 'doodle'
-                  ? 'bg-[#c9502f] text-white shadow-xs'
-                  : 'bg-[#fdf3e4] text-[#c9502f]'
+                  ? 'bg-[#E76F51] text-white shadow-xs'
+                  : 'bg-[#FFF3E3] text-[#E76F51]'
               }`}
             >
               <Pencil className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -887,6 +956,7 @@ export default function App() {
             setIsPetModalOpen(false);
             setActiveTab('community');
           }}
+          onSharePetLevel={handleSharePetLevelToCommunity}
         />
 
         <TrialModal
@@ -937,10 +1007,13 @@ export default function App() {
           onSelectVolume={handleSelectVolume}
           clickVoiceEnabled={clickVoiceEnabled}
           onToggleClickVoice={handleToggleClickVoice}
+          voiceTone={voiceTone}
+          onSelectVoiceTone={handleSelectVoiceTone}
           onOpenAdmin={() => setIsAdminModalOpen(true)}
           onOpenPrint={() => setIsPrintModalOpen(true)}
           onOpenSoundBlend={() => setIsSoundBlendOpen(true)}
           onOpenParentVoice={() => setIsParentVoiceModalOpen(true)}
+          onOpenCustomVoiceStudio={() => setIsCustomVoiceStudioOpen(true)}
           onSave={(name, childAge, friendId, themeId, wish, msg) => {
             setBoardState((prev) => ({
               ...prev,
@@ -983,6 +1056,12 @@ export default function App() {
           onClose={() => setIsParentVoiceModalOpen(false)}
           childName={boardState.name}
           currentLetter="시"
+        />
+
+        <CustomVoiceStudioModal
+          isOpen={isCustomVoiceStudioOpen}
+          onClose={() => setIsCustomVoiceStudioOpen(false)}
+          childName={boardState.name}
         />
       </div>
     </div>

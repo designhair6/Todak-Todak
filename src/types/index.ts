@@ -135,6 +135,14 @@ export interface CommunityComment {
   isAdmin?: boolean;
 }
 
+export interface CommunityPostPetBadge {
+  friendId: string;
+  emoji: string;
+  name: string;
+  level: number;
+  stageName: string;
+}
+
 export interface CommunityPost {
   id: string;
   author: string;
@@ -152,4 +160,7 @@ export interface CommunityPost {
   pinned?: boolean;
   password?: string; // 4-digit PIN
   isAdmin?: boolean;
+  petBadge?: CommunityPostPetBadge;
+  giftedBerries?: number;
+  giftedByMe?: boolean;
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import { X, Sparkles, Volume2, Heart, ArrowRight, RefreshCw, Star } from 'lucide-react';
 import { CHO, JUNG, NAMES, syl } from '../data/hangulData';
-import { playSfx, speakKorean } from '../utils/sound';
+import { JAMO_NAME_MAP, playSfx, speakKorean } from '../utils/sound';
 
 interface SoundBlendingModalProps {
   isOpen: boolean;
@@ -38,8 +38,9 @@ export const SoundBlendingModal: React.FC<SoundBlendingModalProps> = ({
       confetti({ particleCount: 35, spread: 65, origin: { y: 0.6 } });
       onRewardExp(3);
 
-      // Speak combination formula
-      speakKorean(`${currentChoName}의 ${currentCho}... ${currentJung}... 합쳐서 ${resultSyllable}!`);
+      // Speak combination cleanly
+      const jungName = JAMO_NAME_MAP[currentJung] || currentJung;
+      speakKorean(`${currentChoName}, ${jungName}, 합쳐서 ${resultSyllable}!`);
     }, 450);
   };
 
@@ -83,17 +84,36 @@ export const SoundBlendingModal: React.FC<SoundBlendingModalProps> = ({
   const words = sampleWords[resultSyllable] || [`${resultSyllable}로 시작하는 말`];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-lg box-border shadow-2xl text-center animate-pop max-h-[90vh] overflow-hidden flex flex-col relative">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
+      onClick={() => {
+        playSfx('tap');
+        onClose();
+      }}
+    >
+      <div
+        className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-lg box-border shadow-2xl text-center animate-pop max-h-[90vh] overflow-hidden flex flex-col relative"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Close Button */}
         <button
-          onClick={() => {
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
             playSfx('tap');
             onClose();
           }}
-          className="absolute top-3.5 right-3.5 z-10 w-8 h-8 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917]"
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            playSfx('tap');
+            onClose();
+          }}
+          className="absolute top-3 right-3 z-30 w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] shadow-2xs active:scale-95 transition-all cursor-pointer"
+          aria-label="닫기"
+          title="닫기"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
 
         <div className="border-b border-[#eedfc9] px-4 pt-4 pb-2.5 sm:px-6 sm:pt-5 text-center flex-none">
@@ -117,7 +137,7 @@ export const SoundBlendingModal: React.FC<SoundBlendingModalProps> = ({
             {/* Consonant Card */}
             <button
               type="button"
-              onClick={() => speakKorean(`${currentChoName}의 ${currentCho}`)}
+              onClick={() => speakKorean(currentCho)}
               className={`flex-1 max-w-[92px] h-24 rounded-2xl bg-[#faf8f5] border-2 border-[#eedfc9] flex flex-col items-center justify-center shadow-xs cursor-pointer transition-transform active:scale-95 ${
                 isBlending ? 'translate-x-2 scale-105' : 'hover:scale-105'
               }`}

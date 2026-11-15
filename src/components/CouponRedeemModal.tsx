@@ -82,14 +82,22 @@ export const CouponRedeemModal: React.FC<CouponRedeemModalProps> = ({
         <div className="p-4 sm:p-6 overflow-y-auto overflow-x-hidden text-left space-y-4">
         <button
           type="button"
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             playSfx('tap');
             onClose();
           }}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] transition-colors"
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            playSfx('tap');
+            onClose();
+          }}
+          className="absolute top-3 right-3 z-30 w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] transition-all shadow-2xs active:scale-95 cursor-pointer"
+          aria-label="닫기"
           title="닫기"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
 
         <div className="text-center space-y-1 pt-1">

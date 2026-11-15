@@ -401,13 +401,22 @@ export const ParentVoiceMissionModal: React.FC<ParentVoiceMissionModalProps> = (
           </div>
           <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               playSfx('tap');
               onClose();
             }}
-            className="w-10 h-10 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] hover:bg-[#f6f1e7] transition-all shrink-0"
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              playSfx('tap');
+              onClose();
+            }}
+            className="w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] hover:bg-[#f6f1e7] transition-all shrink-0 cursor-pointer active:scale-95"
+            aria-label="닫기"
+            title="닫기"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 

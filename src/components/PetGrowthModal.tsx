@@ -4,20 +4,16 @@ import {
   X,
   Heart,
   Sparkles,
-  Award,
   Apple,
   Volume2,
   Mic,
   CheckCircle2,
-  Smile,
-  Crown,
-  ChevronRight,
+  Share2,
   MessageCircle,
-  Shield,
-  Wand2,
+  Trophy,
 } from 'lucide-react';
 import { AnimalFriend, PetGrowthState } from '../types';
-import { FRIENDS, PET_LEVELS, PET_QUIZZES, getPetLevelData } from '../data/hangulData';
+import { FRIENDS, PET_QUIZZES, getPetLevelData } from '../data/hangulData';
 import { playSfx, speakKorean } from '../utils/sound';
 
 interface PetGrowthModalProps {
@@ -28,58 +24,51 @@ interface PetGrowthModalProps {
   onUpdatePet: (updater: (prev: PetGrowthState) => PetGrowthState) => void;
   childName: string;
   onGoToCommunity?: () => void;
+  onSharePetLevel?: () => void;
   onSelectFriend?: (friendId: string) => void;
 }
 
-// Cheer lines pool generator
+// Pure natural cheer lines (display can have warm tone; speakKorean strips emojis automatically)
 function getCheerLines(friendId: string, name: string): string[] {
-  const child = name || '우리 아이';
+  const child = (name || '').trim() || '우리 아이';
 
   if (friendId === 'princess') {
     return [
-      `${child}야, 마법 요술봉으로 반짝이는 용기를 보내줄게! 🪄💖`,
-      `반짝반짝 티아라보다 ${child}의 글 읽는 목소리가 훨씬 더 예뻐! 👑`,
-      `우리 예쁜 ${child} 공주님! 오늘도 씩씩하게 한글 탐험 출발해볼까? 🌸`,
-      `하트 고마워! 네 사랑을 받아서 내 드레스가 더 환하게 빛나고 있어! ✨`,
-      `${child}가 한글을 읽을 때마다 우리 왕국에 예쁜 무지개가 피어나! 🌈`,
-      `천천히 또박또박 읽는 ${child}는 세상에서 제일 빛나는 보석이야! 💎`,
-      `사랑해 ${child}야! 오늘 미션도 우리 둘이 즐겁게 해내자! 💕`,
-      `샤랄라~ 사랑의 마법 가루 퐁퐁! 오늘도 힘내자! 🧚‍♀️`,
-      `${child}의 목소리는 은방울처럼 맑고 고와요! 고마워! 🔔`,
-      `와아! ${child}랑 함께 공부하니까 하나도 어렵지 않고 신나! 🎀`,
+      `${child}야, 반짝이는 용기를 보내줄게! 오늘도 파이팅!`,
+      `티아라보다 ${child}의 글 읽는 목소리가 훨씬 더 예뻐!`,
+      `우리 예쁜 ${child}! 오늘도 씩씩하게 한글 탐험 출발해볼까?`,
+      `하트 고마워! 네 사랑 덕분에 내가 더 환하게 빛나고 있어!`,
+      `${child}가 한글을 읽을 때마다 우리 왕국에 예쁜 무지개가 피어나!`,
+      `천천히 또박또박 읽는 ${child}는 세상에서 제일 멋진 보석이야!`,
+      `사랑해 ${child}야! 오늘 미션도 우리 둘이 즐겁게 해내자!`,
+      `은방울처럼 맑고 고운 ${child}의 목소리가 너무 좋아!`,
     ];
   }
 
   if (friendId === 'prince') {
     return [
-      `${child}야, 용기의 검을 들고 함께 멋진 한글 왕국을 지키자! ⚔️🏰`,
-      `와아! 씩씩하게 글자 읽는 ${child}가 내 최고의 영웅이야! 🌟`,
-      `하트 파워 충전 완료! 앞으로 으라차차 힘차게 돌격! 💪`,
-      `멋지다 멋져! ${child}의 쩌렁쩌렁한 목소리가 온 성안에 울려 퍼져! 🛡️`,
-      `두려워하지 마! ${child} 곁에는 언제나 든든한 내가 함께 있어! 🏇`,
-      `글자 하나씩 정복할 때마다 우리 왕국에 기쁨이 넘쳐나요! 👑`,
-      `${child}야, 오늘도 씩씩한 네 모습에 내가 반해버렸어! 최고야! 🔥`,
-      `힘차게 전진! ${child} 대장님과 함께라면 어떤 글자도 문제없어! 🚩`,
-      `우와 힘이 불끈! ${child}의 응원 덕분에 백 배로 든든해졌어! 🦁`,
-      `포기하지 않는 ${child}의 눈빛이 황금빛처럼 빛나요! 파이팅! ✨`,
+      `${child}야, 용기의 방패를 들고 함께 멋진 한글 왕국을 지키자!`,
+      `와아! 씩씩하게 글자 읽는 ${child}가 내 최고의 영웅이야!`,
+      `하트 파워 충전 완료! 오늘도 힘차게 출발하자!`,
+      `멋지다 멋져! ${child}의 우렁찬 목소리가 정말 최고야!`,
+      `두려워하지 마! ${child} 곁에는 언제나 든든한 내가 함께 있어!`,
+      `글자 하나씩 정복할 때마다 우리 왕국에 기쁨이 넘쳐나요!`,
+      `${child} 대장님과 함께라면 어떤 글자도 문제없어!`,
+      `포기하지 않는 ${child}의 눈빛이 황금빛처럼 빛나요!`,
     ];
   }
 
   return [
-    `${child}야, 사랑해! 네가 있어서 나는 매일매일 제일 행복해! 💖`,
-    `간질간질~ 헤헤헤! ${child}의 따뜻한 손길이 너무 좋아! 폭 안아줄래! 🥰`,
-    `틀려도 괜찮아, 천천히 소리 내면 ${child}는 이미 한글 박사님! 🎓`,
-    `오늘도 글자 하나 쏙! 내일은 두 배로 똑똑해질 거야! 🚀`,
-    `엄마랑 함께 웃으며 배우는 ${child}의 모습이 제일 멋져! 🌈`,
-    `하트 뿅뿅! 힘이 불끈불끈 솟아나요! 으라차차! 💪`,
-    `포기하지 않고 씩씩하게 해내는 네가 진짜 자랑스러워! 👏`,
-    `냠냠~ 맛있는 사랑을 먹었더니 키가 1cm 더 자란 것 같아! 🍓`,
-    `${child}야, 넌 밤하늘 별처럼 반짝이는 특별한 아이야! ✨`,
-    `우와! 방금 읽은 소리 진짜 맑고 우렁찼어! 최고야! 🎺`,
-    `내가 항상 곁에서 응원할게! 우리 ${child} 파이팅! 🥳`,
-    `네 미소를 보면 힘든 것도 사르르 녹아내려! 고마워! 🍯`,
-    `한 걸음 한 걸음 천천히 걷다 보면 30일 완주가 코앞이야! 🐾`,
-    `사랑의 하트 파워 가득! ${child}야 오늘도 제일 많이 사랑해! 💖`,
+    `${child}야, 사랑해! 네가 있어서 나는 매일매일 제일 행복해!`,
+    `간질간질 헤헤! ${child}의 따뜻한 손길이 너무 좋아!`,
+    `틀려도 괜찮아, 천천히 소리 내면 ${child}는 이미 한글 박사님!`,
+    `오늘도 글자 하나 쏙! 내일은 두 배로 똑똑해질 거야!`,
+    `엄마랑 함께 웃으며 배우는 ${child}의 모습이 제일 멋져!`,
+    `하트 뿅뿅! 힘이 불끈불끈 솟아나요!`,
+    `포기하지 않고 씩씩하게 해내는 네가 진짜 자랑스러워!`,
+    `냠냠 맛있는 열매를 먹었더니 키가 쑥 자란 것 같아!`,
+    `${child}야, 넌 밤하늘 별처럼 반짝이는 특별한 아이야!`,
+    `내가 항상 곁에서 응원할게! 우리 ${child} 파이팅!`,
   ];
 }
 
@@ -91,10 +80,13 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
   onUpdatePet,
   childName,
   onGoToCommunity,
+  onSharePetLevel,
   onSelectFriend,
 }) => {
   const [floatingHeart, setFloatingHeart] = useState(false);
   const [isEating, setIsEating] = useState(false);
+  const [feedPopText, setFeedPopText] = useState<string | null>(null);
+  const [levelUpBanner, setLevelUpBanner] = useState<number | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
   // Daily Quiz state
@@ -124,13 +116,12 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
   const currentLevel = petData.level;
   const currentStageName = petData.stageName;
   const nextReq = petData.nextReqExp;
-  const expPercent = petData.progressPercent;
+  const expPercent = Math.round(petData.progressPercent);
+  const expRemaining = Math.max(0, nextReq - petState.totalExp);
 
-  const berries = petState.berriesCount ?? 5;
-
+  const berries = petState.berriesCount ?? 50;
   const quiz = PET_QUIZZES[currentQuizIdx % PET_QUIZZES.length];
 
-  // Evolution display for Princess, Prince, and animal companions
   const getPetDisplay = () => {
     const isPrincess = friend.id === 'princess';
     const isPrince = friend.id === 'prince';
@@ -139,53 +130,52 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
     if (isPrincess) {
       switch (tier) {
         case 1:
-          return { emoji: '🥚', badge: '1단계 보석 요람 알 💎', title: '보석 알 속에서 잠자는 아기 공주님 🥚' };
+          return { emoji: '🥚', badge: '1단계 보석 요람 알', title: '보석 알 속에서 잠자는 아기 공주님' };
         case 2:
-          return { emoji: '👶', badge: '2단계 아기 공주님 🎀', title: '예쁜 옹알이를 시작한 아기 공주님 👶' };
+          return { emoji: '👶', badge: '2단계 아기 공주님', title: '예쁜 옹알이를 시작한 아기 공주님' };
         case 3:
-          return { emoji: '👸', badge: '3단계 호기심 공주님 💖', title: '한글 동화책을 읽는 사랑스러운 공주님 👸' };
+          return { emoji: '👸', badge: '3단계 호기심 공주님', title: '한글 동화책을 읽는 공주님' };
         case 4:
-          return { emoji: '👸', badge: '4단계 마법 티아라 공주님 🪄', title: '별빛 요술봉을 든 지혜로운 공주님 🪄' };
+          return { emoji: '👸', badge: '4단계 마법 티아라 공주님', title: '별빛 요술봉을 든 지혜로운 공주님' };
         case 5:
         default:
-          return { emoji: '👸', badge: '5단계 한글 여왕 공주님 👑', title: '황금 왕관을 쓴 빛나는 한글 여왕 공주님 👑' };
+          return { emoji: '👸', badge: '한글 여왕 공주님', title: '황금 왕관을 쓴 빛나는 공주님' };
       }
     }
 
     if (isPrince) {
       switch (tier) {
         case 1:
-          return { emoji: '🥚', badge: '1단계 용기의 요람 알 🛡️', title: '용기의 알 속에서 잠자는 아기 왕자님 🥚' };
+          return { emoji: '🥚', badge: '1단계 용기의 요람 알', title: '용기의 알 속에서 잠자는 아기 왕자님' };
         case 2:
-          return { emoji: '👶', badge: '2단계 아기 왕자님 🌟', title: '씩씩하게 방긋 웃는 아기 왕자님 👶' };
+          return { emoji: '👶', badge: '2단계 아기 왕자님', title: '씩씩하게 방긋 웃는 아기 왕자님' };
         case 3:
-          return { emoji: '🤴', badge: '3단계 호기심 왕자님 🗡️', title: '글자 지도를 펼친 씩씩한 왕자님 🤴' };
+          return { emoji: '🤴', badge: '3단계 호기심 왕자님', title: '글자 지도를 펼친 씩씩한 왕자님' };
         case 4:
-          return { emoji: '🤴', badge: '4단계 용기의 탐험 왕자님 🧭', title: '황금 망토를 두른 용감한 탐험 왕자님 🧭' };
+          return { emoji: '🤴', badge: '4단계 용기의 탐험 왕자님', title: '황금 망토를 두른 탐험 왕자님' };
         case 5:
         default:
-          return { emoji: '🤴', badge: '5단계 한글 국왕 왕자님 👑', title: '황금 왕관을 쓴 늠름한 한글 국왕 왕자님 👑' };
+          return { emoji: '🤴', badge: '한글 국왕 왕자님', title: '황금 왕관을 쓴 늠름한 왕자님' };
       }
     }
 
     switch (tier) {
       case 1:
-        return { emoji: '🥚', badge: '1단계 알', title: '알 속에서 잠자는 중 🥚' };
+        return { emoji: '🥚', badge: '1단계 알', title: '알 속에서 잠자는 중' };
       case 2:
-        return { emoji: '🐣', badge: '2단계 아기 삐약이', title: '방금 알을 깨고 나온 아기 🐣' };
+        return { emoji: '🐣', badge: '2단계 아기 삐약이', title: '방금 알을 깨고 나온 아기' };
       case 3:
-        return { emoji: friend.e, badge: '3단계 호기심쟁이', title: `${friend.name} 친구 🎒` };
+        return { emoji: friend.e, badge: '3단계 호기심쟁이', title: `${friend.name} 친구` };
       case 4:
-        return { emoji: friend.e, badge: '4단계 탐험가', title: `씩씩한 ${friend.name} 탐험가 🧭` };
+        return { emoji: friend.e, badge: '4단계 탐험가', title: `씩씩한 ${friend.name} 탐험가` };
       case 5:
       default:
-        return { emoji: friend.e, badge: '5단계 한글 마스터', title: `황금 왕관 ${friend.name} 👑` };
+        return { emoji: friend.e, badge: '한글 마스터', title: `황금 왕관 ${friend.name}` };
     }
   };
 
   const petDisplay = getPetDisplay();
 
-  // Trigger randomized warm cheering dialogue
   const triggerNewCheer = (skipSpeak = false) => {
     const list = getCheerLines(friend.id, childName);
     let nextIdx = Math.floor(Math.random() * list.length);
@@ -200,7 +190,19 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
     }
   };
 
-  // Pet action: Stroke / Love (+1 EXP capped at 5 strokes per day, unlimited affection)
+  const triggerLevelUpShow = (newLevel: number) => {
+    setLevelUpBanner(newLevel);
+    playSfx('levelup');
+    confetti({ particleCount: 75, spread: 85, origin: { y: 0.45 } });
+    setTimeout(() => {
+      confetti({ particleCount: 45, angle: 60, spread: 55, origin: { x: 0.1, y: 0.55 } });
+      confetti({ particleCount: 45, angle: 120, spread: 55, origin: { x: 0.9, y: 0.55 } });
+    }, 180);
+    setTimeout(() => {
+      setLevelUpBanner((prev) => (prev === newLevel ? null : prev));
+    }, 3200);
+  };
+
   const MAX_DAILY_STROKE_EXP = 5;
   const getTodayStrokeCount = (): number => {
     try {
@@ -217,7 +219,9 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
     setNoticeMessage(null);
     playSfx('pet');
     setFloatingHeart(true);
-    setTimeout(() => setFloatingHeart(false), 900);
+    setFeedPopText('+1 EXP 💖');
+    setTimeout(() => setFloatingHeart(false), 950);
+    setTimeout(() => setFeedPopText(null), 950);
 
     const usedStrokes = getTodayStrokeCount();
     const canGainStrokeExp = usedStrokes < MAX_DAILY_STROKE_EXP;
@@ -230,6 +234,8 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
           JSON.stringify({ date: todayStr, count: usedStrokes + 1 })
         );
       } catch {}
+    } else {
+      setFeedPopText('사랑 듬뿍 💕');
     }
 
     const predictedNextLevel = getPetLevelData(petState.totalExp + gainedExp).level;
@@ -241,12 +247,11 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
       const { level: newLevel, stageName } = getPetLevelData(nextTotalExp);
 
       if (newLevel > prev.level) {
-        playSfx('levelup');
-        confetti({ particleCount: 50, spread: 75, origin: { y: 0.5 } });
-        setNoticeMessage(`🎉 와아! 축하해요! 레벨 ${newLevel} (${stageName})로 성장했어요! ✨`);
-        speakKorean(`와아! ${childName || '친구'}야 나 레벨 ${newLevel}로 성장했어! 고마워!`, false);
+        triggerLevelUpShow(newLevel);
+        setNoticeMessage(`🎉 레벨 ${newLevel} 달성! ${stageName}로 자랐어요!`);
+        speakKorean(`와아! ${childName || '친구'}야, 나 레벨 ${newLevel}로 자랐어! 고마워!`);
       } else if (!canGainStrokeExp) {
-        setNoticeMessage('💖 오늘 쓰다듬기 경험치(5회)를 다 모았어요! 한글 학습과 글자 열매로 더 크게 자라요!');
+        setNoticeMessage('💖 오늘 쓰다듬기 경험치 5회를 다 모았어요! 열매와 한글 공부로 더 자라요!');
       }
 
       return {
@@ -261,35 +266,46 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
     triggerNewCheer(didLevelUp);
   };
 
-  // Pet action: Feed letter fruit (Consumes 1 berry, +10 EXP)
   const handleFeedLetter = () => {
     if (isEating) return;
 
     if (berries <= 0) {
       playSfx('tap');
-      setNoticeMessage('글자 열매가 다 떨어졌어요! 🍇 아래 오늘의 글자 퀴즈를 풀고 열매 5개를 받아보세요!');
+      setNoticeMessage('🍇 글자 열매가 없어요! 아래 오늘의 글자 퀴즈를 풀면 열매 5개를 바로 받아요!');
       setQuizOpen(true);
       return;
     }
 
     setNoticeMessage(null);
     setIsEating(true);
-    playSfx('pop');
+    setFloatingHeart(true);
+    setFeedPopText('+10 EXP 🍇✨');
+    playSfx('kiss');
+
+    confetti({
+      particleCount: 22,
+      spread: 50,
+      startVelocity: 22,
+      origin: { y: 0.45 },
+      colors: ['#F472B6', '#FBBF24', '#34D399', '#FB7185'],
+    });
 
     setTimeout(() => {
       setIsEating(false);
+      setFloatingHeart(false);
+      setFeedPopText(null);
       onUpdatePet((prev) => {
-        const nextBerries = Math.max(0, (prev.berriesCount ?? 5) - 1);
+        const nextBerries = Math.max(0, (prev.berriesCount ?? 50) - 1);
         const nextTotalExp = prev.totalExp + 10;
         const { level: newLevel, stageName } = getPetLevelData(nextTotalExp);
 
         if (newLevel > prev.level) {
-          playSfx('levelup');
-          confetti({ particleCount: 60, spread: 80, origin: { y: 0.5 } });
-          setNoticeMessage(`🎉 와아! 축하해요! 레벨 ${newLevel} (${stageName})로 성장했어요! 🚀`);
-          speakKorean(`와아! ${childName || '친구'}야 나 레벨 ${newLevel}로 성장했어! 고마워!`, false);
+          triggerLevelUpShow(newLevel);
+          setNoticeMessage(`🎉 축하해요! 레벨 ${newLevel} (${stageName})로 성장했어요!`);
+          speakKorean(`와아! ${childName || '친구'}야, 나 레벨 ${newLevel}로 자랐어! 고마워!`);
         } else {
-          speakKorean('냠냠! 글자 열매 너무 맛있다!', false);
+          setSpeechBubbleText(`냠냠! 글자 열매 진짜 달콤해! 고마워 ${childName || '친구'}야!`);
+          speakKorean('냠냠! 글자 열매 너무 맛있다!');
         }
 
         return {
@@ -301,30 +317,27 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
           happiness: Math.min(100, prev.happiness + 20),
         };
       });
-    }, 400);
+    }, 450);
   };
 
-  // Quiz: Check answer
   const handleSelectQuizOption = (idx: number) => {
     setSelectedOption(idx);
     const correct = idx === quiz.correct;
     setIsAnswerCorrect(correct);
     if (correct) {
       playSfx('pop');
-      speakKorean(`${quiz.answerText}! 정답이야! 소리 듣고 따라 해봐!`);
+      speakKorean(`${quiz.answerText}! 정답이야!`);
     } else {
       playSfx('tap');
       speakKorean('다시 한 번 생각해보자!');
     }
   };
 
-  // Quiz: Complete voice repeat & reward 5 berries + 15 EXP! (Daily 1-time limit)
   const handleCompleteVoiceRepeat = () => {
     playSfx('fan');
-    confetti({ particleCount: 40, spread: 70 });
+    confetti({ particleCount: 45, spread: 70 });
     setHasRepeatedVoice(true);
 
-    // Save daily 1-time quiz completion
     localStorage.setItem('hangul_pet_quiz_date', todayStr);
     setQuizDoneToday(true);
 
@@ -334,9 +347,8 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
       const { level: newLevel, stageName } = getPetLevelData(nextTotalExp);
 
       if (newLevel > prev.level) {
-        playSfx('levelup');
-        confetti({ particleCount: 50, spread: 75 });
-        setNoticeMessage(`🎉 와아! 축하해요! 레벨 ${newLevel} (${stageName})로 성장했어요! ✨`);
+        triggerLevelUpShow(newLevel);
+        setNoticeMessage(`🎉 레벨 ${newLevel} 달성! 열매 5개도 받았어요!`);
       }
 
       return {
@@ -348,299 +360,353 @@ export const PetGrowthModal: React.FC<PetGrowthModalProps> = ({
       };
     });
 
-    setNoticeMessage('🎉 오늘의 퀴즈 완료! 글자 열매 5개 + 경험치 +15 획득! 🍇');
+    setNoticeMessage('🎉 오늘의 퀴즈 완료! 글자 열매 5개 + 경험치 15 획득!');
     setTimeout(() => {
       setCurrentQuizIdx((prev) => prev + 1);
       setSelectedOption(null);
       setIsAnswerCorrect(null);
       setHasRepeatedVoice(false);
       setQuizOpen(false);
-    }, 1500);
+    }, 1300);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-      {/* Outer Modal Container with strict max-height and flex-col to avoid cutting off bottom */}
-      <div className="bg-[#fbf8f2] border-2 border-[#e4dccf] rounded-3xl w-full max-w-md box-border shadow-2xl flex flex-col max-h-[88vh] overflow-hidden relative animate-pop">
-        
-        {/* FIXED HEADER */}
-        <div className="px-4 pt-3.5 pb-3 sm:px-5 sm:pt-4 border-b border-[#eedfc9] bg-white/80 flex-none relative">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gradient-to-b from-[#FFFDF8] to-[#FFF6EA] border-2 border-[#EADBC8] rounded-3xl w-full max-w-md box-border shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden relative animate-pop"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* COMPACT FIXED HEADER + FRIEND SWITCHER */}
+        <div className="px-3.5 pt-3 pb-2.5 sm:px-4 border-b border-[#F1E2CF] bg-white/95 flex-none relative">
           <button
-            onClick={() => {
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
               playSfx('tap');
               onClose();
             }}
-            className="absolute top-3.5 right-3.5 z-10 w-9 h-9 rounded-full bg-white border border-[#e4dccf] flex items-center justify-center text-[#8a8178] hover:text-[#1b1917] transition-colors"
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              playSfx('tap');
+              onClose();
+            }}
+            className="absolute top-2.5 right-2.5 z-30 w-10 h-10 min-w-[44px] min-h-[44px] rounded-full bg-[#FFF7EE] hover:bg-[#FDE8D3] border border-[#EBD5BE] flex items-center justify-center text-[#786D62] hover:text-[#1b1917] transition-all shadow-2xs active:scale-95 cursor-pointer"
+            aria-label="닫기"
             title="닫기"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
 
-          <div className="text-center space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#fdf3e4] text-[#c9502f] text-xs font-jua">
-              <Sparkles className="w-3.5 h-3.5" />
-              다마고치 친구
+          <div className="flex items-center gap-2 pr-12">
+            <span className="w-8 h-8 rounded-xl bg-[#FFF0E6] border border-[#F8D0BC] flex items-center justify-center text-lg shrink-0">
+              🏡
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-jua text-[#1b1917] truncate">
+                {friend.name}의 비밀 놀이터
+              </h2>
+              <p className="text-[11px] font-hand text-[#857A6E] truncate">
+                한글 공부를 할수록 {friend.name}가 쑥쑥 자라나요!
+              </p>
             </div>
-            <h2 className="text-lg sm:text-xl font-jua text-[#1b1917]">
-              {friend.name}의 방 🏡
-            </h2>
+          </div>
 
-            {/* Horizontal Snap Carousel Friend Switcher (5-7yo finger-friendly >=72px) */}
-            {onSelectFriend && (
-              <div className="flex items-center gap-2 overflow-x-auto snap-x snap-mandatory no-scrollbar py-1.5 px-1.5">
-                {FRIENDS.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => {
-                      playSfx('pop');
-                      onSelectFriend(f.id);
-                      setSpeechBubbleText(getCheerLines(f.id, childName)[0]);
-                    }}
-                    className={`snap-center min-w-[72px] min-h-[72px] px-2.5 py-2 rounded-2xl font-jua flex flex-col items-center justify-center gap-1 flex-none transition-all active:scale-95 shadow-sm ${
-                      friend.id === f.id
-                        ? 'bg-[#fff5f2] text-[#c9502f] border-2 border-orange-500 ring-2 ring-orange-500/20'
-                        : 'bg-white text-[#4a443e] border border-[#e4dccf] hover:border-orange-300'
-                    }`}
-                  >
-                    <span className="text-3xl leading-none select-none">{f.e}</span>
-                    <span className="text-xs whitespace-nowrap">{f.name}</span>
-                  </button>
-                ))}
+          {onSelectFriend && (
+            <div className="flex items-center gap-1.5 overflow-x-auto snap-x snap-mandatory no-scrollbar pt-2">
+              {FRIENDS.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => {
+                    playSfx('pop');
+                    onSelectFriend(f.id);
+                    setSpeechBubbleText(getCheerLines(f.id, childName)[0]);
+                  }}
+                  className={`snap-center min-h-[44px] px-2.5 py-1.5 rounded-2xl font-jua flex items-center gap-1.5 flex-none transition-all active:scale-95 ${
+                    friend.id === f.id
+                      ? 'bg-[#FFF0EA] text-[#D95338] border-2 border-[#E76F51] shadow-2xs'
+                      : 'bg-[#FAF6F0] text-[#5E554D] border border-[#EAE0D3] hover:border-[#E76F51]/50'
+                  }`}
+                >
+                  <span className="text-xl leading-none select-none">{f.e}</span>
+                  <span className="text-xs whitespace-nowrap">{f.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* SCROLLABLE BODY WITH ZERO-SCROLL STICKY ONE-TOUCH ACTION DOCK */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-3.5 py-2.5 sm:px-4 space-y-2.5 scrollbar-thin pb-5 text-center box-border">
+          {/* Dynamic Speech Bubble (Tap for clean voice) */}
+          <button
+            type="button"
+            onClick={() => triggerNewCheer()}
+            className="w-full text-left bg-white border border-[#EEDCC8] rounded-2xl px-3 py-2 shadow-2xs hover:border-[#E76F51] transition-all flex items-center justify-between gap-2 active:scale-[0.99]"
+            title="누르면 새로운 응원 목소리가 나와요!"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <MessageCircle className="w-4 h-4 text-[#E76F51] shrink-0" />
+              <p className="text-xs font-jua text-[#2D2825] leading-snug break-keep">
+                {speechBubbleText}
+              </p>
+            </div>
+            <Volume2 className="w-4 h-4 text-[#E76F51] shrink-0" />
+          </button>
+
+          {/* Animated Tamagotchi Stage */}
+          <div
+            className={`relative rounded-3xl px-4 py-3 border-2 transition-all duration-300 overflow-hidden ${
+              levelUpBanner
+                ? 'bg-gradient-to-b from-[#FFF9D6] via-[#FFF2C6] to-[#FFE7B8] border-amber-400 shadow-lg'
+                : isEating
+                ? 'bg-gradient-to-b from-[#FFF4EB] via-[#FFE9DC] to-[#FFF5EC] border-[#F4A261] shadow-md'
+                : 'bg-gradient-to-b from-[#FDF5EB] to-[#FFFDF9] border-[#EBD8C3] shadow-inner'
+            }`}
+          >
+            {/* Level-Up Celebration Banner */}
+            {levelUpBanner && (
+              <div className="mb-1.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-white font-jua text-xs shadow-sm animate-bounce">
+                <Trophy className="w-3.5 h-3.5" />
+                <span>LEVEL UP! Lv.{levelUpBanner} 성장 완료!</span>
               </div>
             )}
 
-            {/* Berries Bar */}
-            <div className="flex items-center justify-center text-xs font-jua">
-              <span className="px-3.5 py-1 rounded-full bg-[#f6edfd] border border-[#e0c4f7] text-[#6b21a8] flex items-center gap-1.5 shadow-2xs">
-                <span>🍇 글자 열매:</span>
-                <b className="text-sm text-[#7e22ce]">{berries}개</b>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* SCROLLABLE BODY (Never clipped, comfortable scrolling on all devices) */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 sm:px-5 sm:py-4 space-y-3.5 scrollbar-thin pb-8 text-center box-border">
-          
-          {/* Notice Message if any */}
-          {noticeMessage && (
-            <div className="p-2.5 rounded-2xl bg-[#fff9ea] border border-[#f5dd9f] text-[#6c5421] text-xs font-hand animate-pop">
-              {noticeMessage}
-            </div>
-          )}
-
-          {/* Dynamic Interactive Speech Bubble (Changes on tap!) */}
-          <div
-            onClick={() => triggerNewCheer()}
-            className="cursor-pointer bg-white border-2 border-[#eedfc9] rounded-2xl p-2.5 sm:p-3 shadow-xs hover:border-[#c9502f] transition-all relative group"
-            title="캐릭터를 누르면 신나고 따뜻한 힘찬 응원을 들려줘요!"
-          >
-            <div className="flex items-center justify-between text-[11px] text-[#c9502f] font-jua mb-1">
-              <span className="flex items-center gap-1">
-                <MessageCircle className="w-3.5 h-3.5" />
-                {friend.name}의 한마디 (탭하면 새로운 대사!)
-              </span>
-              <Volume2 className="w-3.5 h-3.5 text-[#c9502f] group-hover:scale-110 transition-transform" />
-            </div>
-            <p className="text-xs sm:text-sm font-jua text-[#1b1917] leading-relaxed">
-              "{speechBubbleText}"
-            </p>
-          </div>
-
-          {/* Pet Stage Avatar Showcase */}
-          <div className="relative bg-gradient-to-b from-[#fdf6ec] to-[#fbf8f2] rounded-3xl p-4 sm:p-5 border-2 border-[#e4dccf] shadow-inner space-y-2.5">
-            {/* Level badge */}
-            <div className="inline-block px-3 py-0.5 rounded-full bg-white border border-[#eedfc9] text-xs font-bold font-jua text-[#c9502f]">
-              {petDisplay.badge} (Lv.{petState.level})
-            </div>
-
-            {/* Big Animated Pet Avatar (>=128px) */}
-            <div className="relative w-36 h-36 mx-auto flex items-center justify-center">
+            <div className="relative w-32 h-32 mx-auto flex items-center justify-center">
               <button
                 type="button"
                 onClick={handlePetFriend}
-                className={`w-32 h-32 rounded-full bg-white border-4 border-[#eedfc9] flex items-center justify-center text-6xl shadow-md cursor-pointer transition-transform active:scale-95 hover:scale-105 ${
-                  isEating ? 'animate-bounce' : 'animate-float'
+                className={`w-28 h-28 rounded-full bg-white border-4 flex items-center justify-center text-6xl shadow-md cursor-pointer transition-all duration-300 active:scale-90 ${
+                  isEating
+                    ? 'animate-bounce scale-110 border-amber-400 ring-4 ring-amber-300/60 shadow-[0_0_26px_rgba(251,191,36,0.65)]'
+                    : floatingHeart
+                    ? 'scale-105 border-rose-300 ring-4 ring-rose-200/70 shadow-[0_0_22px_rgba(244,63,94,0.35)]'
+                    : 'animate-float border-[#EEDFC9] hover:scale-105'
                 }`}
                 title="친구를 톡톡 쓰다듬어주세요!"
               >
                 <span className="select-none">{petDisplay.emoji}</span>
               </button>
 
-              {/* Special Level 5+ Crown / Tiara */}
               {petState.level >= 5 && (
-                <span className="absolute -top-2 text-3xl">👑</span>
+                <span className="absolute -top-1 text-2xl animate-bounce pointer-events-none">👑</span>
               )}
-
-              {/* Princess special wand badge or Prince sword badge */}
               {friend.id === 'princess' && petState.level >= 4 && (
-                <span className="absolute bottom-1 right-1 text-2xl">🪄</span>
+                <span className="absolute bottom-1 right-1 text-xl pointer-events-none">🪄</span>
               )}
               {friend.id === 'prince' && petState.level >= 4 && (
-                <span className="absolute bottom-1 right-1 text-2xl">⚔️</span>
+                <span className="absolute bottom-1 right-1 text-xl pointer-events-none">⚔️</span>
               )}
 
-              {/* Floating Heart Particles */}
+              {/* Burst Hearts & +EXP Popup */}
               {floatingHeart && (
-                <div className="absolute -top-3 inset-x-0 flex justify-center gap-3 text-3xl animate-pop pointer-events-none">
-                  <span>💖</span>
+                <div className="absolute -top-2 inset-x-0 flex justify-center gap-2.5 text-2xl animate-pop pointer-events-none">
+                  <span>{isEating ? '🍇' : '💖'}</span>
                   <span>✨</span>
-                  <span>💕</span>
+                  <span>{isEating ? '💖' : '💕'}</span>
+                </div>
+              )}
+              {feedPopText && (
+                <div className="absolute -bottom-1 px-2.5 py-0.5 rounded-full bg-[#E76F51] text-white font-jua text-[11px] shadow-md animate-pop pointer-events-none">
+                  {feedPopText}
                 </div>
               )}
             </div>
 
-            <div className="space-y-0.5">
-              <h3 className="font-jua text-base sm:text-lg text-[#1b1917] break-keep">
+            <div className="mt-1">
+              <h3 className="font-jua text-sm sm:text-base text-[#1b1917] break-keep">
                 {petDisplay.title}
               </h3>
-              <p className="text-xs text-[#8a8178] font-hand break-keep">
-                친구를 터치하면 하트가 뿅뿅 올라가요!
-              </p>
             </div>
+          </div>
 
-            {/* Thick Kid-Friendly Experience Bar */}
-            <div className="space-y-1.5 pt-1 text-left">
-              <div className="flex flex-wrap justify-between gap-1 text-xs font-bold text-[#8a8178]">
-                <span>Lv.{currentLevel} · {currentStageName}</span>
-                <span>
-                  {petData.isMaxLevel ? '최고 레벨 👑' : `${petState.totalExp} / ${nextReq} EXP`}
+          {/* STICKY CHARACTER STATUS BAR + ONE-TOUCH FEED / PET BUTTONS */}
+          <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border-2 border-[#F1D8C2] shadow-[0_6px_18px_rgba(231,111,81,0.12)] space-y-2.5">
+            {/* Compact Status & EXP Bar */}
+            <div className="space-y-1 text-left">
+              <div className="flex items-center justify-between gap-1.5 text-xs font-jua">
+                <span className="text-[#D95338] truncate">
+                  Lv.{currentLevel} · {currentStageName}
                 </span>
+                <div className="flex items-center gap-2 shrink-0 text-[11px]">
+                  <span className="text-purple-700 font-bold">🍇 {berries}개</span>
+                  <span className="text-rose-600 font-bold">💖 {petState.happiness}%</span>
+                </div>
               </div>
-              <div className="h-4 w-full bg-[#e4dccf] rounded-full overflow-hidden p-0.5 shadow-inner">
+              <div className="h-3 w-full bg-[#EFE5D8] rounded-full overflow-hidden p-0.5 shadow-inner">
                 <div
-                  className="h-full bg-gradient-to-r from-[#f2c14e] to-[#c9502f] rounded-full transition-all duration-500"
+                  className="h-full bg-gradient-to-r from-[#FBBF24] via-[#F4845F] to-[#D95338] rounded-full transition-all duration-500"
                   style={{ width: `${Math.max(6, expPercent)}%` }}
                 />
               </div>
+              <div className="flex justify-between text-[10px] font-hand text-[#857A6E]">
+                <span>{petData.isMaxLevel ? '최고 레벨 달성!' : `다음 레벨까지 ${expRemaining} EXP`}</span>
+                <span>{expPercent}%</span>
+              </div>
+            </div>
+
+            {/* One-Touch Primary Action Buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handlePetFriend}
+                className="min-h-[48px] flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-2xl bg-[#FFF5F2] hover:bg-[#FFE8E1] border-2 border-[#F5B8A6] text-[#C9502F] font-jua text-sm shadow-2xs active:scale-95 transition-all whitespace-nowrap cursor-pointer"
+              >
+                <Heart className="w-4 h-4 fill-[#C9502F] shrink-0" />
+                <span>쓰다듬기 💖</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleFeedLetter}
+                disabled={isEating}
+                className={`min-h-[48px] flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-2xl font-jua text-sm shadow-md active:scale-95 transition-all disabled:opacity-70 whitespace-nowrap cursor-pointer ${
+                  berries > 0
+                    ? 'bg-gradient-to-r from-[#E76F51] to-[#D95338] hover:from-[#D95D40] hover:to-[#C4452B] text-white'
+                    : 'bg-purple-600 hover:bg-purple-700 text-white'
+                }`}
+              >
+                <Apple className="w-4 h-4 shrink-0" />
+                <span>{berries > 0 ? '열매 먹이기 🍇' : '열매 받기 🍇'}</span>
+              </button>
             </div>
           </div>
 
-          {/* Pet Interaction Action Buttons (>=48px) */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <button
-              onClick={handlePetFriend}
-              className="min-h-[48px] flex items-center justify-center gap-1.5 py-3 px-2 rounded-2xl bg-white border-2 border-[#f5b8a6] text-[#c9502f] font-jua text-sm shadow-xs hover:bg-[#fff5f2] active:scale-95 transition-all whitespace-nowrap"
-              title="친구를 톡톡 쓰다듬어 사랑을 전해요"
-            >
-              <Heart className="w-4 h-4 fill-[#c9502f] shrink-0" />
-              <span>쓰다듬기 💖</span>
-            </button>
+          {/* Notice Banner */}
+          {noticeMessage && (
+            <div className="p-2.5 rounded-2xl bg-[#FFF9EA] border border-[#F5DD9F] text-[#6C5421] text-xs font-jua animate-pop break-keep">
+              {noticeMessage}
+            </div>
+          )}
 
+          {/* Social Share Card: Share Pet Level to Community */}
+          {(onSharePetLevel || onGoToCommunity) && (
             <button
-              onClick={handleFeedLetter}
-              disabled={isEating}
-              className="min-h-[48px] flex items-center justify-center gap-1.5 py-3 px-2 rounded-2xl bg-[#c9502f] hover:bg-[#b84324] text-white font-jua text-sm shadow-md active:scale-95 transition-all disabled:opacity-70 whitespace-nowrap"
-              title="글자 열매 1개를 먹여요"
+              type="button"
+              onClick={() => {
+                playSfx('pop');
+                if (onSharePetLevel) {
+                  onSharePetLevel();
+                } else {
+                  onClose();
+                  onGoToCommunity?.();
+                }
+              }}
+              className="w-full min-h-[46px] p-3 rounded-2xl bg-gradient-to-r from-[#EFF6FF] to-[#F3E8FF] hover:from-[#E4EEFF] hover:to-[#EAD8FF] border border-[#D8C8FA] flex items-center justify-between gap-2 text-left active:scale-[0.99] transition-all cursor-pointer"
             >
-              <Apple className="w-4 h-4 shrink-0" />
-              <span>열매 먹이기 🍇</span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-8 h-8 rounded-xl bg-white border border-[#DFD2FA] flex items-center justify-center text-lg shrink-0">
+                  {petDisplay.emoji}
+                </span>
+                <div className="min-w-0">
+                  <div className="font-jua text-xs text-[#2D2825] truncate">
+                    우리 {friend.name} (Lv.{currentLevel}) 광장에 자랑하기
+                  </div>
+                  <div className="text-[10px] font-hand text-[#6D5F8A] truncate">
+                    게시물에 내 다마고치 뱃지를 달고 칭찬 열매도 주고받아요!
+                  </div>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white text-[#6B21A8] border border-[#E2D4FA] font-jua text-[11px] shrink-0 whitespace-nowrap">
+                <Share2 className="w-3 h-3" /> 자랑하기
+              </span>
             </button>
-          </div>
+          )}
 
           {/* Letter Berry Quiz Section (Daily 1-Time Limit) */}
-          <div className="bg-white rounded-2xl p-3.5 border border-[#e4dccf] text-left space-y-2.5">
-            <div className="flex items-center justify-between">
+          <div className="bg-white rounded-2xl p-3.5 border border-[#E4DCCF] text-left space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
               <h4 className="font-jua text-xs sm:text-sm text-[#1b1917] flex items-center gap-1.5">
                 <span>🍇</span>
-                오늘의 글자 퀴즈 (하루 1회 열매 5개!)
+                오늘의 글자 퀴즈 (열매 +5개)
               </h4>
               {quizDoneToday ? (
-                <span className="text-[11px] font-jua text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                <span className="text-[11px] font-jua text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 shrink-0">
                   오늘 완료 ✨
                 </span>
               ) : (
                 <button
+                  type="button"
                   onClick={() => {
                     playSfx('tap');
                     setQuizOpen(!quizOpen);
                   }}
-                  className="text-xs font-jua text-[#c9502f] hover:underline"
+                  className="text-xs font-jua text-[#C9502F] hover:underline shrink-0"
                 >
-                  {quizOpen ? '접기 ▲' : '퀴즈 시작 ▼'}
+                  {quizOpen ? '접기 ▲' : '퀴즈 풀기 ▼'}
                 </button>
               )}
             </div>
 
             {quizDoneToday ? (
-              <div className="p-2.5 rounded-xl bg-[#f0f9ed] border border-[#c1e7ba] text-center text-xs font-jua text-[#237d3d] space-y-0.5">
-                <p>🎉 오늘의 글자 퀴즈를 모두 맞히고 열매 5개를 받았어요!</p>
-                <p className="text-[10px] font-hand text-[#327844]">내일 새로운 퀴즈로 열매 5개를 또 받을 수 있어요 🌙</p>
+              <div className="p-2.5 rounded-xl bg-[#F0F9ED] border border-[#C1E7BA] text-center text-xs font-jua text-[#237D3D] space-y-0.5">
+                <p>오늘의 글자 퀴즈를 풀고 열매 5개를 받았어요!</p>
+                <p className="text-[10px] font-hand text-[#327844]">내일 새로운 퀴즈로 열매 5개를 또 받을 수 있어요</p>
               </div>
-            ) : quizOpen && (
-              <div className="pt-2 border-t border-[#f0ebe1] space-y-2.5 animate-fadeIn">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-jua text-sm text-[#1b1917]">
-                    Q. {quiz.question}
-                  </p>
-                  <button
-                    onClick={() => speakKorean(quiz.sound)}
-                    className="flex-none p-1.5 rounded-xl bg-[#fdf3e4] text-[#c9502f] hover:bg-[#fae2c1] transition-colors"
-                    title="소리 듣기"
-                  >
-                    <Volume2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* 3 Options */}
-                <div className="grid grid-cols-3 gap-2">
-                  {quiz.options.map((opt, i) => (
+            ) : (
+              quizOpen && (
+                <div className="pt-2 border-t border-[#F0EBE1] space-y-2.5 animate-fadeIn">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-jua text-sm text-[#1b1917]">Q. {quiz.question}</p>
                     <button
-                      key={i}
-                      onClick={() => handleSelectQuizOption(i)}
-                      className={`py-2 rounded-xl font-jua text-base border transition-all ${
-                        selectedOption === i
-                          ? i === quiz.correct
-                            ? 'bg-[#437a22] text-white border-[#437a22] shadow-sm'
-                            : 'bg-red-500 text-white border-red-500'
-                          : 'bg-[#faf8f5] text-[#1b1917] border-[#e4dccf] hover:border-[#c9502f]'
-                      }`}
+                      type="button"
+                      onClick={() => speakKorean(quiz.sound)}
+                      className="flex-none p-1.5 rounded-xl bg-[#FDF3E4] text-[#C9502F] hover:bg-[#FAE2C1] transition-colors"
+                      title="소리 듣기"
                     >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-
-                {/* If right answer, show follow-along repeat button */}
-                {isAnswerCorrect && (
-                  <div className="bg-[#f0f9ed] border border-[#c1e7ba] p-3 rounded-xl space-y-2 text-center animate-pop">
-                    <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#237d3d] font-jua">
-                      <CheckCircle2 className="w-4 h-4" />
-                      정답! "{quiz.sound}" 소리가 나요!
-                    </div>
-                    <button
-                      onClick={handleCompleteVoiceRepeat}
-                      disabled={hasRepeatedVoice}
-                      className="w-full py-2 px-3 rounded-xl bg-[#237d3d] text-white font-jua text-xs shadow-xs hover:bg-[#1e6a34] active:scale-95 flex items-center justify-center gap-1.5"
-                    >
-                      <Mic className="w-3.5 h-3.5" />
-                      큰소리로 따라 말했어요! (오늘 열매 +5개 받기 🍇)
+                      <Volume2 className="w-4 h-4" />
                     </button>
                   </div>
-                )}
-              </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {quiz.options.map((opt, i) => (
+                      <button
+                        type="button"
+                        key={i}
+                        onClick={() => handleSelectQuizOption(i)}
+                        className={`py-2 rounded-xl font-jua text-base border transition-all ${
+                          selectedOption === i
+                            ? i === quiz.correct
+                              ? 'bg-[#437A22] text-white border-[#437A22] shadow-sm'
+                              : 'bg-red-500 text-white border-red-500'
+                            : 'bg-[#FAF8F5] text-[#1b1917] border-[#E4DCCF] hover:border-[#C9502F]'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+
+                  {isAnswerCorrect && (
+                    <div className="bg-[#F0F9ED] border border-[#C1E7BA] p-3 rounded-xl space-y-2 text-center animate-pop">
+                      <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#237D3D] font-jua">
+                        <CheckCircle2 className="w-4 h-4" />
+                        정답! "{quiz.sound}" 소리가 나요!
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCompleteVoiceRepeat}
+                        disabled={hasRepeatedVoice}
+                        className="w-full min-h-[42px] py-2 px-3 rounded-xl bg-[#237D3D] text-white font-jua text-xs shadow-xs hover:bg-[#1E6A34] active:scale-95 flex items-center justify-center gap-1.5"
+                      >
+                        <Mic className="w-3.5 h-3.5" />
+                        큰소리로 따라 말했어요! (열매 +5개 받기 🍇)
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
             )}
 
-            <p className="text-[10px] text-[#8a8178] font-hand">
-              💡 글자 열매는 <b>하루 1번 퀴즈(+5개)</b>, <b>30일 미션 완료(+3개)</b>로 쑥쑥 모을 수 있어요!
+            <p className="text-[10px] text-[#8A8178] font-hand">
+              💡 글자 열매는 <b>오늘의 퀴즈(+5개)</b>와 <b>30일 체크리스트(+3개)</b>에서 모을 수 있어요!
             </p>
           </div>
         </div>
-
-        {/* FIXED FOOTER WITH FULL-WIDTH CLOSE BUTTON */}
-        <div className="p-3 sm:p-4 border-t border-[#eedfc9] bg-white/90 flex-none">
-          <button
-            onClick={() => {
-              playSfx('tap');
-              onClose();
-            }}
-            className="w-full min-h-[48px] py-3 rounded-2xl bg-[#1b1917] hover:bg-black text-white font-jua text-sm shadow-sm active:scale-95 transition-all"
-          >
-            닫기
-          </button>
-        </div>
-
       </div>
     </div>
   );
